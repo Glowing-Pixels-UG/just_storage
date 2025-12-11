@@ -62,3 +62,52 @@ impl std::str::FromStr for Namespace {
         Self::new(s.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_namespace_new_valid() {
+        let namespace = Namespace::new("valid-namespace_123".to_string()).unwrap();
+        assert_eq!(namespace.as_str(), "valid-namespace_123");
+    }
+
+    #[test]
+    fn test_namespace_new_empty() {
+        let err = Namespace::new("".to_string()).unwrap_err();
+        assert!(matches!(err, DomainError::InvalidNamespace(_)));
+    }
+
+    #[test]
+    fn test_namespace_new_too_long() {
+        let long_name = "a".repeat(Namespace::MAX_LENGTH + 1);
+        let err = Namespace::new(long_name).unwrap_err();
+        assert!(matches!(err, DomainError::InvalidNamespace(_)));
+    }
+
+    #[test]
+    fn test_namespace_new_invalid_chars() {
+        let err = Namespace::new("invalid!".to_string()).unwrap_err();
+        assert!(matches!(err, DomainError::InvalidNamespace(_)));
+    }
+
+    #[test]
+    fn test_namespace_from_str_valid() {
+        let namespace = Namespace::from_str("valid-namespace").unwrap();
+        assert_eq!(namespace.as_str(), "valid-namespace");
+    }
+
+    #[test]
+    fn test_namespace_display() {
+        let namespace = Namespace::new("display-me".to_string()).unwrap();
+        assert_eq!(format!("{}", namespace), "display-me");
+    }
+
+    #[test]
+    fn test_namespace_default() {
+        let namespace = Namespace::default();
+        assert_eq!(namespace.as_str(), "default");
+    }
+}

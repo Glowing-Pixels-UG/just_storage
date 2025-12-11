@@ -49,7 +49,9 @@ impl Blob {
 
     /// Decrement reference count
     pub fn decrement_ref(&mut self) {
-        self.ref_count = self.ref_count.saturating_sub(1);
+        if self.ref_count > 0 {
+            self.ref_count -= 1;
+        }
     }
 
     /// Check if blob can be garbage collected
@@ -76,5 +78,54 @@ impl Blob {
 
     pub fn created_at(&self) -> DateTime<Utc> {
         self.created_at
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::value_objects::ContentHash;
+    use std::str::FromStr;
+
+    fn create_test_blob() -> Blob {
+        let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+        Blob::new(content_hash, StorageClass::Hot, 123)
+    }
+
+    #[test]
+    fn test_blob_new() {
+        let blob = create_test_blob();
+        assert_eq!(blob.ref_count(), 1);
+        assert!(!blob.can_gc());
+    }
+
+    #[test]
+    fn test_blob_increment_ref() {
+        let mut blob = create_test_blob();
+        blob.increment_ref();
+        assert_eq!(blob.ref_count(), 2);
+    }
+
+    #[test]
+    fn test_blob_decrement_ref() {
+        let mut blob = create_test_blob();
+        blob.increment_ref();
+        blob.decrement_ref();
+        assert_eq!(blob.ref_count(), 1);
+    }
+
+    #[test]
+    fn test_blob_decrement_ref_and_can_gc() {
+        let mut blob = create_test_blob();
+        assert_eq!(blob.ref_count(), 1);
+        assert!(!blob.can_gc());
+
+        blob.decrement_ref();
+        assert_eq!(blob.ref_count(), 0);
+        assert!(blob.can_gc());
+
+        blob.decrement_ref();
+        assert_eq!(blob.ref_count(), 0);
+        assert!(blob.can_gc());
     }
 }
