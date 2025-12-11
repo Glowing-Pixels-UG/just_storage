@@ -36,3 +36,44 @@ impl std::str::FromStr for TenantId {
         Self::from_string(s)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_tenant_id_new() {
+        let uuid = Uuid::new_v4();
+        let tenant_id = TenantId::new(uuid);
+        assert_eq!(tenant_id.as_uuid(), &uuid);
+    }
+
+    #[test]
+    fn test_tenant_id_from_string_valid() {
+        let uuid = Uuid::new_v4();
+        let tenant_id = TenantId::from_string(&uuid.to_string()).unwrap();
+        assert_eq!(tenant_id.as_uuid(), &uuid);
+    }
+
+    #[test]
+    fn test_tenant_id_from_string_invalid() {
+        let err = TenantId::from_string("invalid-uuid").unwrap_err();
+        assert!(matches!(err, DomainError::InvalidTenantId(_)));
+    }
+
+    #[test]
+    fn test_tenant_id_display() {
+        let uuid = Uuid::new_v4();
+        let tenant_id = TenantId::new(uuid);
+        assert_eq!(format!("{}", tenant_id), uuid.to_string());
+    }
+
+    #[test]
+    fn test_tenant_id_from_str_valid() {
+        let uuid = Uuid::new_v4();
+        let tenant_id = TenantId::from_str(&uuid.to_string()).unwrap();
+        assert_eq!(tenant_id.as_uuid(), &uuid);
+    }
+}

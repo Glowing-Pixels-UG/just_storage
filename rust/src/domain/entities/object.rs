@@ -198,3 +198,126 @@ impl Object {
         self.status == ObjectStatus::Committed
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::value_objects::{Namespace, TenantId};
+    use std::str::FromStr;
+    use uuid::Uuid;
+
+    fn create_test_object() -> Object {
+        let tenant_id = TenantId::new(Uuid::new_v4());
+        let namespace = Namespace::from_str("test-namespace").unwrap();
+        Object::new(namespace, tenant_id, Some("test-key".to_string()), StorageClass::Hot)
+    }
+
+    #[test]
+    fn test_object_new() {
+        let object = create_test_object();
+        assert_eq!(object.status(), ObjectStatus::Writing);
+        assert!(object.content_hash().is_none());
+        assert!(object.size_bytes().is_none());
+    }
+
+    #[test]
+    fn test_object_commit_valid() {
+        let mut object = create_test_object();
+        let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+        let size_bytes = 123;
+
+        object.commit(content_hash.clone(), size_bytes).unwrap();
+
+        assert_eq!(object.status(), ObjectStatus::Committed);
+        assert_eq!(object.content_hash(), Some(&content_hash));
+        assert_eq!(object.size_bytes(), Some(size_bytes));
+    }
+
+    #[test]
+    fn test_object_commit_invalid_state() {
+        let mut object = create_test_object();
+        let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+        object.commit(content_hash.clone(), 123).unwrap();
+
+        let err = object.commit(content_hash, 123).unwrap_err();
+        assert!(matches!(err, DomainError::InvalidStateTransition { .. }));
+    }
+
+    #[test]
+    fn test_object_mark_for_deletion_valid() {
+        let mut object = create_test_object();
+        let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+        object.commit(content_hash, 123).unwrap();
+
+        object.mark_for_deletion().unwrap();
+        assert_eq!(object.status(), ObjectStatus::Deleting);
+    }
+
+    #[test]
+    fn test_object_mark_for_deletion_invalid_state() {
+        let mut object = create_test_object();
+        let err = object.mark_for_deletion().unwrap_err();
+        assert!(matches!(err, DomainError::CannotDeleteNonCommitted));
+    }
+
+    #[test]
+    fn test_object_mark_deleted_valid() {
+        let mut object = create_test_object();
+        let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+        object.commit(content_hash, 123).unwrap();
+        object.mark_for_deletion().unwrap();
+
+        object.mark_deleted().unwrap();
+        assert_eq!(object.status(), ObjectStatus::Deleted);
+    }
+
+    #[test]
+    fn test_object_mark_deleted_invalid_state() {
+        let mut object = create_test_object();
+        let err = object.mark_deleted().unwrap_err();
+        assert!(matches!(err, DomainError::InvalidStateTransition { .. }));
+    }
+
+    #[test]
+    fn test_object_is_readable() {
+        let mut object = create_test_object();
+        assert!(!object.is_readable());
+
+        let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+        object.commit(content_hash, 123).unwrap();
+        assert!(object.is_readable());
+
+        object.mark_for_deletion().unwrap();
+        assert!(!object.is_readable());
+    }
+
+    #[test]
+    fn test_object_is_terminal() {
+        let mut object = create_test_object();
+        assert!(!object.is_terminal());
+
+        let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+        object.commit(content_hash, 123).unwrap();
+        assert!(!object.is_terminal());
+
+        object.mark_for_deletion().unwrap();
+        assert!(!object.is_terminal());
+
+        object.mark_deleted().unwrap();
+        assert!(object.is_terminal());
+    }
+
+    #[test]
+    fn test_set_content_type() {
+        let mut object = create_test_object();
+        let original_updated_at = object.updated_at();
+        let content_type = "application/json".to_string();
+
+        // Allow some time to pass
+        std::thread::sleep(std::time::Duration::from_millis(1));
+
+        object.set_content_type(content_type.clone());
+        assert_eq!(object.content_type(), Some(content_type.as_str()));
+        assert!(object.updated_at() > original_updated_at);
+    }
+}
