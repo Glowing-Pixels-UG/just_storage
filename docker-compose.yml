@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: activestorage
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  activestorage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://postgres:password@postgres:5432/activestorage
+      HOT_STORAGE_ROOT: /data/hot
+      COLD_STORAGE_ROOT: /data/cold
+      LISTEN_ADDR: 0.0.0.0:8080
+      GC_INTERVAL_SECS: 60
+      GC_BATCH_SIZE: 100
+      RUST_LOG: info
+    ports:
+      - "8080:8080"
+    volumes:
+      - hot_storage:/data/hot
+      - cold_storage:/data/cold
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  hot_storage:
+  cold_storage:
