@@ -20,6 +20,36 @@ impl std::fmt::Display for StorageClass {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_storage_class_display() {
+        assert_eq!(format!("{}", StorageClass::Hot), "hot");
+        assert_eq!(format!("{}", StorageClass::Cold), "cold");
+    }
+
+    #[test]
+    fn test_storage_class_from_str_valid() {
+        assert_eq!(StorageClass::from_str("hot").unwrap(), StorageClass::Hot);
+        assert_eq!(StorageClass::from_str("cold").unwrap(), StorageClass::Cold);
+        assert_eq!(StorageClass::from_str("HOT").unwrap(), StorageClass::Hot);
+        assert_eq!(StorageClass::from_str("COLD").unwrap(), StorageClass::Cold);
+    }
+
+    #[test]
+    fn test_storage_class_from_str_invalid() {
+        assert!(StorageClass::from_str("invalid").is_err());
+    }
+
+    #[test]
+    fn test_storage_class_default() {
+        assert_eq!(StorageClass::default(), StorageClass::Hot);
+    }
+}
+
 impl std::str::FromStr for StorageClass {
     type Err = String;
 
