@@ -85,9 +85,7 @@ impl UploadObjectUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::ports::{
-        MockBlobRepository, MockBlobStore, MockObjectRepository,
-    };
+    use crate::application::ports::{MockBlobRepository, MockBlobStore, MockObjectRepository};
     use crate::domain::value_objects::{ContentHash, ObjectStatus, StorageClass};
     use std::io::Cursor;
     use std::str::FromStr;

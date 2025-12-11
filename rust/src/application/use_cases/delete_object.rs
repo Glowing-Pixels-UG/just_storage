@@ -85,13 +85,9 @@ impl DeleteObjectUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::ports::{
-        MockBlobRepository, MockBlobStore, MockObjectRepository,
-    };
+    use crate::application::ports::{MockBlobRepository, MockBlobStore, MockObjectRepository};
     use crate::domain::entities::Object;
-    use crate::domain::value_objects::{
-        ContentHash, Namespace, ObjectId, StorageClass, TenantId,
-    };
+    use crate::domain::value_objects::{ContentHash, Namespace, ObjectId, StorageClass, TenantId};
     use std::str::FromStr;
     use std::sync::Arc;
     use uuid::Uuid;

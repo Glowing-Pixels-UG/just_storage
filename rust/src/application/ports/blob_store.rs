@@ -1,9 +1,9 @@
 use async_trait::async_trait;
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 use std::pin::Pin;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
-#[cfg(test)]
-use mockall::{automock, predicate::*};
 
 use crate::domain::value_objects::{ContentHash, StorageClass};
 

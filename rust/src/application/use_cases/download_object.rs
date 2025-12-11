@@ -173,13 +173,10 @@ mod tests {
             .times(1)
             .returning(move |_| Ok(Some(object.clone())));
 
-        mock_blob_store
-            .expect_read()
-            .times(1)
-            .returning(|_, _| {
-                let reader = Box::pin(Cursor::new("test data"));
-                Ok(reader)
-            });
+        mock_blob_store.expect_read().times(1).returning(|_, _| {
+            let reader = Box::pin(Cursor::new("test data"));
+            Ok(reader)
+        });
 
         let use_case =
             DownloadObjectUseCase::new(Arc::new(mock_object_repo), Arc::new(mock_blob_store));

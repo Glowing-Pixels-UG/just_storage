@@ -81,10 +81,22 @@ mod tests {
 
     #[test]
     fn test_object_status_from_str_valid() {
-        assert_eq!(ObjectStatus::from_str("WRITING").unwrap(), ObjectStatus::Writing);
-        assert_eq!(ObjectStatus::from_str("COMMITTED").unwrap(), ObjectStatus::Committed);
-        assert_eq!(ObjectStatus::from_str("DELETING").unwrap(), ObjectStatus::Deleting);
-        assert_eq!(ObjectStatus::from_str("DELETED").unwrap(), ObjectStatus::Deleted);
+        assert_eq!(
+            ObjectStatus::from_str("WRITING").unwrap(),
+            ObjectStatus::Writing
+        );
+        assert_eq!(
+            ObjectStatus::from_str("COMMITTED").unwrap(),
+            ObjectStatus::Committed
+        );
+        assert_eq!(
+            ObjectStatus::from_str("DELETING").unwrap(),
+            ObjectStatus::Deleting
+        );
+        assert_eq!(
+            ObjectStatus::from_str("DELETED").unwrap(),
+            ObjectStatus::Deleted
+        );
     }
 
     #[test]

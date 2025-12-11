@@ -209,7 +209,12 @@ mod tests {
     fn create_test_object() -> Object {
         let tenant_id = TenantId::new(Uuid::new_v4());
         let namespace = Namespace::from_str("test-namespace").unwrap();
-        Object::new(namespace, tenant_id, Some("test-key".to_string()), StorageClass::Hot)
+        Object::new(
+            namespace,
+            tenant_id,
+            Some("test-key".to_string()),
+            StorageClass::Hot,
+        )
     }
 
     #[test]
