@@ -363,7 +363,7 @@ cargo tarpaulin --out Html
 
 ## License
 
-MIT (or your preferred license)
+This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
 
 ## Status & Roadmap
 
