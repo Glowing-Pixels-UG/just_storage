@@ -1,0 +1,28 @@
+# Code Owners
+# These users will be automatically requested for review when PRs touch these files
+
+# Root level files
+/*                              @SamyRai
+
+# Documentation
+/docs/**                        @SamyRai
+/*.md                           @SamyRai
+
+# CI/CD and GitHub config
+/.github/**                     @SamyRai
+
+# Rust source code
+/rust/src/**                    @SamyRai
+/rust/Cargo.toml                @SamyRai
+
+# Database and migrations
+/schema.sql                     @SamyRai
+/rust/migrations/**             @SamyRai
+/scripts/**                     @SamyRai
+
+# Docker and deployment
+/Dockerfile                     @SamyRai
+/docker-compose.yml             @SamyRai
+
+# Tests
+/rust/tests/**                  @SamyRai
