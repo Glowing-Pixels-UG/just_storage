@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 use std::pin::Pin;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -27,6 +29,7 @@ pub type BlobReader = Pin<Box<dyn AsyncRead + Send>>;
 pub type BlobWriter = Pin<Box<dyn AsyncWrite + Send>>;
 
 /// Port for physical blob storage operations
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait BlobStore: Send + Sync {
     /// Write blob and return (content_hash, size_bytes)

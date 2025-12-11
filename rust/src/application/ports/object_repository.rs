@@ -3,6 +3,8 @@ use thiserror::Error;
 
 use crate::domain::entities::Object;
 use crate::domain::value_objects::{Namespace, ObjectId, TenantId};
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 
 #[derive(Debug, Error)]
 pub enum RepositoryError {
@@ -23,6 +25,7 @@ pub enum RepositoryError {
 }
 
 /// Port for object persistence operations
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait ObjectRepository: Send + Sync {
     /// Save or update an object

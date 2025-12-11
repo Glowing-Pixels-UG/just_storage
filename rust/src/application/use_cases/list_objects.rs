@@ -59,3 +59,80 @@ impl ListObjectsUseCase {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::ports::MockObjectRepository;
+    use crate::domain::entities::Object;
+    use crate::domain::value_objects::{Namespace, StorageClass, TenantId};
+    use std::str::FromStr;
+    use std::sync::Arc;
+    use uuid::Uuid;
+
+    fn create_test_object() -> Object {
+        Object::new(
+            Namespace::from_str("test").unwrap(),
+            TenantId::new(Uuid::new_v4()),
+            Some("key".to_string()),
+            StorageClass::Hot,
+        )
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_happy_path() {
+        // Arrange
+        let mut mock_object_repo = MockObjectRepository::new();
+        let request = ListRequest {
+            namespace: "test".to_string(),
+            tenant_id: Uuid::new_v4().to_string(),
+            limit: Some(10),
+            offset: Some(0),
+        };
+
+        let objects = vec![create_test_object(), create_test_object()];
+        mock_object_repo
+            .expect_list()
+            .times(1)
+            .returning(move |_, _, _, _| Ok(objects.clone()));
+
+        let use_case = ListObjectsUseCase::new(Arc::new(mock_object_repo));
+
+        // Act
+        let result = use_case.execute(request).await;
+
+        // Assert
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.objects.len(), 2);
+        assert_eq!(response.total, 2);
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_empty_result() {
+        // Arrange
+        let mut mock_object_repo = MockObjectRepository::new();
+        let request = ListRequest {
+            namespace: "test".to_string(),
+            tenant_id: Uuid::new_v4().to_string(),
+            limit: Some(10),
+            offset: Some(0),
+        };
+
+        mock_object_repo
+            .expect_list()
+            .times(1)
+            .returning(|_, _, _, _| Ok(vec![]));
+
+        let use_case = ListObjectsUseCase::new(Arc::new(mock_object_repo));
+
+        // Act
+        let result = use_case.execute(request).await;
+
+        // Assert
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.objects.len(), 0);
+        assert_eq!(response.total, 0);
+    }
+}
