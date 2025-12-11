@@ -125,3 +125,113 @@ impl DownloadObjectUseCase {
         self.execute_by_id(object.id()).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::ports::{MockBlobStore, MockObjectRepository};
+    use crate::domain::entities::Object;
+    use crate::domain::value_objects::{
+        ContentHash, Namespace, ObjectId, ObjectStatus, StorageClass, TenantId,
+    };
+    use std::io::Cursor;
+    use std::str::FromStr;
+    use std::sync::Arc;
+    use uuid::Uuid;
+
+    fn create_test_object(status: ObjectStatus) -> Object {
+        let mut object = Object::new(
+            Namespace::from_str("test").unwrap(),
+            TenantId::new(Uuid::new_v4()),
+            Some("key".to_string()),
+            StorageClass::Hot,
+        );
+        if status != ObjectStatus::Writing {
+            let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+            object.commit(content_hash, 123).unwrap();
+        }
+        if status == ObjectStatus::Deleting || status == ObjectStatus::Deleted {
+            object.mark_for_deletion().unwrap();
+        }
+        if status == ObjectStatus::Deleted {
+            object.mark_deleted().unwrap();
+        }
+        object
+    }
+
+    #[tokio::test]
+    async fn test_download_by_id_happy_path() {
+        // Arrange
+        let mut mock_object_repo = MockObjectRepository::new();
+        let mut mock_blob_store = MockBlobStore::new();
+        let object = create_test_object(ObjectStatus::Committed);
+        let object_id = *object.id();
+
+        mock_object_repo
+            .expect_find_by_id()
+            .withf(move |id| id == &object_id)
+            .times(1)
+            .returning(move |_| Ok(Some(object.clone())));
+
+        mock_blob_store.expect_read().times(1).returning(|_, _| {
+            let reader = Box::pin(Cursor::new("test data"));
+            Ok(reader)
+        });
+
+        let use_case =
+            DownloadObjectUseCase::new(Arc::new(mock_object_repo), Arc::new(mock_blob_store));
+
+        // Act
+        let result = use_case.execute_by_id(&object_id).await;
+
+        // Assert
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_download_by_id_not_found() {
+        // Arrange
+        let mut mock_object_repo = MockObjectRepository::new();
+        let mock_blob_store = MockBlobStore::new();
+        let object_id = ObjectId::new();
+
+        mock_object_repo
+            .expect_find_by_id()
+            .withf(move |id| id == &object_id)
+            .times(1)
+            .returning(|_| Ok(None));
+
+        let use_case =
+            DownloadObjectUseCase::new(Arc::new(mock_object_repo), Arc::new(mock_blob_store));
+
+        // Act
+        let result = use_case.execute_by_id(&object_id).await;
+
+        // Assert
+        assert!(matches!(result, Err(DownloadError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn test_download_by_id_not_readable() {
+        // Arrange
+        let mut mock_object_repo = MockObjectRepository::new();
+        let mock_blob_store = MockBlobStore::new();
+        let object = create_test_object(ObjectStatus::Writing);
+        let object_id = *object.id();
+
+        mock_object_repo
+            .expect_find_by_id()
+            .withf(move |id| id == &object_id)
+            .times(1)
+            .returning(move |_| Ok(Some(object.clone())));
+
+        let use_case =
+            DownloadObjectUseCase::new(Arc::new(mock_object_repo), Arc::new(mock_blob_store));
+
+        // Act
+        let result = use_case.execute_by_id(&object_id).await;
+
+        // Assert
+        assert!(matches!(result, Err(DownloadError::NotReadable(_))));
+    }
+}

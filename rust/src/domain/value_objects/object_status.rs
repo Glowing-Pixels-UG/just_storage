@@ -50,3 +50,57 @@ impl std::str::FromStr for ObjectStatus {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_object_status_can_transition_to_valid() {
+        assert!(ObjectStatus::Writing.can_transition_to(ObjectStatus::Committed));
+        assert!(ObjectStatus::Committed.can_transition_to(ObjectStatus::Deleting));
+        assert!(ObjectStatus::Deleting.can_transition_to(ObjectStatus::Deleted));
+    }
+
+    #[test]
+    fn test_object_status_can_transition_to_invalid() {
+        assert!(!ObjectStatus::Writing.can_transition_to(ObjectStatus::Deleting));
+        assert!(!ObjectStatus::Committed.can_transition_to(ObjectStatus::Writing));
+        assert!(!ObjectStatus::Deleting.can_transition_to(ObjectStatus::Committed));
+        assert!(!ObjectStatus::Deleted.can_transition_to(ObjectStatus::Writing));
+    }
+
+    #[test]
+    fn test_object_status_display() {
+        assert_eq!(format!("{}", ObjectStatus::Writing), "WRITING");
+        assert_eq!(format!("{}", ObjectStatus::Committed), "COMMITTED");
+        assert_eq!(format!("{}", ObjectStatus::Deleting), "DELETING");
+        assert_eq!(format!("{}", ObjectStatus::Deleted), "DELETED");
+    }
+
+    #[test]
+    fn test_object_status_from_str_valid() {
+        assert_eq!(
+            ObjectStatus::from_str("WRITING").unwrap(),
+            ObjectStatus::Writing
+        );
+        assert_eq!(
+            ObjectStatus::from_str("COMMITTED").unwrap(),
+            ObjectStatus::Committed
+        );
+        assert_eq!(
+            ObjectStatus::from_str("DELETING").unwrap(),
+            ObjectStatus::Deleting
+        );
+        assert_eq!(
+            ObjectStatus::from_str("DELETED").unwrap(),
+            ObjectStatus::Deleted
+        );
+    }
+
+    #[test]
+    fn test_object_status_from_str_invalid() {
+        assert!(ObjectStatus::from_str("INVALID").is_err());
+    }
+}

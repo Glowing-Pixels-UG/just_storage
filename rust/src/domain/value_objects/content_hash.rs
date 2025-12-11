@@ -57,3 +57,51 @@ impl std::str::FromStr for ContentHash {
         Self::from_hex(s.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_content_hash_from_hex_valid() {
+        let hex = "a".repeat(64);
+        let content_hash = ContentHash::from_hex(hex.clone()).unwrap();
+        assert_eq!(content_hash.as_hex(), hex);
+    }
+
+    #[test]
+    fn test_content_hash_from_hex_invalid_length() {
+        let hex = "a".repeat(63);
+        let err = ContentHash::from_hex(hex).unwrap_err();
+        assert!(matches!(err, DomainError::ContentHashMismatch { .. }));
+    }
+
+    #[test]
+    fn test_content_hash_from_hex_invalid_chars() {
+        let hex = "g".repeat(64);
+        let err = ContentHash::from_hex(hex).unwrap_err();
+        assert!(matches!(err, DomainError::ContentHashMismatch { .. }));
+    }
+
+    #[test]
+    fn test_content_hash_from_str_valid() {
+        let hex = "b".repeat(64);
+        let content_hash = ContentHash::from_str(&hex).unwrap();
+        assert_eq!(content_hash.as_hex(), hex);
+    }
+
+    #[test]
+    fn test_content_hash_display() {
+        let hex = "c".repeat(64);
+        let content_hash = ContentHash::from_hex(hex.clone()).unwrap();
+        assert_eq!(format!("{}", content_hash), hex);
+    }
+
+    #[test]
+    fn test_content_hash_prefix() {
+        let hex = "ab".to_string() + &"c".repeat(62);
+        let content_hash = ContentHash::from_hex(hex).unwrap();
+        assert_eq!(content_hash.prefix(), "ab");
+    }
+}
