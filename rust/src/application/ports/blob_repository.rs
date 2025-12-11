@@ -2,10 +2,13 @@ use async_trait::async_trait;
 
 use crate::domain::entities::Blob;
 use crate::domain::value_objects::{ContentHash, StorageClass};
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 
 use super::RepositoryError;
 
 /// Port for blob reference counting operations
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait BlobRepository: Send + Sync {
     /// Get or create blob entry
