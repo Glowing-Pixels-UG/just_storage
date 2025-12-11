@@ -124,7 +124,6 @@ mod tests {
         assert_eq!(blob.ref_count(), 0);
         assert!(blob.can_gc());
 
-        // Test saturating subtraction
         blob.decrement_ref();
         assert_eq!(blob.ref_count(), 0);
         assert!(blob.can_gc());

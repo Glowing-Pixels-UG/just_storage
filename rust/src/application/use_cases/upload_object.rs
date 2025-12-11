@@ -81,3 +81,70 @@ impl UploadObjectUseCase {
         Ok(ObjectDto::from(object))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::ports::{
+        MockBlobRepository, MockBlobStore, MockObjectRepository,
+    };
+    use crate::domain::value_objects::{ContentHash, ObjectStatus, StorageClass};
+    use std::io::Cursor;
+    use std::str::FromStr;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_upload_object_happy_path() {
+        // Arrange
+        let mut mock_object_repo = MockObjectRepository::new();
+        let mut mock_blob_repo = MockBlobRepository::new();
+        let mut mock_blob_store = MockBlobStore::new();
+
+        let request = UploadRequest {
+            namespace: "test-namespace".to_string(),
+            tenant_id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11".to_string(),
+            key: Some("test-key".to_string()),
+            storage_class: Some(StorageClass::Hot),
+        };
+        let reader = Box::pin(Cursor::new("test data"));
+
+        let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+        let size_bytes = 9;
+
+        // Expectations
+        mock_object_repo
+            .expect_save()
+            .times(2)
+            .returning(|_| Ok(()));
+        mock_blob_store
+            .expect_write()
+            .times(1)
+            .returning(move |_, _| Ok((content_hash.clone(), size_bytes)));
+        mock_blob_repo
+            .expect_get_or_create()
+            .times(1)
+            .returning(move |_, _, _| {
+                let blob = crate::domain::entities::Blob::new(
+                    ContentHash::from_str(&"a".repeat(64)).unwrap(),
+                    StorageClass::Hot,
+                    size_bytes,
+                );
+                Ok(blob)
+            });
+
+        let use_case = UploadObjectUseCase::new(
+            Arc::new(mock_object_repo),
+            Arc::new(mock_blob_repo),
+            Arc::new(mock_blob_store),
+        );
+
+        // Act
+        let result = use_case.execute(request, reader).await;
+
+        // Assert
+        assert!(result.is_ok());
+        let dto = result.unwrap();
+        assert_eq!(dto.status, ObjectStatus::Committed);
+        assert_eq!(dto.size_bytes, Some(size_bytes));
+    }
+}

@@ -311,13 +311,15 @@ mod tests {
     fn test_set_content_type() {
         let mut object = create_test_object();
         let original_updated_at = object.updated_at();
+
+        // Manually set the updated_at to a known value in the past
+        object.updated_at = original_updated_at - chrono::Duration::seconds(1);
+        let past_updated_at = object.updated_at();
+
         let content_type = "application/json".to_string();
-
-        // Allow some time to pass
-        std::thread::sleep(std::time::Duration::from_millis(1));
-
         object.set_content_type(content_type.clone());
+
         assert_eq!(object.content_type(), Some(content_type.as_str()));
-        assert!(object.updated_at() > original_updated_at);
+        assert!(object.updated_at() > past_updated_at);
     }
 }

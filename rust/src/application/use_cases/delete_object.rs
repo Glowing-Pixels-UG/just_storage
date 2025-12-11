@@ -81,3 +81,146 @@ impl DeleteObjectUseCase {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::ports::{
+        MockBlobRepository, MockBlobStore, MockObjectRepository,
+    };
+    use crate::domain::entities::Object;
+    use crate::domain::value_objects::{
+        ContentHash, Namespace, ObjectId, StorageClass, TenantId,
+    };
+    use std::str::FromStr;
+    use std::sync::Arc;
+    use uuid::Uuid;
+
+    fn create_test_object() -> Object {
+        let mut object = Object::new(
+            Namespace::from_str("test").unwrap(),
+            TenantId::new(Uuid::new_v4()),
+            Some("key".to_string()),
+            StorageClass::Hot,
+        );
+        let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
+        object.commit(content_hash, 123).unwrap();
+        object
+    }
+
+    #[tokio::test]
+    async fn test_delete_object_happy_path() {
+        // Arrange
+        let mut mock_object_repo = MockObjectRepository::new();
+        let mut mock_blob_repo = MockBlobRepository::new();
+        let mut mock_blob_store = MockBlobStore::new();
+
+        let object = create_test_object();
+        let object_id = *object.id();
+
+        mock_object_repo
+            .expect_find_by_id()
+            .withf(move |id| id == &object_id)
+            .times(1)
+            .returning(move |_| Ok(Some(object.clone())));
+
+        mock_object_repo
+            .expect_save()
+            .times(2)
+            .returning(|_| Ok(()));
+
+        mock_blob_repo
+            .expect_decrement_ref()
+            .times(1)
+            .returning(|_| Ok(0)); // ref_count becomes 0
+
+        mock_blob_store
+            .expect_delete()
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_blob_repo
+            .expect_delete()
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let use_case = DeleteObjectUseCase::new(
+            Arc::new(mock_object_repo),
+            Arc::new(mock_blob_repo),
+            Arc::new(mock_blob_store),
+        );
+
+        // Act
+        let result = use_case.execute(&object_id).await;
+
+        // Assert
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_object_not_found() {
+        // Arrange
+        let mut mock_object_repo = MockObjectRepository::new();
+        let mock_blob_repo = MockBlobRepository::new();
+        let mock_blob_store = MockBlobStore::new();
+        let object_id = ObjectId::new();
+
+        mock_object_repo
+            .expect_find_by_id()
+            .withf(move |id| id == &object_id)
+            .times(1)
+            .returning(|_| Ok(None));
+
+        let use_case = DeleteObjectUseCase::new(
+            Arc::new(mock_object_repo),
+            Arc::new(mock_blob_repo),
+            Arc::new(mock_blob_store),
+        );
+
+        // Act
+        let result = use_case.execute(&object_id).await;
+
+        // Assert
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), DeleteError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn test_delete_object_shared_blob() {
+        // Arrange
+        let mut mock_object_repo = MockObjectRepository::new();
+        let mut mock_blob_repo = MockBlobRepository::new();
+        let mock_blob_store = MockBlobStore::new(); // Note: No delete expectation
+
+        let object = create_test_object();
+        let object_id = *object.id();
+
+        mock_object_repo
+            .expect_find_by_id()
+            .withf(move |id| id == &object_id)
+            .times(1)
+            .returning(move |_| Ok(Some(object.clone())));
+
+        mock_object_repo
+            .expect_save()
+            .times(2)
+            .returning(|_| Ok(()));
+
+        mock_blob_repo
+            .expect_decrement_ref()
+            .times(1)
+            .returning(|_| Ok(1)); // ref_count > 0
+
+        let use_case = DeleteObjectUseCase::new(
+            Arc::new(mock_object_repo),
+            Arc::new(mock_blob_repo),
+            Arc::new(mock_blob_store),
+        );
+
+        // Act
+        let result = use_case.execute(&object_id).await;
+
+        // Assert
+        assert!(result.is_ok());
+    }
+}
