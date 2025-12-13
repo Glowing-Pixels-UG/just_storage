@@ -1,0 +1,92 @@
+# cargo-deny configuration for just_storage
+# Comprehensive security and dependency management
+# Based on 2025 best practices
+
+# Target Rust versions to check
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "x86_64-apple-darwin" },
+    { triple = "aarch64-apple-darwin" },
+]
+
+# Advisories database configuration
+[advisories]
+# Check for security advisories
+vulnerability = "deny"
+# Check for unmaintained crates
+unmaintained = "warn"
+# Check for unsound crates
+unsound = "deny"
+# Check for yanked crates
+yanked = "deny"
+# Ignore specific advisories (add IDs here if needed)
+ignore = [
+    # Example: "RUSTSEC-2024-0001",
+]
+# Update frequency for advisory database
+db-path = "~/.cargo/advisory-db"
+db-urls = [
+    "https://github.com/rustsec/advisory-db",
+]
+
+# Allowed licenses
+[licenses]
+# Default policy for unknown licenses
+default = "deny"
+# Copyleft licenses (require careful review)
+copyleft = "warn"
+# Allow specific licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "CC0-1.0",
+    "Unlicense",
+]
+# Deny specific licenses
+deny = [
+    "GPL-2.0",
+    "GPL-3.0",
+    "AGPL-1.0",
+    "AGPL-3.0",
+    "LGPL-2.0",
+    "LGPL-2.1",
+    "LGPL-3.0",
+]
+# Exception list for specific crates
+exceptions = [
+    # Example: { name = "some-crate", allow = ["GPL-3.0"] },
+]
+
+# Banned dependencies
+[bans]
+# Multiple versions of the same crate
+multiple-versions = "warn"
+# Wildcard version requirements
+wildcards = "deny"
+# Specific crate bans
+deny = [
+    # Add banned crates here
+    # { name = "insecure-crate", reason = "Security vulnerability" },
+]
+# Allow specific versions
+allow = [
+    # Example: { name = "some-crate", version = "=1.0.0" },
+]
+
+# Sources configuration
+[sources]
+# Unknown sources
+unknown-registry = "deny"
+# Unknown git sources
+unknown-git = "deny"
+# Allow specific registries
+allow-registry = ["crates-io"]
+# Allow specific git sources
+allow-git = [
+    # Example: "https://github.com/user/repo",
+]

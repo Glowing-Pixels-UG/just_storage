@@ -5,7 +5,9 @@ use axum::{
 };
 use serde_json::json;
 
-use crate::application::use_cases::{DeleteError, DownloadError, ListError, UploadError};
+use crate::application::use_cases::{
+    DeleteError, DownloadError, ListError, SearchError, TextSearchError, UploadError,
+};
 
 /// API error response
 pub struct ApiError {
@@ -93,6 +95,30 @@ impl From<ListError> for ApiError {
             ListError::InvalidRequest(msg) => ApiError::bad_request(msg),
             ListError::Domain(e) => ApiError::bad_request(e.to_string()),
             ListError::Repository(e) => {
+                ApiError::internal_error(format!("Repository error: {}", e))
+            }
+        }
+    }
+}
+
+impl From<SearchError> for ApiError {
+    fn from(err: SearchError) -> Self {
+        match err {
+            SearchError::InvalidRequest(msg) => ApiError::bad_request(msg),
+            SearchError::Domain(e) => ApiError::bad_request(e.to_string()),
+            SearchError::Repository(e) => {
+                ApiError::internal_error(format!("Repository error: {}", e))
+            }
+        }
+    }
+}
+
+impl From<TextSearchError> for ApiError {
+    fn from(err: TextSearchError) -> Self {
+        match err {
+            TextSearchError::InvalidRequest(msg) => ApiError::bad_request(msg),
+            TextSearchError::Domain(e) => ApiError::bad_request(e.to_string()),
+            TextSearchError::Repository(e) => {
                 ApiError::internal_error(format!("Repository error: {}", e))
             }
         }

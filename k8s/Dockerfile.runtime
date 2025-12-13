@@ -1,0 +1,19 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the pre-built binary
+COPY just_storage /app/just_storage
+
+# Create data directories
+RUN mkdir -p /data/hot /data/cold && \
+    chmod +x /app/just_storage
+
+EXPOSE 8080
+
+CMD ["/app/just_storage"]
+

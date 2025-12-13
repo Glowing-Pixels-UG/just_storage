@@ -249,6 +249,166 @@ curl -X DELETE 'http://localhost:8080/v1/objects/550e8400-e29b-41d4-a716-4466554
 
 ---
 
+## Advanced Search & Filtering
+
+### Advanced Search
+
+#### POST /v1/objects/search
+
+Advanced search with multiple filters, sorting options, and pagination.
+
+**Request Body:**
+
+```json
+{
+  "namespace": "models",
+  "tenant_id": "acme-corp",
+  "limit": 50,
+  "offset": 0,
+  "sort_by": "created_at",
+  "sort_direction": "desc",
+  "key_contains": "llama",
+  "content_type": "application/octet-stream",
+  "storage_class": "hot",
+  "size_range": {
+    "min": 1048576,
+    "max": 1073741824
+  },
+  "created_at_range": {
+    "from": "2024-01-01T00:00:00Z",
+    "to": "2024-12-31T23:59:59Z"
+  },
+  "metadata_filters": {
+    "kind": "Model",
+    "model.family": "llama"
+  }
+}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `namespace` | string | Yes | Filter by namespace |
+| `tenant_id` | string | Yes | Filter by tenant |
+| `limit` | integer | No | Results per page (default: 100, max: 1000) |
+| `offset` | integer | No | Pagination offset (default: 0) |
+| `sort_by` | string | No | Sort field: `created_at`, `updated_at`, `size_bytes`, `key`, `content_type` |
+| `sort_direction` | string | No | Sort direction: `asc`, `desc` |
+| `key_contains` | string | No | Filter keys containing this substring |
+| `content_type` | string | No | Filter by MIME content type |
+| `storage_class` | string | No | Filter by storage class (`hot`, `cold`) |
+| `size_range.min` | integer | No | Minimum file size in bytes |
+| `size_range.max` | integer | No | Maximum file size in bytes |
+| `created_at_range.from` | datetime | No | Created after this timestamp |
+| `created_at_range.to` | datetime | No | Created before this timestamp |
+| `metadata_filters` | object | No | JSON object with metadata field filters |
+
+**Response: 200 OK**
+
+```json
+{
+  "objects": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "namespace": "models",
+      "tenant_id": "acme-corp",
+      "key": "llama-3.1-8b",
+      "content_hash": "sha256:a3c5f1e2b4d6...",
+      "size_bytes": 17179869184,
+      "storage_class": "hot",
+      "status": "COMMITTED",
+      "created_at": "2024-12-11T10:30:00Z",
+      "metadata": {
+        "kind": "Model",
+        "model": {
+          "model_name": "llama-3.1-8b",
+          "version": "2024-07-01",
+          "family": "llama",
+          "format": "gguf"
+        }
+      }
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+**Example:**
+
+```bash
+curl -X POST 'http://localhost:8080/v1/objects/search' \
+  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "namespace": "models",
+    "tenant_id": "acme",
+    "key_contains": "llama",
+    "metadata_filters": {"kind": "Model"}
+  }'
+```
+
+### Full-Text Search
+
+#### POST /v1/objects/search/text
+
+Full-text search across object keys and metadata using PostgreSQL's trigram matching for fuzzy search.
+
+**Request Body:**
+
+```json
+{
+  "namespace": "models",
+  "tenant_id": "acme-corp",
+  "query": "llama 3.1",
+  "limit": 50,
+  "offset": 0,
+  "search_in_metadata": true,
+  "search_in_key": true
+}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `namespace` | string | Yes | Search within namespace |
+| `tenant_id` | string | Yes | Search within tenant |
+| `query` | string | Yes | Search query (minimum 1 character) |
+| `limit` | integer | No | Results per page (default: 100, max: 1000) |
+| `offset` | integer | No | Pagination offset (default: 0) |
+| `search_in_metadata` | boolean | No | Search in metadata JSON (default: true) |
+| `search_in_key` | boolean | No | Search in object keys (default: true) |
+
+**Response: 200 OK**
+
+```json
+{
+  "objects": [...],
+  "total": 5,
+  "limit": 50,
+  "offset": 0,
+  "query": "llama 3.1"
+}
+```
+
+**Example:**
+
+```bash
+curl -X POST 'http://localhost:8080/v1/objects/search/text' \
+  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "namespace": "models",
+    "tenant_id": "acme",
+    "query": "llama"
+  }'
+```
+
+---
+
 ## Error Responses
 
 All errors follow a consistent format:

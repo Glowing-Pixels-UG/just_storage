@@ -24,7 +24,12 @@ impl LocalFilesystemStore {
         Self::with_options(hot_root, cold_root, durable_writes, true)
     }
 
-    pub fn with_options(hot_root: PathBuf, cold_root: PathBuf, durable_writes: bool, precreate_dirs: bool) -> Self {
+    pub fn with_options(
+        hot_root: PathBuf,
+        cold_root: PathBuf,
+        durable_writes: bool,
+        precreate_dirs: bool,
+    ) -> Self {
         Self {
             path_builder: PathBuilder::new(hot_root, cold_root),
             durable_writes,
@@ -71,7 +76,9 @@ impl BlobStore for LocalFilesystemStore {
         let temp_path = self.path_builder.temp_path(storage_class, temp_id);
 
         // 2. Write to temp file and compute hash
-        let (content_hash, size_bytes) = ContentHasher::write_and_hash_with_durability(&temp_path, reader, self.durable_writes).await?;
+        let (content_hash, size_bytes) =
+            ContentHasher::write_and_hash_with_durability(&temp_path, reader, self.durable_writes)
+                .await?;
 
         // 3. Move to final content-addressable location (atomic)
         let final_path = self.path_builder.final_path(storage_class, &content_hash);
