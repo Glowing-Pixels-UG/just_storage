@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
 use tokio::net::TcpListener;
 use tracing::{info, Level};
 
@@ -12,7 +11,8 @@ use just_storage::{
         gc::GarbageCollector,
         ports::{BlobRepository, BlobStore, ObjectRepository},
         use_cases::{
-            DeleteObjectUseCase, DownloadObjectUseCase, ListObjectsUseCase, UploadObjectUseCase,
+            DeleteObjectUseCase, DownloadObjectUseCase, ListObjectsUseCase, SearchObjectsUseCase,
+            TextSearchObjectsUseCase, UploadObjectUseCase,
         },
     },
     infrastructure::{
@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tracing::error!("Failed to connect to database: {}", e);
             e
         })?;
-    
+
     info!(
         "Database pool configured: max={}, min={}, acquire_timeout={}s, idle_timeout={}s, max_lifetime={}s",
         config.db_max_connections,
@@ -106,6 +106,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let list_use_case = Arc::new(ListObjectsUseCase::new(Arc::clone(&object_repo)));
 
+    let search_use_case = Arc::new(SearchObjectsUseCase::new(Arc::clone(&object_repo)));
+
+    let text_search_use_case = Arc::new(TextSearchObjectsUseCase::new(Arc::clone(&object_repo)));
+
     info!("Application layer initialized");
 
     // Start garbage collector in background
@@ -126,6 +130,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         download_use_case,
         delete_use_case,
         list_use_case,
+        search_use_case,
+        text_search_use_case,
     };
 
     // Create router

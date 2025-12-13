@@ -49,6 +49,34 @@ CREATE INDEX idx_objects_tenant_ns ON objects(tenant_id, namespace) WHERE status
 CREATE INDEX idx_objects_created ON objects(created_at DESC) WHERE status = 'COMMITTED';
 CREATE INDEX idx_objects_content_hash ON objects(content_hash) WHERE content_hash IS NOT NULL;
 
+-- Extension for full-text search capabilities
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Indexes for advanced search and filtering
+CREATE INDEX idx_objects_content_type ON objects(content_type) WHERE status = 'COMMITTED';
+CREATE INDEX idx_objects_storage_class ON objects(storage_class) WHERE status = 'COMMITTED';
+CREATE INDEX idx_objects_size_bytes ON objects(size_bytes) WHERE status = 'COMMITTED' AND size_bytes IS NOT NULL;
+CREATE INDEX idx_objects_created_at_range ON objects(created_at) WHERE status = 'COMMITTED';
+CREATE INDEX idx_objects_updated_at_range ON objects(updated_at) WHERE status = 'COMMITTED';
+
+-- GIN indexes for JSONB metadata queries
+CREATE INDEX idx_objects_metadata_gin ON objects USING GIN (metadata jsonb_path_ops) WHERE status = 'COMMITTED';
+CREATE INDEX idx_objects_metadata_trgm ON objects USING GIN (metadata::text gin_trgm_ops) WHERE status = 'COMMITTED';
+
+-- GIN index for fuzzy text search on keys
+CREATE INDEX idx_objects_key_trgm ON objects USING GIN (key gin_trgm_ops) WHERE status = 'COMMITTED' AND key IS NOT NULL;
+
+-- Composite indexes for common query patterns
+CREATE INDEX idx_objects_tenant_ns_content_type ON objects(tenant_id, namespace, content_type) WHERE status = 'COMMITTED';
+CREATE INDEX idx_objects_tenant_ns_storage_class ON objects(tenant_id, namespace, storage_class) WHERE status = 'COMMITTED';
+CREATE INDEX idx_objects_tenant_ns_created_at ON objects(tenant_id, namespace, created_at DESC) WHERE status = 'COMMITTED';
+
+-- Specialized indexes for metadata fields
+CREATE INDEX idx_objects_metadata_kind ON objects ((metadata->>'kind')) WHERE status = 'COMMITTED';
+CREATE INDEX idx_objects_metadata_model_name ON objects ((metadata->'model'->>'model_name')) WHERE status = 'COMMITTED' AND metadata->'model' IS NOT NULL;
+CREATE INDEX idx_objects_metadata_kb_title ON objects ((metadata->'kb_doc'->>'title')) WHERE status = 'COMMITTED' AND metadata->'kb_doc' IS NOT NULL;
+CREATE INDEX idx_objects_metadata_kb_source ON objects ((metadata->'kb_doc'->>'source')) WHERE status = 'COMMITTED' AND metadata->'kb_doc' IS NOT NULL;
+
 -- Trigger to update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

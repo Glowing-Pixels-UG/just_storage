@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: just-storage
+  labels:
+    name: just-storage

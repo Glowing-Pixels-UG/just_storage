@@ -201,6 +201,7 @@ Comprehensive documentation is available in the `/docs` directory:
 ### 💻 Development
 
 - **[Development Guide](DEVELOPMENT.md)** - Setup and workflow
+- **[Linting & Static Analysis](LINTING_SETUP.md)** - Code quality tools and setup
 - **[Rust Best Practices](docs/RUST_BEST_PRACTICES.md)** - Coding standards
 - **[Testing Guide](docs/TESTING.md)** - Testing strategy and examples
 - **[Contributing](docs/CONTRIBUTING.md)** - How to contribute

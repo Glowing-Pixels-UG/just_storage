@@ -1,0 +1,27 @@
+Token for "github"
+Permissions: Upload packages
+Scope: Entire account (all projects)
+
+pypi-AgEIcHlwaS5vcmcCJGFmY2U1MTMxLTM5MGUtNDhiYS1hNzVmLWJmNjQ4YWJhOTNmMgACKlszLCJkOTYyNmQ2MS05Y2VjLTQ1OTEtYTg2Mi1kZGU5YmEyN2Y2YTUiXQAABiCUGDPt4cCcxYrRBYWvcrs7N8lrtb6Y0BOM48HQp8F8_g
+For security reasons this token will only appear once. Copy it now.
+
+Copy token Remove token
+
+
+
+Using this token
+To use this API token:
+
+Set your username to __token__
+Set your password to the token value, including the pypi- prefix
+For example, if you are using Twine to upload your projects to PyPI, set up your $HOME/.pypirc file like this:
+
+[pypi]
+  username = __token__
+  password = pypi-AgEIcHlwaS5vcmcCJGFmY2U1MTMxLTM5MGUtNDhiYS1hNzVmLWJmNjQ4YWJhOTNmMgACKlszLCJkOTYyNmQ2MS05Y2VjLTQ1OTEtYTg2Mi1kZGU5YmEyN2Y2YTUiXQAABiCUGDPt4cCcxYrRBYWvcrs7N8lrtb6Y0BOM48HQp8F8_g
+For further instructions on how to use this token, visit the PyPI help page.
+
+Create another token
+
+
+gh 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

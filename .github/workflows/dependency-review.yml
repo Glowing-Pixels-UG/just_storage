@@ -1,0 +1,30 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        # Optional: specify the path to the dependency manifest
+        # config-file: './.github/dependency-review-config.yml'
+        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, 0BSD, CC0-1.0, Unlicense, Unicode-3.0
+        deny-licenses: GPL-2.0, GPL-3.0, AGPL-1.0, AGPL-3.0, LGPL-2.0, LGPL-2.1, LGPL-3.0
+        # Optional: fail the action if vulnerabilities are found
+        fail-on-vulnerability: false
+        # Optional: fail the action if unscored vulnerabilities are found
+        fail-on-scored-criticial: false
+        # Optional: allow dependencies with critical or high vulnerabilities
+        allow-ghsa-ids: GHSA-1234-5678-9012

@@ -1,0 +1,12 @@
+# Clippy configuration for just_storage
+# Based on 2025 best practices for Rust static analysis
+
+# Set the MSRV (Minimum Supported Rust Version)
+msrv = "1.75.0"
+
+# Allow certain lints that are too strict for this project
+allow-private-module-inception = true
+
+# Configure specific thresholds
+cognitive-complexity-threshold = 25
+array-size-threshold = 512

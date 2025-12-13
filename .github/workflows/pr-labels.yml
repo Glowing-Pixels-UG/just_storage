@@ -1,0 +1,79 @@
+name: PR Labels
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  label:
+    name: Label PR
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Label PR based on branch name
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const pr = context.payload.pull_request;
+          const branch = pr.head.ref;
+          const title = pr.title.toLowerCase();
+
+          const labels = [];
+
+          // Add labels based on branch name
+          if (branch.startsWith('feature/')) {
+            labels.push('enhancement');
+          } else if (branch.startsWith('bugfix/') || branch.startsWith('fix/')) {
+            labels.push('bug');
+          } else if (branch.startsWith('hotfix/')) {
+            labels.push('bug', 'hotfix');
+          } else if (branch.startsWith('docs/')) {
+            labels.push('documentation');
+          } else if (branch.startsWith('deps/') || branch.includes('depend')) {
+            labels.push('dependencies');
+          }
+
+          // Add labels based on title keywords
+          if (title.includes('security') || title.includes('vulnerability')) {
+            labels.push('security');
+          }
+          if (title.includes('performance') || title.includes('speed') || title.includes('optimization')) {
+            labels.push('performance');
+          }
+          if (title.includes('breaking') || title.includes('break')) {
+            labels.push('breaking-change');
+          }
+
+          // Add size label based on changed files
+          const changedFiles = await github.rest.pulls.listFiles({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: pr.number
+          });
+
+          const fileCount = changedFiles.data.length;
+          if (fileCount <= 5) {
+            labels.push('size:small');
+          } else if (fileCount <= 20) {
+            labels.push('size:medium');
+          } else {
+            labels.push('size:large');
+          }
+
+          // Apply labels
+          for (const label of labels) {
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: [label]
+              });
+            } catch (error) {
+              console.log(`Label '${label}' may already exist or is invalid:`, error.message);
+            }
+          }

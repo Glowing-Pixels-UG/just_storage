@@ -1,0 +1,92 @@
+# rustfmt configuration for just_storage
+# Based on 2025 best practices for Rust code formatting
+
+# Edition to use for formatting
+edition = "2021"
+
+# Maximum width of each line
+max_width = 100
+
+# Number of spaces per tab
+tab_spaces = 4
+
+# Newline style: "Unix" or "Windows"
+newline_style = "Unix"
+
+# Use chain formatting heuristics
+use_small_heuristics = "Default"
+
+# Maximum number of blank lines allowed at the top level
+max_blank_lines = 1
+
+# Format string literals
+format_strings = true
+
+# Format code in doc comments
+format_code_in_doc_comments = true
+
+# Format macro definitions
+format_macro_matchers = true
+
+# Format macro definitions and invocations
+format_macro_bodies = true
+
+# Format macro calls
+format_macro_calls = true
+
+# Single line if-else formatting
+single_line_if_else_max_width = 50
+
+# Brace style
+brace_style = "SameLineWhere"
+
+# Where clause style
+where_single_line = false
+
+# Import granularity
+imports_granularity = "Crate"
+
+# Group imports
+group_imports = "StdExternalCrate"
+
+# Reorder imports
+reorder_imports = true
+
+# Reorder modules
+reorder_modules = true
+
+# Reorder impl items
+reorder_impl_items = true
+
+# Remove nested parentheses
+remove_nested_parens = true
+
+# Normalize comments
+normalize_comments = true
+
+# Normalize doc comments
+normalize_doc_attributes = true
+
+# Empty item single line
+empty_item_single_line = true
+
+# Function call style
+fn_args_layout = "Tall"
+
+# Function signature style
+fn_single_line = false
+
+# Where clause density
+where_density = "Normal"
+
+# Struct literal single line
+struct_lit_single_line = true
+
+# Match arm blocks
+match_arm_blocks = true
+
+# Match block trailing comma
+match_block_trailing_comma = false
+
+# Match arm leading pipes
+match_arm_leading_pipes = "Never"
