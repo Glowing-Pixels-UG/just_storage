@@ -40,3 +40,30 @@ pub async fn download_handler(
 
     Ok(response)
 }
+
+/// GET /v1/objects/by-key/{namespace}/{tenant_id}/{key}
+/// Download object by key with streaming response
+pub async fn download_by_key_handler(
+    State(use_case): State<Arc<DownloadObjectUseCase>>,
+    Path((namespace, tenant_id, key)): Path<(String, String, String)>,
+) -> Result<Response, ApiError> {
+    // Execute use case
+    let (metadata, reader) = use_case
+        .execute_by_key(&namespace, &tenant_id, &key)
+        .await?;
+
+    // Convert reader to stream
+    let stream = ReaderStream::new(reader);
+    let body = Body::from_stream(stream);
+
+    // Build response with headers
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_LENGTH, metadata.size_bytes.to_string())
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .header("X-Content-Hash", metadata.content_hash)
+        .body(body)
+        .map_err(|e| ApiError::internal_error(format!("Failed to build response: {}", e)))?;
+
+    Ok(response)
+}

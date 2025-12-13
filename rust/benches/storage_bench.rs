@@ -74,55 +74,59 @@ fn storage_benchmarks(c: &mut Criterion) {
         });
 
         // Benchmark Concurrent Writes
-        group.bench_with_input(BenchmarkId::new("write_concurrent_4", size), &size, |b, &s| {
-            // Setup store once
-            let hot_dir = TempDir::new().unwrap();
-            let cold_dir = TempDir::new().unwrap();
-            let store = LocalFilesystemStore::with_options(
-                hot_dir.path().to_path_buf(),
-                cold_dir.path().to_path_buf(),
-                false, // Disable durability for benchmarking performance
-                false, // Disable directory pre-creation for faster benchmark startup
-            );
-            rt.block_on(async { store.init().await.unwrap() });
+        group.bench_with_input(
+            BenchmarkId::new("write_concurrent_4", size),
+            &size,
+            |b, &s| {
+                // Setup store once
+                let hot_dir = TempDir::new().unwrap();
+                let cold_dir = TempDir::new().unwrap();
+                let store = LocalFilesystemStore::with_options(
+                    hot_dir.path().to_path_buf(),
+                    cold_dir.path().to_path_buf(),
+                    false, // Disable durability for benchmarking performance
+                    false, // Disable directory pre-creation for faster benchmark startup
+                );
+                rt.block_on(async { store.init().await.unwrap() });
 
-            b.to_async(&rt).iter_custom(|iters| {
-                let store = &store;
-                async move {
-                    let mut total_duration = Duration::default();
-                    for i in 0..iters {
-                        let start = std::time::Instant::now();
+                b.to_async(&rt).iter_custom(|iters| {
+                    let store = &store;
+                    async move {
+                        let mut total_duration = Duration::default();
+                        for i in 0..iters {
+                            let start = std::time::Instant::now();
 
-                        // Perform 4 concurrent writes
-                        let futures = (0..4).map(|thread_id| {
-                            let store = &store;
-                            let size = s;
-                            let iter = i;
-                            async move {
-                                // Create unique content to avoid deduplication
-                                let mut data = vec![0u8; size];
-                                // Modify first few bytes with thread and iteration info
-                                let prefix = ((iter * 4 + thread_id) as u32).to_le_bytes();
-                                for (j, byte) in prefix.iter().enumerate() {
-                                    if j < data.len() {
-                                        data[j] = *byte;
+                            // Perform 4 concurrent writes
+                            let futures = (0..4).map(|thread_id| {
+                                let store = &store;
+                                let size = s;
+                                let iter = i;
+                                async move {
+                                    // Create unique content to avoid deduplication
+                                    let mut data = vec![0u8; size];
+                                    // Modify first few bytes with thread and iteration info
+                                    let prefix = ((iter * 4 + thread_id) as u32).to_le_bytes();
+                                    for (j, byte) in prefix.iter().enumerate() {
+                                        if j < data.len() {
+                                            data[j] = *byte;
+                                        }
                                     }
+
+                                    let reader = Box::pin(std::io::Cursor::new(data));
+                                    store.write(reader, StorageClass::Hot).await.unwrap();
                                 }
+                            });
 
-                                let reader = Box::pin(std::io::Cursor::new(data));
-                                store.write(reader, StorageClass::Hot).await.unwrap();
-                            }
-                        });
+                            // Wait for all concurrent writes to complete
+                            join_all(futures).await;
 
-                        // Wait for all concurrent writes to complete
-                        join_all(futures).await;
-
-                        total_duration += start.elapsed();
+                            total_duration += start.elapsed();
+                        }
+                        total_duration
                     }
-                    total_duration
-                }
-            })
-        });
+                })
+            },
+        );
 
         // Benchmark Read
         group.bench_with_input(BenchmarkId::new("read", size), &size, |b, &s| {
@@ -155,7 +159,6 @@ fn storage_benchmarks(c: &mut Criterion) {
                 std::hint::black_box(&buffer);
             })
         });
-
 
         // Let's implement a manual measurement for CSV logging purposes alongside Criterion
         // This ensures we satisfy "benchmark with historical data save in csv"

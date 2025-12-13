@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use sqlx::PgPool;
 
+use crate::application::dto::{SearchRequest, TextSearchRequest};
 use crate::application::ports::{ObjectRepository, RepositoryError};
 use crate::domain::entities::Object;
 use crate::domain::value_objects::{
@@ -22,7 +23,7 @@ impl ObjectRepository for PostgresObjectRepository {
     async fn save(&self, object: &Object) -> Result<(), RepositoryError> {
         let id = object.id().as_uuid();
         let namespace = object.namespace().as_str();
-        let tenant_id = object.tenant_id().as_uuid();
+        let tenant_id = object.tenant_id().to_string();
         let key = object.key();
         let status = object.status().to_string();
         let storage_class = object.storage_class().to_string();
@@ -107,7 +108,7 @@ impl ObjectRepository for PostgresObjectRepository {
             "#,
         )
         .bind(namespace.as_str())
-        .bind(tenant_id.as_uuid())
+        .bind(tenant_id.to_string())
         .bind(key)
         .fetch_optional(&self.pool)
         .await?;
@@ -128,7 +129,7 @@ impl ObjectRepository for PostgresObjectRepository {
         let rows = sqlx::query_as::<_, ObjectRow>(
             r#"
             SELECT id, namespace, tenant_id, key, status, storage_class,
-                   content_hash, size_bytes, created_at, updated_at
+                   content_hash, size_bytes, content_type, metadata, created_at, updated_at
             FROM objects
             WHERE namespace = $1 AND tenant_id = $2 AND status = 'COMMITTED'
             ORDER BY created_at DESC
@@ -136,13 +137,131 @@ impl ObjectRepository for PostgresObjectRepository {
             "#,
         )
         .bind(namespace.as_str())
-        .bind(tenant_id.as_uuid())
+        .bind(tenant_id.to_string())
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.pool)
         .await?;
 
         // `into_domain` returns a Result, so use iterator collect to gather results or return first error.
+        rows.into_iter().map(|r| r.into_domain()).collect()
+    }
+
+    async fn search(&self, request: &SearchRequest) -> Result<Vec<Object>, RepositoryError> {
+        use crate::application::dto::{SortDirection, SortField};
+
+        let sort_field = request.sort_by.as_ref().unwrap_or(&SortField::CreatedAt);
+        let sort_direction = request
+            .sort_direction
+            .as_ref()
+            .unwrap_or(&SortDirection::Desc);
+        let limit = request.limit.unwrap_or(100).min(1000);
+        let offset = request.offset.unwrap_or(0);
+
+        let sort_column = match sort_field {
+            SortField::CreatedAt => "created_at",
+            SortField::UpdatedAt => "updated_at",
+            SortField::SizeBytes => "size_bytes",
+            SortField::Key => "key",
+            SortField::ContentType => "content_type",
+        };
+        let sort_dir = match sort_direction {
+            SortDirection::Asc => "ASC",
+            SortDirection::Desc => "DESC",
+        };
+
+        // Build a simple query for now - can be enhanced later
+        let sql = format!(
+            r#"
+            SELECT id, namespace, tenant_id, key, status, storage_class,
+                   content_hash, size_bytes, content_type, metadata,
+                   created_at, updated_at
+            FROM objects
+            WHERE status = 'COMMITTED'
+              AND namespace = $1
+              AND tenant_id = $2
+            ORDER BY {} {}
+            LIMIT $3
+            OFFSET $4
+            "#,
+            sort_column, sort_dir
+        );
+
+        let rows: Vec<ObjectRow> = sqlx::query_as::<_, ObjectRow>(&sql)
+            .bind(&request.namespace)
+            .bind(&request.tenant_id)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?;
+
+        rows.into_iter().map(|r| r.into_domain()).collect()
+    }
+
+    async fn text_search(
+        &self,
+        request: &TextSearchRequest,
+    ) -> Result<Vec<Object>, RepositoryError> {
+        let search_in_metadata = request.search_in_metadata.unwrap_or(true);
+        let search_in_key = request.search_in_key.unwrap_or(true);
+        let limit = request.limit.unwrap_or(100).min(1000);
+        let offset = request.offset.unwrap_or(0);
+
+        let mut conditions = Vec::new();
+        let mut param_index = 3; // $1 and $2 are namespace and tenant_id
+
+        if search_in_key {
+            conditions.push(format!("key ILIKE ${}", param_index));
+            param_index += 1;
+        }
+
+        if search_in_metadata {
+            conditions.push(format!("metadata::text ILIKE ${}", param_index));
+            param_index += 1;
+        }
+
+        let conditions_str = if conditions.is_empty() {
+            "FALSE".to_string() // No search conditions = no results
+        } else {
+            format!("({})", conditions.join(" OR "))
+        };
+
+        let sql = format!(
+            r#"
+            SELECT id, namespace, tenant_id, key, status, storage_class,
+                   content_hash, size_bytes, content_type, metadata,
+                   created_at, updated_at
+            FROM objects
+            WHERE status = 'COMMITTED'
+              AND namespace = $1
+              AND tenant_id = $2
+              AND {}
+            ORDER BY created_at DESC
+            LIMIT ${}
+            OFFSET ${}
+            "#,
+            conditions_str,
+            param_index,
+            param_index + 1
+        );
+
+        let mut query = sqlx::query_as::<_, ObjectRow>(&sql)
+            .bind(&request.namespace)
+            .bind(&request.tenant_id);
+
+        // Bind search parameters in order
+        if search_in_key {
+            query = query.bind(format!("%{}%", request.query));
+        }
+
+        if search_in_metadata {
+            query = query.bind(format!("%{}%", request.query));
+        }
+
+        // Bind pagination
+        query = query.bind(limit).bind(offset);
+
+        let rows: Vec<ObjectRow> = query.fetch_all(&self.pool).await?;
         rows.into_iter().map(|r| r.into_domain()).collect()
     }
 
@@ -161,7 +280,7 @@ impl ObjectRepository for PostgresObjectRepository {
 struct ObjectRow {
     id: uuid::Uuid,
     namespace: String,
-    tenant_id: uuid::Uuid,
+    tenant_id: String,
     key: Option<String>,
     status: String,
     storage_class: String,
@@ -179,7 +298,9 @@ impl ObjectRow {
         let namespace = Namespace::new(self.namespace)
             .map_err(|e| RepositoryError::SerializationError(e.to_string()))?;
 
-        let tenant_id = TenantId::new(self.tenant_id);
+        let tenant_id = TenantId::from_string(&self.tenant_id).map_err(|e| {
+            RepositoryError::SerializationError(format!("Invalid tenant_id: {}", e))
+        })?;
 
         // Parse status and storage class with errors propagated
         let status = self

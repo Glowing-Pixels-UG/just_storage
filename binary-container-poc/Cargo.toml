@@ -1,0 +1,62 @@
+[package]
+name = "binary-container-poc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Just Storage Contributors"]
+description = "High-performance binary container format for document bundling"
+license = "MIT"
+
+[dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation
+uuid = { version = "1.11", features = ["v4", "serde"] }
+
+# Error handling
+thiserror = "1.0"
+
+# Compression (optional, for comparison)
+# Using zlib-rs backend - fastest Rust implementation (some unsafe code)
+flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"], optional = true }
+
+# File type detection (optional, for smart compression)
+infer = { version = "0.19", optional = true }
+
+# Additional compression algorithms for testing
+zstd = { version = "0.13", optional = true }
+lz4_flex = { version = "0.12", default-features = false, optional = true }
+brotli = { version = "3.4", optional = true }
+snap = { version = "1", optional = true }
+
+# Hashing
+sha2 = { version = "0.10", features = ["asm", "asm-aarch64"] }
+hex = "0.4"
+
+# Document bundler for comparison
+document-bundler = { path = "../document-bundler" }
+
+[features]
+default = ["compression"]
+compression = ["flate2"]
+# File type detection for smart compression
+file-type-detection = ["dep:infer"]
+# Compression algorithm features for testing
+zstd = ["dep:zstd"]
+lz4 = ["dep:lz4_flex"]
+brotli = ["dep:brotli"]
+snappy = ["dep:snap"]
+all-compression = ["zstd", "lz4", "brotli", "snappy"]
+
+[dev-dependencies]
+tempfile = "3.23.0"
+criterion = { version = "0.8", features = ["async_tokio"] }
+
+[[bench]]
+name = "container_benchmark"
+harness = false
+

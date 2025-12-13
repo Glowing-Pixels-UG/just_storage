@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: just-storage-hot
+  namespace: just-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-fast
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: just-storage-cold
+  namespace: just-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-fast
+  resources:
+    requests:
+      storage: 500Gi

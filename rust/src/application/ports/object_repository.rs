@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use thiserror::Error;
 
+use crate::application::dto::{SearchRequest, TextSearchRequest};
 use crate::domain::entities::Object;
 use crate::domain::value_objects::{Namespace, ObjectId, TenantId};
 #[cfg(test)]
@@ -49,6 +50,15 @@ pub trait ObjectRepository: Send + Sync {
         tenant_id: &TenantId,
         limit: i64,
         offset: i64,
+    ) -> Result<Vec<Object>, RepositoryError>;
+
+    /// Advanced search with filters
+    async fn search(&self, request: &SearchRequest) -> Result<Vec<Object>, RepositoryError>;
+
+    /// Full-text search across metadata and keys
+    async fn text_search(
+        &self,
+        request: &TextSearchRequest,
     ) -> Result<Vec<Object>, RepositoryError>;
 
     /// Delete object (hard delete from DB)

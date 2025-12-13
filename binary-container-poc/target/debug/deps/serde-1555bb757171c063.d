@@ -1,0 +1,12 @@
+/Users/damirmukimov/projects/just_storage/binary-container-poc/target/debug/deps/serde-1555bb757171c063.d: /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/damirmukimov/projects/just_storage/binary-container-poc/target/debug/build/serde-06d29a9b13f715b7/out/private.rs
+
+/Users/damirmukimov/projects/just_storage/binary-container-poc/target/debug/deps/libserde-1555bb757171c063.rmeta: /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/damirmukimov/projects/just_storage/binary-container-poc/target/debug/build/serde-06d29a9b13f715b7/out/private.rs
+
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/damirmukimov/projects/just_storage/binary-container-poc/target/debug/build/serde-06d29a9b13f715b7/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/damirmukimov/projects/just_storage/binary-container-poc/target/debug/build/serde-06d29a9b13f715b7/out
