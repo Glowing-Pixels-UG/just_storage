@@ -4,6 +4,10 @@
 # Edition to use for formatting
 edition = "2021"
 
+# Minimum supported Rust version for formatting
+# Updated to match Rust 1.92
+# rustfmt_version = "1.6.0"
+
 # Maximum width of each line
 max_width = 100
 

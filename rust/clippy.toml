@@ -2,7 +2,8 @@
 # Based on 2025 best practices for Rust static analysis
 
 # Set the MSRV (Minimum Supported Rust Version)
-msrv = "1.75.0"
+# Updated to match Docker Rust version 1.92
+msrv = "1.92.0"
 
 # Allow certain lints that are too strict for this project
 allow-private-module-inception = true
