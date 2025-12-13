@@ -30,10 +30,7 @@ impl LocalFilesystemStore {
             }
 
             // Create sha256 directory
-            let root = match class {
-                StorageClass::Hot => PathBuf::from("/data/hot"),
-                StorageClass::Cold => PathBuf::from("/data/cold"),
-            };
+            let root = self.path_builder.root(class);
             fs::create_dir_all(root.join("sha256")).await?;
         }
 
@@ -118,5 +115,106 @@ impl BlobStore for LocalFilesystemStore {
     ) -> Result<bool, StorageError> {
         let path = self.path_builder.final_path(storage_class, content_hash);
         Ok(fs::metadata(&path).await.is_ok())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use tokio::io::AsyncReadExt;
+
+    #[tokio::test]
+    async fn test_store_init_creates_directories() {
+        let hot_dir = TempDir::new().unwrap();
+        let cold_dir = TempDir::new().unwrap();
+
+        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        store.init().await.unwrap();
+
+        assert!(hot_dir.path().join("sha256").exists());
+        assert!(cold_dir.path().join("sha256").exists());
+    }
+
+    #[tokio::test]
+    async fn test_write_and_read_blob() {
+        let hot_dir = TempDir::new().unwrap();
+        let cold_dir = TempDir::new().unwrap();
+
+        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        store.init().await.unwrap();
+
+        let content = b"Hello, World!";
+        let reader = Box::pin(std::io::Cursor::new(content));
+
+        let (hash, size) = store.write(reader, StorageClass::Hot).await.unwrap();
+
+        assert_eq!(size, content.len() as u64);
+
+        // Read back
+        let mut reader = store.read(&hash, StorageClass::Hot).await.unwrap();
+        let mut buffer = Vec::new();
+        reader.read_to_end(&mut buffer).await.unwrap();
+
+        assert_eq!(buffer, content);
+    }
+
+    #[tokio::test]
+    async fn test_exists() {
+        let hot_dir = TempDir::new().unwrap();
+        let cold_dir = TempDir::new().unwrap();
+
+        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        store.init().await.unwrap();
+
+        let content = b"test data";
+        let reader = Box::pin(std::io::Cursor::new(content));
+        let (hash, _) = store.write(reader, StorageClass::Hot).await.unwrap();
+
+        assert!(store.exists(&hash, StorageClass::Hot).await.unwrap());
+        assert!(!store.exists(&hash, StorageClass::Cold).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_delete() {
+        let hot_dir = TempDir::new().unwrap();
+        let cold_dir = TempDir::new().unwrap();
+
+        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        store.init().await.unwrap();
+
+        let content = b"to be deleted";
+        let reader = Box::pin(std::io::Cursor::new(content));
+        let (hash, _) = store.write(reader, StorageClass::Hot).await.unwrap();
+
+        assert!(store.exists(&hash, StorageClass::Hot).await.unwrap());
+
+        store.delete(&hash, StorageClass::Hot).await.unwrap();
+
+        assert!(!store.exists(&hash, StorageClass::Hot).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_deduplication() {
+        let hot_dir = TempDir::new().unwrap();
+        let cold_dir = TempDir::new().unwrap();
+
+        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        store.init().await.unwrap();
+
+        let content = b"duplicate content";
+
+        // Write first time
+        let reader1 = Box::pin(std::io::Cursor::new(content));
+        let (hash1, _) = store.write(reader1, StorageClass::Hot).await.unwrap();
+
+        // Write second time
+        let reader2 = Box::pin(std::io::Cursor::new(content));
+        let (hash2, _) = store.write(reader2, StorageClass::Hot).await.unwrap();
+
+        assert_eq!(hash1, hash2);
+
+        // Verify file exists
+        assert!(store.exists(&hash1, StorageClass::Hot).await.unwrap());
     }
 }
