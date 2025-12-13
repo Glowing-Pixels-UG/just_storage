@@ -31,3 +31,6 @@ Thumbs.db
 tarpaulin-report.html
 rust/tarpaulin-report.html
 *.html
+
+# Go SDK (separate repository)
+go-sdk/

@@ -11,12 +11,24 @@ use crate::infrastructure::storage::{ContentHasher, PathBuilder};
 /// Local filesystem blob store implementation
 pub struct LocalFilesystemStore {
     path_builder: PathBuilder,
+    durable_writes: bool,
+    precreate_dirs: bool,
 }
 
 impl LocalFilesystemStore {
     pub fn new(hot_root: PathBuf, cold_root: PathBuf) -> Self {
+        Self::with_options(hot_root, cold_root, true, true)
+    }
+
+    pub fn with_durability(hot_root: PathBuf, cold_root: PathBuf, durable_writes: bool) -> Self {
+        Self::with_options(hot_root, cold_root, durable_writes, true)
+    }
+
+    pub fn with_options(hot_root: PathBuf, cold_root: PathBuf, durable_writes: bool, precreate_dirs: bool) -> Self {
         Self {
             path_builder: PathBuilder::new(hot_root, cold_root),
+            durable_writes,
+            precreate_dirs,
         }
     }
 
@@ -35,9 +47,11 @@ impl LocalFilesystemStore {
 
             // Pre-create all 256 hex prefix directories to avoid doing it on every write
             // This is a one-time cost at startup that significantly speeds up write operations
-            for i in 0..=255 {
-                let prefix = format!("{:02x}", i);
-                fs::create_dir_all(sha256_root.join(prefix)).await?;
+            if self.precreate_dirs {
+                for i in 0..=255 {
+                    let prefix = format!("{:02x}", i);
+                    fs::create_dir_all(sha256_root.join(prefix)).await?;
+                }
             }
         }
 
@@ -57,7 +71,7 @@ impl BlobStore for LocalFilesystemStore {
         let temp_path = self.path_builder.temp_path(storage_class, temp_id);
 
         // 2. Write to temp file and compute hash
-        let (content_hash, size_bytes) = ContentHasher::write_and_hash(&temp_path, reader).await?;
+        let (content_hash, size_bytes) = ContentHasher::write_and_hash_with_durability(&temp_path, reader, self.durable_writes).await?;
 
         // 3. Move to final content-addressable location (atomic)
         let final_path = self.path_builder.final_path(storage_class, &content_hash);
@@ -67,8 +81,21 @@ impl BlobStore for LocalFilesystemStore {
             // File exists, just delete temp
             fs::remove_file(temp_path).await?;
         } else {
+            // Ensure parent directory exists (lazy directory creation)
+            if let Some(parent) = final_path.parent() {
+                fs::create_dir_all(parent).await?;
+            }
+
             // Atomic rename
-            fs::rename(temp_path, final_path).await?;
+            fs::rename(&temp_path, &final_path).await?;
+
+            // Ensure parent directory is synced to persist the rename operation if durability is required
+            if self.durable_writes {
+                if let Some(parent) = final_path.parent() {
+                    let parent_file = File::open(parent).await?;
+                    parent_file.sync_all().await?;
+                }
+            }
         }
 
         Ok((content_hash, size_bytes))
@@ -157,7 +184,7 @@ mod tests {
 
         // Read back
         let mut reader = store.read(&hash, StorageClass::Hot).await.unwrap();
-        let mut buffer = Vec::new();
+        let mut buffer = Vec::with_capacity(content.len());
         reader.read_to_end(&mut buffer).await.unwrap();
 
         assert_eq!(buffer, content);
