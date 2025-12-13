@@ -1,0 +1,99 @@
+name: CI (Fixed)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Fast quality checks - runs on every push/PR
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Check formatting
+      run: cargo fmt -- --check --color always
+
+    - name: Run clippy
+      run: cargo clippy -- -D warnings --color always
+
+    - name: Run tests
+      run: cargo test --color always
+
+    - name: Run Miri (library only)
+      run: |
+        rustup +nightly component add miri
+        cargo +nightly miri test --lib
+      continue-on-error: true
+
+  # Security and dependency checks
+  security:
+    name: Security & Dependencies
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit --locked
+
+    - name: Install cargo-deny
+      run: cargo install cargo-deny --locked
+
+    - name: Install cargo-udeps
+      run: cargo install cargo-udeps --locked
+
+    - name: Audit dependencies for security vulnerabilities
+      run: cargo audit --color always
+      continue-on-error: true
+
+    - name: Check licenses and dependencies
+      run: cargo deny check --color always
+
+    - name: Check for unused dependencies
+      run: cargo +nightly udeps --workspace --color always
+      continue-on-error: true
+
+  # Build and test across multiple targets
+  build:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Build release
+      run: cargo build --release --workspace --color always
+
+    - name: Run tests
+      run: cargo test --workspace --release --color always

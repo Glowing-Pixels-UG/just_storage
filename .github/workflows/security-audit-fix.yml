@@ -1,0 +1,108 @@
+name: Security Audit (Fixed)
+
+on:
+  schedule:
+    # Run weekly on Mondays at 09:00 UTC
+    - cron: '0 9 * * 1'
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Comprehensive security audit
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit --locked
+
+    - name: Install cargo-deny
+      run: cargo install cargo-deny --locked
+
+    - name: Update advisory database
+      run: cargo audit update
+
+    - name: Audit dependencies for security vulnerabilities
+      id: audit
+      run: |
+        echo "audit_output<<EOF" >> $GITHUB_OUTPUT
+        cargo audit --format json >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Generate security report
+      run: |
+        echo "## Security Audit Report" > security-report.md
+        echo "- Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> security-report.md
+        echo "- Repository: ${{ github.repository }}" >> security-report.md
+        echo "- Commit: ${{ github.sha }}" >> security-report.md
+        echo "" >> security-report.md
+        echo "### Vulnerabilities Found:" >> security-report.md
+        cargo audit --format json | jq -r '.vulnerabilities.found[]? | "- **\(.id)**: \(.title) (Severity: \(.severity))"' >> security-report.md || echo "- No vulnerabilities found" >> security-report.md
+        echo "" >> security-report.md
+        echo "### Dependencies Checked:" >> security-report.md
+        cargo audit --format json | jq -r '.statistics | "- Total dependencies: \(.total)"' >> security-report.md
+        echo "" >> security-report.md
+        echo "### License Compliance:" >> security-report.md
+        cargo deny check licenses --format json | jq -r '.licenses[]? | "- \(.name): \(.license)"' >> security-report.md || echo "- Check failed" >> security-report.md
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-report
+        path: security-report.md
+        retention-days: 30
+
+    # Create GitHub issue for critical vulnerabilities (only on schedule)
+    - name: Create issue on critical vulnerability
+      if: github.event_name == 'schedule'
+      run: |
+        CRITICAL_COUNT=$(cargo audit --format json | jq '.vulnerabilities.found[]? | select(.severity == "critical") | .id' | wc -l)
+        HIGH_COUNT=$(cargo audit --format json | jq '.vulnerabilities.found[]? | select(.severity == "high") | .id' | wc -l)
+
+        if [ "$CRITICAL_COUNT" -gt 0 ] || [ "$HIGH_COUNT" -gt 0 ]; then
+          echo "Creating security issue..."
+          TITLE="🚨 Security Vulnerabilities Found - $CRITICAL_COUNT Critical, $HIGH_COUNT High"
+          BODY="Automated security audit detected vulnerabilities.
+
+**Critical:** $CRITICAL_COUNT
+**High:** $HIGH_COUNT
+
+See security audit report for details.
+
+This issue was automatically created by the weekly security audit."
+
+          # Check if similar issue already exists
+          EXISTING_ISSUE=$(gh issue list --label security --state open --json number,title | jq -r '.[] | select(.title | contains("Security Vulnerabilities")) | .number' | head -1)
+
+          if [ -z "$EXISTING_ISSUE" ]; then
+            gh issue create \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "security,automated"
+          else
+            echo "Security issue already exists: #$EXISTING_ISSUE"
+          fi
+        fi
