@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: just-storage
+  namespace: just-storage
+  labels:
+    app: just-storage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: just-storage
+  template:
+    metadata:
+      labels:
+        app: just-storage
+    spec:
+      containers:
+        - name: just-storage
+          image: storage.bk.glpx.pro/just-storage:v1.1.1
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          env:
+            # Database configuration
+            # TODO: Update DATABASE_URL with your PostgreSQL service details
+            # Format: postgresql://user:password@host:port/database
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: just-storage-secrets
+                  key: database-url
+                  optional: false
+
+            # Storage paths
+            - name: HOT_STORAGE_ROOT
+              value: "/data/hot"
+            - name: COLD_STORAGE_ROOT
+              value: "/data/cold"
+
+            # Server configuration
+            - name: LISTEN_ADDR
+              value: "0.0.0.0:8080"
+
+            # Garbage collection settings
+            - name: GC_INTERVAL_SECS
+              value: "60"
+            - name: GC_BATCH_SIZE
+              value: "100"
+
+            # Logging
+            - name: RUST_LOG
+              value: "info"
+
+            # Database connection pool settings (optional, with defaults)
+            - name: DB_MAX_CONNECTIONS
+              value: "20"
+            - name: DB_MIN_CONNECTIONS
+              value: "5"
+            - name: DB_ACQUIRE_TIMEOUT_SECS
+              value: "30"
+            - name: DB_IDLE_TIMEOUT_SECS
+              value: "600"
+            - name: DB_MAX_LIFETIME_SECS
+              value: "1800"
+
+            # Authentication
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: just-storage-secrets
+                  key: jwt-secret
+                  optional: false
+            - name: API_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: just-storage-secrets
+                  key: api-keys
+                  optional: true
+            - name: DISABLE_AUTH
+              value: "false"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+
+          volumeMounts:
+            - name: hot-storage
+              mountPath: /data/hot
+            - name: cold-storage
+              mountPath: /data/cold
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+      volumes:
+        - name: hot-storage
+          persistentVolumeClaim:
+            claimName: just-storage-hot
+        - name: cold-storage
+          persistentVolumeClaim:
+            claimName: just-storage-cold

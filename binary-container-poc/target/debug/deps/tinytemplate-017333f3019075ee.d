@@ -1,0 +1,10 @@
+/Users/damirmukimov/projects/just_storage/binary-container-poc/target/debug/deps/tinytemplate-017333f3019075ee.d: /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/lib.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/compiler.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/error.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/instruction.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/syntax.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/template.rs
+
+/Users/damirmukimov/projects/just_storage/binary-container-poc/target/debug/deps/libtinytemplate-017333f3019075ee.rmeta: /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/lib.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/compiler.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/error.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/instruction.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/syntax.rs /Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/template.rs
+
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/lib.rs:
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/compiler.rs:
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/error.rs:
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/instruction.rs:
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/syntax.rs:
+/Users/damirmukimov/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinytemplate-1.2.1/src/template.rs:

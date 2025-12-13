@@ -1,0 +1,125 @@
+# cargo-deny configuration for binary-container-poc
+# Comprehensive security and dependency management
+# Based on 2025 best practices (cargo-deny 0.18+)
+
+# Root options - configure dependency graph construction
+[graph]
+# Target triples to check (only these targets will be checked)
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "x86_64-apple-darwin" },
+    { triple = "aarch64-apple-darwin" },
+]
+# Exclude specific crates from the graph (use with care)
+#exclude = []
+# Collect metadata with all features
+all-features = false
+# Collect metadata with no default features
+no-default-features = false
+# Enable specific features when collecting metadata
+#features = []
+
+# Output configuration
+[output]
+# Depth at which feature edges will be added in inclusion graphs
+feature-depth = 1
+
+# Advisories database configuration
+# More documentation: https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
+[advisories]
+# Path where advisory databases are cloned/fetched
+#db-path = "$CARGO_HOME/advisory-dbs"
+# URL(s) of advisory databases to use
+#db-urls = ["https://github.com/rustsec/advisory-db"]
+# List of advisory IDs to ignore (still outputs a note when encountered)
+ignore = [
+    # Example: "RUSTSEC-2024-0001",
+    # Example: { id = "RUSTSEC-2024-0001", reason = "False positive in our use case" },
+]
+# Use git executable to fetch advisory database (for special auth requirements)
+#git-fetch-with-cli = true
+
+# License checking configuration
+# More documentation: https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
+[licenses]
+# List of explicitly allowed licenses (SPDX 3.11 identifiers)
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "CC0-1.0",
+    "Unlicense",
+    "Unicode-3.0",
+]
+# Confidence threshold for license detection (0.0 to 1.0)
+confidence-threshold = 0.8
+# Allow specific licenses on a per-crate basis
+exceptions = [
+    # Example: { allow = ["GPL-3.0"], crate = "some-crate" },
+]
+
+# Private/unpublished crates configuration
+[licenses.private]
+# Ignore workspace crates that aren't published
+ignore = false
+# Private registries that crates might be published to
+registries = [
+    # Example: "https://sekretz.com/registry",
+]
+
+# Banned dependencies configuration
+# More documentation: https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
+[bans]
+# Lint level for multiple versions of the same crate
+multiple-versions = "warn"
+# Lint level for wildcard version requirements (*)
+wildcards = "deny"
+# Graph highlighting for multiple versions
+highlight = "all"
+# Default lint level for default features in workspace crates
+workspace-default-features = "allow"
+# Default lint level for default features in external crates
+external-default-features = "allow"
+# List of crates that are allowed (use with care!)
+allow = [
+    # Example: { crate = "ansi_term@0.11.0", reason = "Legacy dependency" },
+]
+# List of crates to deny
+deny = [
+    # Example: { crate = "insecure-crate", reason = "Security vulnerability" },
+]
+# Crates to skip during duplicate detection
+skip = [
+    # Example: { crate = "some-crate", reason = "Can't be updated" },
+]
+# Crates to skip along with their entire dependency tree
+skip-tree = [
+    # Example: { crate = "some-crate", depth = 20 },
+]
+
+# Sources configuration
+# More documentation: https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
+[sources]
+# Lint level for unknown registries
+unknown-registry = "deny"
+# Lint level for unknown git repositories
+unknown-git = "deny"
+# List of allowed crate registry URLs
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# List of allowed Git repository URLs
+allow-git = [
+    # Example: "https://github.com/user/repo",
+]
+
+# Allow git sources from specific organizations
+[sources.allow-org]
+# github.com organizations to allow
+github = []
+# gitlab.com organizations to allow
+gitlab = []
+# bitbucket.org organizations to allow
+bitbucket = []
