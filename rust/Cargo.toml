@@ -32,7 +32,10 @@ thiserror = "1.0"
 async-trait = "0.1"
 
 # Hashing
-sha2 = "0.10"
+# SHA-256 with SIMD optimizations for performance
+# - asm: Enables assembly-optimized SHA-256 on x86_64
+# - asm-aarch64: Enables assembly-optimized SHA-256 on ARM64
+sha2 = { version = "0.10", features = ["asm", "asm-aarch64"] }
 hex = "0.4"
 
 # Authentication
@@ -62,4 +65,12 @@ path = "tools/validate_db.rs"
 
 [[bench]]
 name = "storage_bench"
+harness = false
+
+[[bench]]
+name = "memory_bench"
+harness = false
+
+[[bench]]
+name = "resource_bench"
 harness = false
