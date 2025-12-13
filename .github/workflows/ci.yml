@@ -107,10 +107,14 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Build release
-      run: cargo build --release --workspace
+      run: |
+        cd rust && cargo build --release --workspace
+        cd ../binary-container-poc && cargo build --release
 
     - name: Run tests
-      run: cargo test --workspace --release
+      run: |
+        cd rust && cargo test --workspace --release
+        cd ../binary-container-poc && cargo test --release
 
   # Performance and binary analysis
   performance:
@@ -130,9 +134,7 @@ jobs:
       run: cargo install cargo-bloat --locked
 
     - name: Build for analysis
-      run: |
-        cd rust && cargo build --release
-        cd ../binary-container-poc && cargo build --release
+      run: cd rust && cargo build --release
 
     - name: Analyze binary size
       run: cd rust && cargo bloat --release --crates
