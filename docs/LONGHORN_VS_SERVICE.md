@@ -2,6 +2,16 @@
 
 This document explicitly defines what Longhorn + ZFS solve for us versus what ActiveStorage must implement.
 
+## Repository Information
+
+**Project:** [just_storage](https://github.com/Glowing-Pixels-UG/just_storage)  
+**Description:** Content-addressable object storage with strong consistency, automatic deduplication, and crash-safe operations  
+**License:** MIT License  
+**Primary Language:** Rust  
+**Topics:** `clean-architecture`, `content-addressable`, `object-storage`, `rust`, `storage`  
+**Default Branch:** `main`  
+**Visibility:** Public
+
 ---
 
 ## The Stack
