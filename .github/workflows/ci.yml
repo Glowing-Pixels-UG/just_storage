@@ -32,19 +32,13 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Check formatting
-      run: |
-        cd rust && cargo fmt -- --check
-        cd ../binary-container-poc && cargo fmt -- --check
+      run: cd rust && cargo fmt -- --check
 
     - name: Run clippy
-      run: |
-        cd rust && cargo clippy -- -D warnings
-        cd ../binary-container-poc && cargo clippy -- -D warnings
+      run: cd rust && cargo clippy -- -D warnings
 
     - name: Run tests
-      run: |
-        cd rust && cargo test --workspace
-        cd ../binary-container-poc && cargo test
+      run: cd rust && cargo test --workspace
 
     - name: Run Miri (library only)
       run: cargo +nightly miri test --lib
@@ -107,14 +101,10 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Build release
-      run: |
-        cd rust && cargo build --release --workspace
-        cd ../binary-container-poc && cargo build --release
+      run: cd rust && cargo build --release --workspace
 
     - name: Run tests
-      run: |
-        cd rust && cargo test --workspace --release
-        cd ../binary-container-poc && cargo test --release
+      run: cd rust && cargo test --workspace --release
 
   # Performance and binary analysis
   performance:

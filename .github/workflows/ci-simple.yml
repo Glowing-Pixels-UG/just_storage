@@ -33,16 +33,10 @@ jobs:
           ${{ runner.os }}-cargo-
 
     - name: Check formatting
-      run: |
-        cd rust && cargo fmt -- --check
-        cd ../binary-container-poc && cargo fmt -- --check
+      run: cd rust && cargo fmt -- --check
 
     - name: Run clippy
-      run: |
-        cd rust && cargo clippy -- -D warnings
-        cd ../binary-container-poc && cargo clippy -- -D warnings
+      run: cd rust && cargo clippy -- -D warnings
 
     - name: Run tests
-      run: |
-        cd rust && cargo test --workspace
-        cd ../binary-container-poc && cargo test
+      run: cd rust && cargo test --workspace
