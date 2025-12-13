@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use tokio::net::TcpListener;
 use tracing::{info, Level};
@@ -37,12 +38,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.validate()?;
     info!("Configuration loaded and validated");
 
-    // Initialize database connection pool
+    // Initialize database connection pool with optimized settings
     info!("Connecting to database: {}", config.database_url);
-    let pool = PgPool::connect(&config.database_url).await.map_err(|e| {
-        tracing::error!("Failed to connect to database: {}", e);
-        e
-    })?;
+    let pool = PgPoolOptions::new()
+        .max_connections(config.db_max_connections)
+        .min_connections(config.db_min_connections)
+        .acquire_timeout(Duration::from_secs(config.db_acquire_timeout_secs))
+        .idle_timeout(Some(Duration::from_secs(config.db_idle_timeout_secs)))
+        .max_lifetime(Some(Duration::from_secs(config.db_max_lifetime_secs)))
+        .connect(&config.database_url)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to connect to database: {}", e);
+            e
+        })?;
+    
+    info!(
+        "Database pool configured: max={}, min={}, acquire_timeout={}s, idle_timeout={}s, max_lifetime={}s",
+        config.db_max_connections,
+        config.db_min_connections,
+        config.db_acquire_timeout_secs,
+        config.db_idle_timeout_secs,
+        config.db_max_lifetime_secs
+    );
 
     // Run database migrations
     info!("Running database migrations");
@@ -101,8 +119,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Garbage collector started");
 
     // Create app state
+    // Note: pool is already a PgPool (not Arc), so we wrap it once
     let state = AppState {
-        pool: Arc::new(pool.clone()),
+        pool: Arc::new(pool),
         upload_use_case,
         download_use_case,
         delete_use_case,
