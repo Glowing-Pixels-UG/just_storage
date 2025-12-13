@@ -127,12 +127,7 @@ jobs:
       run: cargo build --release
 
     - name: Analyze binary size
-      run: |
-        if command -v cargo-bloat >/dev/null 2>&1; then
-          cargo bloat --release --crates
-        else
-          echo "cargo-bloat not available, skipping binary size analysis"
-        fi
+      run: cargo bloat --release --crates
       continue-on-error: true
 
   # Integration tests (if any exist)
@@ -165,20 +160,8 @@ jobs:
     - name: Install sqlx-cli
       run: cargo install sqlx-cli --no-default-features --features postgres
 
-    - name: Set up database
-      run: |
-        createdb -h localhost -U postgres test || echo "Database already exists"
-        psql -h localhost -U postgres test < schema.sql || echo "Schema setup failed"
-      env:
-        PGPASSWORD: postgres
-
     - name: Run integration tests
-      run: |
-        if cargo test --workspace --test integration -- --nocapture 2>/dev/null; then
-          echo "Integration tests passed"
-        else
-          echo "Integration tests not available or failed, skipping"
-        fi
+      run: cargo test --workspace --test integration -- --nocapture
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
       continue-on-error: true
