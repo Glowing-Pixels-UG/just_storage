@@ -17,11 +17,6 @@ impl ContentHasher {
         dest_path: &Path,
         mut reader: impl AsyncRead + Unpin,
     ) -> Result<(ContentHash, u64), StorageError> {
-        // Ensure parent directory exists
-        if let Some(parent) = dest_path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-
         // Open temp file for writing
         let mut file = tokio::io::BufWriter::with_capacity(BUFFER_SIZE, File::create(dest_path).await?);
 

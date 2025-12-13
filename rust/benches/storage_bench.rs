@@ -31,15 +31,34 @@ fn storage_benchmarks(c: &mut Criterion) {
 
         // Benchmark Write
         group.bench_with_input(BenchmarkId::new("write", size), &size, |b, &s| {
-            b.to_async(&rt).iter(|| async {
-                let hot_dir = TempDir::new().unwrap();
-                let cold_dir = TempDir::new().unwrap();
-                let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
-                store.init().await.unwrap();
+            // Setup store once
+            let hot_dir = TempDir::new().unwrap();
+            let cold_dir = TempDir::new().unwrap();
+            let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+            rt.block_on(async { store.init().await.unwrap() });
 
-                let data = vec![0u8; s];
-                let reader = Box::pin(std::io::Cursor::new(data));
-                store.write(reader, StorageClass::Hot).await.unwrap();
+            b.to_async(&rt).iter_custom(|iters| {
+                let store = &store;
+                async move {
+                    let mut total_duration = Duration::default();
+                    for i in 0..iters {
+                        // Create unique content to avoid deduplication
+                        let mut data = vec![0u8; s];
+                        // Modify first few bytes with iteration count to ensure uniqueness
+                        let prefix = i.to_le_bytes();
+                        for (j, byte) in prefix.iter().enumerate() {
+                            if j < data.len() {
+                                data[j] = *byte;
+                            }
+                        }
+
+                        let start = std::time::Instant::now();
+                        let reader = Box::pin(std::io::Cursor::new(data));
+                        store.write(reader, StorageClass::Hot).await.unwrap();
+                        total_duration += start.elapsed();
+                    }
+                    total_duration
+                }
             })
         });
 

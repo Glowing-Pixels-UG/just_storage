@@ -24,14 +24,21 @@ impl LocalFilesystemStore {
     pub async fn init(&self) -> Result<(), StorageError> {
         // Create directory structure
         for class in [StorageClass::Hot, StorageClass::Cold] {
-            let temp_dir = self.path_builder.temp_path(class, Uuid::new_v4());
-            if let Some(parent) = temp_dir.parent() {
-                fs::create_dir_all(parent).await?;
-            }
+            // Create temp directory
+            let root = self.path_builder.root(class);
+            fs::create_dir_all(root.join("temp")).await?;
 
             // Create sha256 directory
             let root = self.path_builder.root(class);
-            fs::create_dir_all(root.join("sha256")).await?;
+            let sha256_root = root.join("sha256");
+            fs::create_dir_all(&sha256_root).await?;
+
+            // Pre-create all 256 hex prefix directories to avoid doing it on every write
+            // This is a one-time cost at startup that significantly speeds up write operations
+            for i in 0..=255 {
+                let prefix = format!("{:02x}", i);
+                fs::create_dir_all(sha256_root.join(prefix)).await?;
+            }
         }
 
         Ok(())
@@ -54,11 +61,6 @@ impl BlobStore for LocalFilesystemStore {
 
         // 3. Move to final content-addressable location (atomic)
         let final_path = self.path_builder.final_path(storage_class, &content_hash);
-
-        // Create parent directory if needed
-        if let Some(parent) = final_path.parent() {
-            fs::create_dir_all(parent).await?;
-        }
 
         // Check if file already exists (deduplication)
         if fs::metadata(&final_path).await.is_ok() {
