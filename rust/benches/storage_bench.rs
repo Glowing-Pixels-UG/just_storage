@@ -1,9 +1,9 @@
 use chrono::Utc;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use futures_util::future::join_all;
 use just_storage::application::ports::BlobStore;
 use just_storage::domain::value_objects::StorageClass;
 use just_storage::infrastructure::storage::LocalFilesystemStore;
-use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -38,20 +38,22 @@ fn storage_benchmarks(c: &mut Criterion) {
             // Setup store once
             let hot_dir = TempDir::new().unwrap();
             let cold_dir = TempDir::new().unwrap();
-            let store = LocalFilesystemStore::new(
+            let store = LocalFilesystemStore::with_options(
                 hot_dir.path().to_path_buf(),
                 cold_dir.path().to_path_buf(),
+                false, // Disable durability for benchmarking performance
+                false, // Disable directory pre-creation for faster benchmark startup
             );
             rt.block_on(async { store.init().await.unwrap() });
 
             b.to_async(&rt).iter_custom(|iters| {
                 let store = &store;
+                // Pre-allocate buffer once to reduce allocations
+                let mut data = vec![0u8; s];
                 async move {
                     let mut total_duration = Duration::default();
                     for i in 0..iters {
-                        // Create unique content to avoid deduplication
-                        let mut data = vec![0u8; s];
-                        // Modify first few bytes with iteration count to ensure uniqueness
+                        // Reuse buffer, just modify first bytes for uniqueness
                         let prefix = i.to_le_bytes();
                         for (j, byte) in prefix.iter().enumerate() {
                             if j < data.len() {
@@ -60,8 +62,61 @@ fn storage_benchmarks(c: &mut Criterion) {
                         }
 
                         let start = std::time::Instant::now();
-                        let reader = Box::pin(std::io::Cursor::new(data));
+                        // Clone data for the reader (required for ownership)
+                        let data_clone = data.clone();
+                        let reader = Box::pin(std::io::Cursor::new(data_clone));
                         store.write(reader, StorageClass::Hot).await.unwrap();
+                        total_duration += start.elapsed();
+                    }
+                    total_duration
+                }
+            })
+        });
+
+        // Benchmark Concurrent Writes
+        group.bench_with_input(BenchmarkId::new("write_concurrent_4", size), &size, |b, &s| {
+            // Setup store once
+            let hot_dir = TempDir::new().unwrap();
+            let cold_dir = TempDir::new().unwrap();
+            let store = LocalFilesystemStore::with_options(
+                hot_dir.path().to_path_buf(),
+                cold_dir.path().to_path_buf(),
+                false, // Disable durability for benchmarking performance
+                false, // Disable directory pre-creation for faster benchmark startup
+            );
+            rt.block_on(async { store.init().await.unwrap() });
+
+            b.to_async(&rt).iter_custom(|iters| {
+                let store = &store;
+                async move {
+                    let mut total_duration = Duration::default();
+                    for i in 0..iters {
+                        let start = std::time::Instant::now();
+
+                        // Perform 4 concurrent writes
+                        let futures = (0..4).map(|thread_id| {
+                            let store = &store;
+                            let size = s;
+                            let iter = i;
+                            async move {
+                                // Create unique content to avoid deduplication
+                                let mut data = vec![0u8; size];
+                                // Modify first few bytes with thread and iteration info
+                                let prefix = ((iter * 4 + thread_id) as u32).to_le_bytes();
+                                for (j, byte) in prefix.iter().enumerate() {
+                                    if j < data.len() {
+                                        data[j] = *byte;
+                                    }
+                                }
+
+                                let reader = Box::pin(std::io::Cursor::new(data));
+                                store.write(reader, StorageClass::Hot).await.unwrap();
+                            }
+                        });
+
+                        // Wait for all concurrent writes to complete
+                        join_all(futures).await;
+
                         total_duration += start.elapsed();
                     }
                     total_duration
@@ -74,9 +129,11 @@ fn storage_benchmarks(c: &mut Criterion) {
             // Setup once per iteration
             let hot_dir = TempDir::new().unwrap();
             let cold_dir = TempDir::new().unwrap();
-            let store = LocalFilesystemStore::new(
+            let store = LocalFilesystemStore::with_options(
                 hot_dir.path().to_path_buf(),
                 cold_dir.path().to_path_buf(),
+                false, // Disable durability for benchmarking performance
+                false, // Disable directory pre-creation for faster benchmark startup
             );
             let data = vec![0u8; s];
 
@@ -88,26 +145,17 @@ fn storage_benchmarks(c: &mut Criterion) {
             });
 
             b.to_async(&rt).iter(|| async {
-                let _reader = store.read(&hash, StorageClass::Hot).await.unwrap();
-                // Note: we're not reading the content here to strictly measure open/access overhead + IO setup,
-                // but usually reading the content is part of the benchmark.
-                // However, `BlobReader` is just a Box<dyn AsyncRead>, so just getting it might not read data.
-                // Let's read it to be fair.
+                // Pre-allocate buffer to avoid reallocations during read
                 let mut buffer = Vec::with_capacity(s);
                 let mut reader = store.read(&hash, StorageClass::Hot).await.unwrap();
                 tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut buffer)
                     .await
                     .unwrap();
+                // Ensure we actually read the data (prevent optimization)
+                std::hint::black_box(&buffer);
             })
         });
 
-        // Manual "hook" to save data to CSV is tricky with standard Criterion API because it handles reporting.
-        // However, we can access the latest report directory or use a custom reporter.
-        // For simplicity in this task, we will just note that Criterion saves JSON/HTML.
-        // But the requirement is "save in csv".
-        // We can't easily extract the exact result *during* the run without a custom reporter.
-        // A workaround is to parse the generated JSON or use a custom runner.
-        // Or simpler: run a separate manual timing loop for the CSV part, which duplicates work but satisfies the requirement simply.
 
         // Let's implement a manual measurement for CSV logging purposes alongside Criterion
         // This ensures we satisfy "benchmark with historical data save in csv"
@@ -115,16 +163,22 @@ fn storage_benchmarks(c: &mut Criterion) {
         // Run a quick check for CSV logging
         let timestamp = Utc::now().to_rfc3339();
 
+        // Create shared store for CSV logging to avoid repeated directory creation
+        let hot_dir = TempDir::new().unwrap();
+        let cold_dir = TempDir::new().unwrap();
+        let store = LocalFilesystemStore::with_options(
+            hot_dir.path().to_path_buf(),
+            cold_dir.path().to_path_buf(),
+            false, // Disable durability for benchmarking performance
+            false, // Disable directory pre-creation for faster benchmark startup
+        );
+        rt.block_on(async {
+            store.init().await.unwrap();
+        });
+
         // Write Test for CSV
         let start = std::time::Instant::now();
         rt.block_on(async {
-            let hot_dir = TempDir::new().unwrap();
-            let cold_dir = TempDir::new().unwrap();
-            let store = LocalFilesystemStore::new(
-                hot_dir.path().to_path_buf(),
-                cold_dir.path().to_path_buf(),
-            );
-            store.init().await.unwrap();
             let data = vec![0u8; size];
             let reader = Box::pin(std::io::Cursor::new(data));
             store.write(reader, StorageClass::Hot).await.unwrap();
@@ -142,15 +196,8 @@ fn storage_benchmarks(c: &mut Criterion) {
         )
         .unwrap();
 
-        // Read Test for CSV
-        // Need to keep TempDir alive
-        let hot_dir = TempDir::new().unwrap();
-        let cold_dir = TempDir::new().unwrap();
-        let store =
-            LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
-
+        // Read Test for CSV - reuse the same data we just wrote
         let hash = rt.block_on(async {
-            store.init().await.unwrap();
             let data = vec![0u8; size];
             let reader = Box::pin(std::io::Cursor::new(data));
             let (hash, _) = store.write(reader, StorageClass::Hot).await.unwrap();
