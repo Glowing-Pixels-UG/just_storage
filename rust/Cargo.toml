@@ -52,7 +52,14 @@ clap = { version = "4", features = ["derive"] }
 [dev-dependencies]
 mockall = "0.14"
 bytes = "1"
+tempfile = "3.23.0"
+criterion = { version = "0.8.1", features = ["async_tokio"] }
+tower = "0.5.2"
 
 [[bin]]
 name = "validate_db"
 path = "tools/validate_db.rs"
+
+[[bench]]
+name = "storage_bench"
+harness = false

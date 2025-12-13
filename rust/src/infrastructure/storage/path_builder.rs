@@ -17,7 +17,7 @@ impl PathBuilder {
     }
 
     /// Get root path for storage class
-    fn root(&self, storage_class: StorageClass) -> &Path {
+    pub fn root(&self, storage_class: StorageClass) -> &Path {
         match storage_class {
             StorageClass::Hot => &self.hot_root,
             StorageClass::Cold => &self.cold_root,
