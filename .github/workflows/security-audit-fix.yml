@@ -48,9 +48,11 @@ jobs:
     - name: Audit dependencies for security vulnerabilities
       id: audit
       run: |
-        echo "audit_output<<EOF" >> $GITHUB_OUTPUT
-        cargo audit --format json >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        {
+          echo "audit_output<<EOF"
+          cargo audit --format json
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
 
     - name: Generate security report
       run: |
