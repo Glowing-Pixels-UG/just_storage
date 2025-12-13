@@ -131,7 +131,8 @@ mod tests {
         let hot_dir = TempDir::new().unwrap();
         let cold_dir = TempDir::new().unwrap();
 
-        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        let store =
+            LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
         store.init().await.unwrap();
 
         assert!(hot_dir.path().join("sha256").exists());
@@ -143,7 +144,8 @@ mod tests {
         let hot_dir = TempDir::new().unwrap();
         let cold_dir = TempDir::new().unwrap();
 
-        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        let store =
+            LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
         store.init().await.unwrap();
 
         let content = b"Hello, World!";
@@ -166,7 +168,8 @@ mod tests {
         let hot_dir = TempDir::new().unwrap();
         let cold_dir = TempDir::new().unwrap();
 
-        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        let store =
+            LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
         store.init().await.unwrap();
 
         let content = b"test data";
@@ -182,7 +185,8 @@ mod tests {
         let hot_dir = TempDir::new().unwrap();
         let cold_dir = TempDir::new().unwrap();
 
-        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        let store =
+            LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
         store.init().await.unwrap();
 
         let content = b"to be deleted";
@@ -201,7 +205,8 @@ mod tests {
         let hot_dir = TempDir::new().unwrap();
         let cold_dir = TempDir::new().unwrap();
 
-        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        let store =
+            LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
         store.init().await.unwrap();
 
         let content = b"duplicate content";

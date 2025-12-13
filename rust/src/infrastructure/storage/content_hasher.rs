@@ -18,7 +18,8 @@ impl ContentHasher {
         mut reader: impl AsyncRead + Unpin,
     ) -> Result<(ContentHash, u64), StorageError> {
         // Open temp file for writing
-        let mut file = tokio::io::BufWriter::with_capacity(BUFFER_SIZE, File::create(dest_path).await?);
+        let mut file =
+            tokio::io::BufWriter::with_capacity(BUFFER_SIZE, File::create(dest_path).await?);
 
         // Hash while writing
         let mut hasher = Sha256::new();

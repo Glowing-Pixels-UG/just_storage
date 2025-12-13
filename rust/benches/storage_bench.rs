@@ -1,13 +1,13 @@
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
-use just_storage::infrastructure::storage::LocalFilesystemStore;
+use chrono::Utc;
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use just_storage::application::ports::BlobStore;
 use just_storage::domain::value_objects::StorageClass;
-use tempfile::TempDir;
-use tokio::runtime::Runtime;
-use std::time::Duration;
+use just_storage::infrastructure::storage::LocalFilesystemStore;
 use std::fs::File;
 use std::io::Write;
-use chrono::Utc;
+use std::time::Duration;
+use tempfile::TempDir;
+use tokio::runtime::Runtime;
 
 fn storage_benchmarks(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
@@ -21,7 +21,11 @@ fn storage_benchmarks(c: &mut Criterion) {
         .expect("Failed to open benchmark history file");
 
     if csv_file.metadata().unwrap().len() == 0 {
-        writeln!(csv_file, "timestamp,operation,size_bytes,throughput_mb_s,avg_time_ms").unwrap();
+        writeln!(
+            csv_file,
+            "timestamp,operation,size_bytes,throughput_mb_s,avg_time_ms"
+        )
+        .unwrap();
     }
 
     for size in [1024, 1024 * 1024, 10 * 1024 * 1024].iter() {
@@ -34,7 +38,10 @@ fn storage_benchmarks(c: &mut Criterion) {
             // Setup store once
             let hot_dir = TempDir::new().unwrap();
             let cold_dir = TempDir::new().unwrap();
-            let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+            let store = LocalFilesystemStore::new(
+                hot_dir.path().to_path_buf(),
+                cold_dir.path().to_path_buf(),
+            );
             rt.block_on(async { store.init().await.unwrap() });
 
             b.to_async(&rt).iter_custom(|iters| {
@@ -64,10 +71,13 @@ fn storage_benchmarks(c: &mut Criterion) {
 
         // Benchmark Read
         group.bench_with_input(BenchmarkId::new("read", size), &size, |b, &s| {
-             // Setup once per iteration
+            // Setup once per iteration
             let hot_dir = TempDir::new().unwrap();
             let cold_dir = TempDir::new().unwrap();
-            let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+            let store = LocalFilesystemStore::new(
+                hot_dir.path().to_path_buf(),
+                cold_dir.path().to_path_buf(),
+            );
             let data = vec![0u8; s];
 
             // Prepare data (outside of measurement)
@@ -85,7 +95,9 @@ fn storage_benchmarks(c: &mut Criterion) {
                 // Let's read it to be fair.
                 let mut buffer = Vec::with_capacity(s);
                 let mut reader = store.read(&hash, StorageClass::Hot).await.unwrap();
-                tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut buffer).await.unwrap();
+                tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut buffer)
+                    .await
+                    .unwrap();
             })
         });
 
@@ -108,7 +120,10 @@ fn storage_benchmarks(c: &mut Criterion) {
         rt.block_on(async {
             let hot_dir = TempDir::new().unwrap();
             let cold_dir = TempDir::new().unwrap();
-            let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+            let store = LocalFilesystemStore::new(
+                hot_dir.path().to_path_buf(),
+                cold_dir.path().to_path_buf(),
+            );
             store.init().await.unwrap();
             let data = vec![0u8; size];
             let reader = Box::pin(std::io::Cursor::new(data));
@@ -116,13 +131,23 @@ fn storage_benchmarks(c: &mut Criterion) {
         });
         let duration = start.elapsed();
         let mb_s = (size as f64 / 1_000_000.0) / duration.as_secs_f64();
-        writeln!(csv_file, "{},write_{},{},{:.2},{:.2}", timestamp, size, size, mb_s, duration.as_millis()).unwrap();
+        writeln!(
+            csv_file,
+            "{},write_{},{},{:.2},{:.2}",
+            timestamp,
+            size,
+            size,
+            mb_s,
+            duration.as_millis()
+        )
+        .unwrap();
 
         // Read Test for CSV
         // Need to keep TempDir alive
         let hot_dir = TempDir::new().unwrap();
         let cold_dir = TempDir::new().unwrap();
-        let store = LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
+        let store =
+            LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
 
         let hash = rt.block_on(async {
             store.init().await.unwrap();
@@ -136,12 +161,22 @@ fn storage_benchmarks(c: &mut Criterion) {
         rt.block_on(async {
             let mut buffer = Vec::with_capacity(size);
             let mut reader = store.read(&hash, StorageClass::Hot).await.unwrap();
-            tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut buffer).await.unwrap();
+            tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut buffer)
+                .await
+                .unwrap();
         });
         let duration = start.elapsed();
-         let mb_s = (size as f64 / 1_000_000.0) / duration.as_secs_f64();
-        writeln!(csv_file, "{},read_{},{},{:.2},{:.2}", timestamp, size, size, mb_s, duration.as_millis()).unwrap();
-
+        let mb_s = (size as f64 / 1_000_000.0) / duration.as_secs_f64();
+        writeln!(
+            csv_file,
+            "{},read_{},{},{:.2},{:.2}",
+            timestamp,
+            size,
+            size,
+            mb_s,
+            duration.as_millis()
+        )
+        .unwrap();
     }
     group.finish();
 }
