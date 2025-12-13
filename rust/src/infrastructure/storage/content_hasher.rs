@@ -17,13 +17,9 @@ impl ContentHasher {
         dest_path: &Path,
         mut reader: impl AsyncRead + Unpin,
     ) -> Result<(ContentHash, u64), StorageError> {
-        // Ensure parent directory exists
-        if let Some(parent) = dest_path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-
         // Open temp file for writing
-        let mut file = File::create(dest_path).await?;
+        let mut file =
+            tokio::io::BufWriter::with_capacity(BUFFER_SIZE, File::create(dest_path).await?);
 
         // Hash while writing
         let mut hasher = Sha256::new();
@@ -40,13 +36,16 @@ impl ContentHasher {
             hasher.update(&buffer[..n]);
 
             // Write to file
-            tokio::io::copy(&mut &buffer[..n], &mut file).await?;
+            tokio::io::AsyncWriteExt::write_all(&mut file, &buffer[..n]).await?;
 
             total_bytes += n as u64;
         }
 
+        // Flush buffer
+        tokio::io::AsyncWriteExt::flush(&mut file).await?;
+
         // Ensure data is fsynced to disk
-        file.sync_all().await?;
+        file.get_mut().sync_all().await?;
 
         // Finalize hash
         let hash_bytes = hasher.finalize();
