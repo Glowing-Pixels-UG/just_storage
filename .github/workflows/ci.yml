@@ -32,13 +32,19 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Check formatting
-      run: cargo fmt -- --check
+      run: |
+        cd rust && cargo fmt -- --check
+        cd ../binary-container-poc && cargo fmt -- --check
 
     - name: Run clippy
-      run: cargo clippy -- -D warnings
+      run: |
+        cd rust && cargo clippy -- -D warnings
+        cd ../binary-container-poc && cargo clippy -- -D warnings
 
     - name: Run tests
-      run: cargo test --workspace
+      run: |
+        cd rust && cargo test --workspace
+        cd ../binary-container-poc && cargo test
 
     - name: Run Miri (library only)
       run: cargo +nightly miri test --lib
@@ -124,10 +130,12 @@ jobs:
       run: cargo install cargo-bloat --locked
 
     - name: Build for analysis
-      run: cargo build --release
+      run: |
+        cd rust && cargo build --release
+        cd ../binary-container-poc && cargo build --release
 
     - name: Analyze binary size
-      run: cargo bloat --release --crates
+      run: cd rust && cargo bloat --release --crates
       continue-on-error: true
 
   # Integration tests (if any exist)
@@ -161,7 +169,8 @@ jobs:
       run: cargo install sqlx-cli --no-default-features --features postgres
 
     - name: Run integration tests
-      run: cargo test --workspace --test integration -- --nocapture
+      run: |
+        cd rust && cargo test --workspace --test integration -- --nocapture
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
       continue-on-error: true
