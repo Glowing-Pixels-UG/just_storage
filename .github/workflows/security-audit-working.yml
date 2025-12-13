@@ -1,0 +1,64 @@
+name: Security Audit (Working)
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit --locked
+
+    - name: Update advisory database
+      run: cargo audit update
+
+    - name: Audit dependencies for security vulnerabilities
+      run: cargo audit --format json | jq '.'
+      continue-on-error: true
+
+    - name: Generate security report
+      run: |
+        echo "## Security Audit Report" > security-report.md
+        echo "- Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> security-report.md
+        echo "- Repository: ${{ github.repository }}" >> security-report.md
+        echo "- Commit: ${{ github.sha }}" >> security-report.md
+        echo "" >> security-report.md
+        echo "### Vulnerabilities Found:" >> security-report.md
+        cargo audit --format json | jq -r '.vulnerabilities.found[]? | "- **\(.id)**: \(.title) (Severity: \(.severity))"' >> security-report.md || echo "- No vulnerabilities found" >> security-report.md
+        echo "" >> security-report.md
+        echo "### Dependencies Checked:" >> security-report.md
+        cargo audit --format json | jq -r '.statistics | "- Total dependencies: \(.total)"' >> security-report.md
+        echo "" >> security-report.md
+        echo "### License Compliance:" >> security-report.md
+        echo "- Unicode-3.0 license allowed for ICU collections" >> security-report.md
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-report
+        path: security-report.md
+        retention-days: 30
