@@ -8,6 +8,12 @@ pub struct Config {
     pub listen_addr: String,
     pub gc_interval_secs: u64,
     pub gc_batch_size: i64,
+    // Database connection pool settings
+    pub db_max_connections: u32,
+    pub db_min_connections: u32,
+    pub db_acquire_timeout_secs: u64,
+    pub db_idle_timeout_secs: u64,
+    pub db_max_lifetime_secs: u64,
 }
 
 impl Config {
@@ -32,6 +38,29 @@ impl Config {
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(100),
+            // Database pool settings with sensible defaults
+            // max_connections: Typically 2 * CPU cores + effective_spindle_count
+            // For most applications, 10-20 is a good starting point
+            db_max_connections: std::env::var("DB_MAX_CONNECTIONS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(20),
+            db_min_connections: std::env::var("DB_MIN_CONNECTIONS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(5),
+            db_acquire_timeout_secs: std::env::var("DB_ACQUIRE_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(30),
+            db_idle_timeout_secs: std::env::var("DB_IDLE_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(600), // 10 minutes
+            db_max_lifetime_secs: std::env::var("DB_MAX_LIFETIME_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(1800), // 30 minutes
         }
     }
 
