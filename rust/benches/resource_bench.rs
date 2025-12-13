@@ -105,19 +105,15 @@ fn buffer_allocation_benchmarks(c: &mut Criterion) {
         let size = *size;
 
         // Benchmark Vec::new() - multiple reallocations
-        group.bench_with_input(
-            BenchmarkId::new("vec_new", size),
-            &size,
-            |b, &s| {
-                b.iter(|| {
-                    let mut vec = Vec::new();
-                    for i in 0..(s / 8) {
-                        vec.push(i as u64);
-                    }
-                    std::hint::black_box(vec)
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("vec_new", size), &size, |b, &s| {
+            b.iter(|| {
+                let mut vec = Vec::new();
+                for i in 0..(s / 8) {
+                    vec.push(i as u64);
+                }
+                std::hint::black_box(vec)
+            })
+        });
 
         // Benchmark Vec::with_capacity() - single allocation
         group.bench_with_input(
@@ -171,4 +167,3 @@ criterion_group!(
     database_pool_benchmarks
 );
 criterion_main!(benches);
-

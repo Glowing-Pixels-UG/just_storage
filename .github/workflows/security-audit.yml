@@ -1,0 +1,94 @@
+name: Security Audit
+
+on:
+  schedule:
+    # Run weekly on Mondays at 09:00 UTC
+    - cron: '0 9 * * 1'
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Comprehensive security audit
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit --locked
+
+    - name: Install cargo-deny
+      run: cargo install cargo-deny --locked
+
+    - name: Update advisory database
+      run: cargo audit update
+
+    - name: Audit dependencies for security vulnerabilities
+      run: cargo audit --format json | jq '.'
+      continue-on-error: true
+
+    - name: Generate security report
+      run: |
+        echo "## Security Audit Report" > security-report.md
+        echo "- Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> security-report.md
+        echo "- Repository: ${{ github.repository }}" >> security-report.md
+        echo "- Commit: ${{ github.sha }}" >> security-report.md
+        echo "" >> security-report.md
+        echo "### Vulnerabilities Found:" >> security-report.md
+        cargo audit --format json | jq -r '.vulnerabilities.found[]? | "- **\(.id)**: \(.title) (Severity: \(.severity))"' >> security-report.md || echo "- No vulnerabilities found" >> security-report.md
+        echo "" >> security-report.md
+        echo "### Dependencies Checked:" >> security-report.md
+        cargo audit --format json | jq -r '.statistics | "- Total dependencies: \(.total)"' >> security-report.md
+        echo "" >> security-report.md
+        echo "### License Compliance:" >> security-report.md
+        cargo deny check licenses --format json | jq -r '.licenses[]? | "- \(.name): \(.license)"' >> security-report.md || echo "- Check failed" >> security-report.md
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-report
+        path: security-report.md
+        retention-days: 30
+
+    # Create GitHub issue for critical vulnerabilities
+    - name: Create issue on critical vulnerability
+      if: contains(github.event_name, 'schedule') || contains(github.event_name, 'push')
+      run: |
+        CRITICAL_COUNT=$(cargo audit --format json | jq '.vulnerabilities.found[]? | select(.severity == "critical") | .id' | wc -l)
+        HIGH_COUNT=$(cargo audit --format json | jq '.vulnerabilities.found[]? | select(.severity == "high") | .id' | wc -l)
+
+        if [ "$CRITICAL_COUNT" -gt 0 ] || [ "$HIGH_COUNT" -gt 0 ]; then
+          echo "Creating security issue..."
+          gh issue create \
+            --title "🚨 Security Vulnerabilities Found" \
+            --body "Automated security audit detected vulnerabilities.
+
+**Critical:** $CRITICAL_COUNT
+**High:** $HIGH_COUNT
+
+See security audit report for details.
+
+This issue was automatically created by the security audit workflow." \
+            --label "security,automated"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

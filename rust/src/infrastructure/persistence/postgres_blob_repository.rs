@@ -32,7 +32,7 @@ impl BlobRepository for PostgresBlobRepository {
             r#"
             INSERT INTO blobs (content_hash, storage_class, size_bytes, ref_count)
             VALUES ($1, $2, $3, 1)
-            ON CONFLICT (content_hash, storage_class) DO UPDATE SET ref_count = ref_count
+            ON CONFLICT (content_hash) DO UPDATE SET ref_count = blobs.ref_count + 1, last_used_at = now()
             RETURNING content_hash, storage_class, size_bytes, ref_count, created_at
             "#,
         )
@@ -61,7 +61,7 @@ impl BlobRepository for PostgresBlobRepository {
     }
 
     async fn decrement_ref(&self, content_hash: &ContentHash) -> Result<i32, RepositoryError> {
-        let row = sqlx::query_as::<_, (i32,)>(
+        let row = sqlx::query_as::<_, (i64,)>(
             r#"
             UPDATE blobs
             SET ref_count = GREATEST(ref_count - 1, 0)
@@ -73,7 +73,7 @@ impl BlobRepository for PostgresBlobRepository {
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(row.0)
+        Ok(row.0 as i32)
     }
 
     async fn find_orphaned(&self, limit: i64) -> Result<Vec<Blob>, RepositoryError> {
@@ -107,7 +107,7 @@ struct BlobRow {
     content_hash: String,
     storage_class: String,
     size_bytes: i64,
-    ref_count: i32,
+    ref_count: i64,
     created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -124,7 +124,7 @@ impl BlobRow {
             content_hash,
             storage_class,
             self.size_bytes as u64,
-            self.ref_count,
+            self.ref_count as i32,
             self.created_at,
         )
     }

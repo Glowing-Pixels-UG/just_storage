@@ -59,6 +59,85 @@ pub struct ListRequest {
     pub offset: Option<i64>,
 }
 
+/// Sorting options for search results
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SortField {
+    CreatedAt,
+    UpdatedAt,
+    SizeBytes,
+    Key,
+    ContentType,
+}
+
+/// Sort direction
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SortDirection {
+    Asc,
+    Desc,
+}
+
+/// Date range filter
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DateRange {
+    pub from: Option<chrono::DateTime<chrono::Utc>>,
+    pub to: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+/// Size range filter
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SizeRange {
+    pub min: Option<u64>,
+    pub max: Option<u64>,
+}
+
+/// Advanced search request with filters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchRequest {
+    pub namespace: String,
+    pub tenant_id: String,
+
+    // Pagination
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+
+    // Sorting
+    pub sort_by: Option<SortField>,
+    pub sort_direction: Option<SortDirection>,
+
+    // Basic filters
+    pub key_contains: Option<String>,
+    pub content_type: Option<String>,
+    pub storage_class: Option<crate::domain::value_objects::StorageClass>,
+
+    // Range filters
+    pub size_range: Option<SizeRange>,
+    pub created_at_range: Option<DateRange>,
+    pub updated_at_range: Option<DateRange>,
+
+    // Metadata filters (JSON path queries)
+    pub metadata_filters: Option<serde_json::Value>,
+}
+
+/// Text search request (full-text search)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TextSearchRequest {
+    pub namespace: String,
+    pub tenant_id: String,
+
+    // Pagination
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+
+    // Full-text search query
+    pub query: String,
+
+    // Search in specific fields
+    pub search_in_metadata: Option<bool>, // default: true
+    pub search_in_key: Option<bool>,      // default: true
+}
+
 /// DTO for list response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListResponse {
@@ -66,6 +145,25 @@ pub struct ListResponse {
     pub total: usize,
     pub limit: i64,
     pub offset: i64,
+}
+
+/// DTO for search response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResponse {
+    pub objects: Vec<ObjectDto>,
+    pub total: usize,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+/// DTO for text search response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TextSearchResponse {
+    pub objects: Vec<ObjectDto>,
+    pub total: usize,
+    pub limit: i64,
+    pub offset: i64,
+    pub query: String,
 }
 
 /// DTO for download response metadata

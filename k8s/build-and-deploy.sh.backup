@@ -1,0 +1,120 @@
+#!/bin/bash
+# Build Rust binary on remote host and deploy to Kubernetes
+# Builds directly on the target host to avoid cross-compilation issues
+
+set -e
+
+IMAGE_NAME="just-storage"
+IMAGE_TAG="${1:-latest}"
+TARGET_HOST="${2:-root@10.10.10.2}"
+
+echo "Building JustStorage on remote host ${TARGET_HOST}..."
+echo ""
+
+# Create archive and copy to host
+echo "Step 1: Creating source archive..."
+cd "$(dirname "$0")/.."
+
+# Clean any hidden files first
+echo "Cleaning hidden files..."
+find rust -name "._*" -delete 2>/dev/null || echo "No ._ files found"
+find rust -name ".DS_Store" -delete 2>/dev/null || echo "No .DS_Store files found"
+
+# Create archive
+echo "Creating tar archive..."
+tar -czf /tmp/just-storage-source.tar.gz \
+    --exclude='rust/target' \
+    --exclude='rust/Cargo.lock' \
+    --exclude='*.git*' \
+    --exclude='.*' \
+    --exclude='*.DS_Store' \
+    --exclude='node_modules' \
+    --exclude='*.log' \
+    --exclude='._*' \
+    rust/
+
+if [ ! -f /tmp/just-storage-source.tar.gz ]; then
+    echo "ERROR: Archive creation failed!"
+    exit 1
+fi
+
+echo "Archive size: $(du -h /tmp/just-storage-source.tar.gz | cut -f1)"
+
+echo "Step 2: Copying archive to host..."
+echo "Copying archive file..."
+scp /tmp/just-storage-source.tar.gz ${TARGET_HOST}:/tmp/
+if [ $? -ne 0 ]; then
+    echo "ERROR: Failed to copy archive to host!"
+    rm -f /tmp/just-storage-source.tar.gz
+    exit 1
+fi
+
+echo "Copying Dockerfile..."
+scp k8s/Dockerfile.runtime ${TARGET_HOST}:/tmp/Dockerfile.runtime
+if [ $? -ne 0 ]; then
+    echo "ERROR: Failed to copy Dockerfile to host!"
+    exit 1
+fi
+
+echo "Verifying files on remote host..."
+ssh ${TARGET_HOST} "ls -la /tmp/just-storage-source.tar.gz /tmp/Dockerfile.runtime"
+
+# Clean up local archive
+rm /tmp/just-storage-source.tar.gz
+
+echo ""
+echo "Step 3: Building Rust binary on remote host..."
+ssh ${TARGET_HOST} "set -e && \
+    cd /tmp && \
+    echo 'Current directory: \$(pwd)' && \
+    echo 'Files in /tmp:' && \
+    ls -la && \
+    echo 'Cleaning previous builds...' && \
+    rm -rf rust just_storage Dockerfile.runtime && \
+    echo 'Extracting source archive...' && \
+    if [ ! -f just-storage-source.tar.gz ]; then \
+        echo 'ERROR: Archive file not found!'; \
+        exit 1; \
+    fi && \
+    tar -xzf just-storage-source.tar.gz && \
+    echo 'Checking extracted files...' && \
+    ls -la rust/ && \
+    echo 'Cleaning migrations directory...' && \
+    cd rust/migrations && \
+    rm -f ._*.sql .DS_Store ._* && \
+    ls -la && \
+    cd ../.. && \
+    export PATH=\$PATH:/usr/local/cargo/bin && \
+    cd rust && \
+    echo 'Building with cargo...' && \
+    cargo build --release && \
+    echo 'Build completed successfully'"
+
+echo ""
+echo "Step 4: Binary built successfully!"
+echo "Location on remote: /tmp/rust/target/release/just_storage"
+echo ""
+
+# Build container image on host
+echo "Step 5: Building container image on host..."
+ssh ${TARGET_HOST} "cd /tmp && \
+    cp rust/target/release/just_storage . && \
+    podman build -t storage.bk.glpx.pro/${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile.runtime . && \
+    podman save storage.bk.glpx.pro/${IMAGE_NAME}:${IMAGE_TAG} | \
+    ctr -n k8s.io images import --base-name storage.bk.glpx.pro/${IMAGE_NAME}:${IMAGE_TAG} -"
+
+echo ""
+echo "Step 6: Verifying image..."
+ssh ${TARGET_HOST} "ctr -n k8s.io images ls | grep storage.bk.glpx.pro"
+
+echo ""
+echo "Step 7: Cleaning up temporary files..."
+ssh ${TARGET_HOST} "rm -rf /tmp/rust /tmp/just_storage /tmp/Dockerfile.runtime /tmp/just-storage-source.tar.gz"
+
+echo ""
+echo "✅ Build and deployment complete!"
+echo ""
+echo "Image: storage.bk.glpx.pro/${IMAGE_NAME}:${IMAGE_TAG}"
+echo ""
+echo "To restart pods:"
+echo "  kubectl delete pod -n just-storage -l app=just-storage"
