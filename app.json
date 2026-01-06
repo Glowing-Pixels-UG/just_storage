@@ -1,0 +1,60 @@
+{
+  "name": "JustStorage",
+  "description": "Content-addressable object storage service with strong consistency guarantees",
+  "repository": "https://github.com/yourusername/just_storage",
+  "keywords": ["rust", "storage", "object-storage", "content-addressable"],
+  "success_url": "/health",
+  "buildpacks": [
+    {
+      "url": "https://github.com/emk/heroku-buildpack-rust.git"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "standard-1x"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:mini"
+    }
+  ],
+  "env": {
+    "RUST_LOG": {
+      "description": "Log level for the application",
+      "value": "info"
+    },
+    "GC_INTERVAL_SECS": {
+      "description": "Garbage collection interval in seconds",
+      "value": "60"
+    },
+    "GC_BATCH_SIZE": {
+      "description": "Number of blobs to process per GC cycle",
+      "value": "100"
+    },
+    "HOT_STORAGE_ROOT": {
+      "description": "Path for hot storage (ephemeral on Heroku)",
+      "value": "/tmp/hot"
+    },
+    "COLD_STORAGE_ROOT": {
+      "description": "Path for cold storage (ephemeral on Heroku)",
+      "value": "/tmp/cold"
+    },
+    "JWT_SECRET": {
+      "description": "Secret key for JWT token validation (REQUIRED for production)",
+      "required": true
+    },
+    "API_KEYS": {
+      "description": "Comma-separated list of API keys (REQUIRED for production)",
+      "required": true
+    },
+    "DISABLE_AUTH": {
+      "description": "Disable authentication (development only, DO NOT USE IN PRODUCTION)",
+      "value": "false"
+    }
+  },
+  "scripts": {
+    "postdeploy": "echo 'JustStorage deployed successfully! Visit /health to verify.'"
+  }
+}

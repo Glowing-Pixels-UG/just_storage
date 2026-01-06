@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE api_keys\n            SET\n                name = $2,\n                description = $3,\n                permissions = $4,\n                is_active = $5,\n                expires_at = $6,\n                updated_at = $7,\n                last_used_at = $8\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Bool",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3e894698dc369b29511355e700749d0d46b7d839aaf8a25b40932b97da58562a"
+}

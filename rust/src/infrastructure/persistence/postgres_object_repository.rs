@@ -7,6 +7,7 @@ use crate::domain::entities::Object;
 use crate::domain::value_objects::{
     ContentHash, Namespace, ObjectId, ObjectMetadata, ObjectStatus, StorageClass, TenantId,
 };
+use crate::infrastructure::persistence::query_builder::QueryBuilder;
 
 pub struct PostgresObjectRepository {
     pool: PgPool,
@@ -73,18 +74,14 @@ impl ObjectRepository for PostgresObjectRepository {
     }
 
     async fn find_by_id(&self, id: &ObjectId) -> Result<Option<Object>, RepositoryError> {
-        let row = sqlx::query_as::<_, ObjectRow>(
-            r#"
-            SELECT id, namespace, tenant_id, key, status, storage_class,
-                   content_hash, size_bytes, content_type, metadata,
-                   created_at, updated_at
-            FROM objects
-            WHERE id = $1 AND status = 'COMMITTED'
-            "#,
-        )
-        .bind(id.as_uuid())
-        .fetch_optional(&self.pool)
-        .await?;
+        let sql = format!(
+            "{} WHERE id = $1 AND status = 'COMMITTED'",
+            QueryBuilder::OBJECT_SELECT
+        );
+        let row = sqlx::query_as::<_, ObjectRow>(&sql)
+            .bind(id.as_uuid())
+            .fetch_optional(&self.pool)
+            .await?;
 
         match row {
             Some(r) => Ok(Some(r.into_domain()?)),
@@ -98,20 +95,17 @@ impl ObjectRepository for PostgresObjectRepository {
         tenant_id: &TenantId,
         key: &str,
     ) -> Result<Option<Object>, RepositoryError> {
-        let row = sqlx::query_as::<_, ObjectRow>(
-            r#"
-            SELECT id, namespace, tenant_id, key, status, storage_class,
-                   content_hash, size_bytes, content_type, metadata,
-                   created_at, updated_at
-            FROM objects
-            WHERE namespace = $1 AND tenant_id = $2 AND key = $3 AND status = 'COMMITTED'
-            "#,
-        )
-        .bind(namespace.as_str())
-        .bind(tenant_id.to_string())
-        .bind(key)
-        .fetch_optional(&self.pool)
-        .await?;
+        let sql = format!(
+            "{} {} AND key = $3",
+            QueryBuilder::OBJECT_SELECT,
+            QueryBuilder::namespace_tenant_where(namespace.as_str(), &tenant_id.to_string())
+        );
+        let row = sqlx::query_as::<_, ObjectRow>(&sql)
+            .bind(namespace.as_str())
+            .bind(tenant_id.to_string())
+            .bind(key)
+            .fetch_optional(&self.pool)
+            .await?;
 
         match row {
             Some(r) => Ok(Some(r.into_domain()?)),
@@ -126,22 +120,18 @@ impl ObjectRepository for PostgresObjectRepository {
         limit: i64,
         offset: i64,
     ) -> Result<Vec<Object>, RepositoryError> {
-        let rows = sqlx::query_as::<_, ObjectRow>(
-            r#"
-            SELECT id, namespace, tenant_id, key, status, storage_class,
-                   content_hash, size_bytes, content_type, metadata, created_at, updated_at
-            FROM objects
-            WHERE namespace = $1 AND tenant_id = $2 AND status = 'COMMITTED'
-            ORDER BY created_at DESC
-            LIMIT $3 OFFSET $4
-            "#,
-        )
-        .bind(namespace.as_str())
-        .bind(tenant_id.to_string())
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        let sql = format!(
+            "{} {} ORDER BY created_at DESC LIMIT $3 OFFSET $4",
+            QueryBuilder::OBJECT_SELECT,
+            QueryBuilder::namespace_tenant_where(namespace.as_str(), &tenant_id.to_string())
+        );
+        let rows = sqlx::query_as::<_, ObjectRow>(&sql)
+            .bind(namespace.as_str())
+            .bind(tenant_id.to_string())
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?;
 
         // `into_domain` returns a Result, so use iterator collect to gather results or return first error.
         rows.into_iter().map(|r| r.into_domain()).collect()
@@ -158,6 +148,7 @@ impl ObjectRepository for PostgresObjectRepository {
         let limit = request.limit.unwrap_or(100).min(1000);
         let offset = request.offset.unwrap_or(0);
 
+        // Validate sort column to prevent SQL injection
         let sort_column = match sort_field {
             SortField::CreatedAt => "created_at",
             SortField::UpdatedAt => "updated_at",
@@ -170,23 +161,17 @@ impl ObjectRepository for PostgresObjectRepository {
             SortDirection::Desc => "DESC",
         };
 
-        // Build a simple query for now - can be enhanced later
+        // Use parameterized query with validated column names
+        // Note: SQLx doesn't support dynamic column names in ORDER BY, so we validate them above
         let sql = format!(
-            r#"
-            SELECT id, namespace, tenant_id, key, status, storage_class,
-                   content_hash, size_bytes, content_type, metadata,
-                   created_at, updated_at
-            FROM objects
-            WHERE status = 'COMMITTED'
-              AND namespace = $1
-              AND tenant_id = $2
-            ORDER BY {} {}
-            LIMIT $3
-            OFFSET $4
-            "#,
-            sort_column, sort_dir
+            "{} {} ORDER BY {} {} LIMIT $3 OFFSET $4",
+            QueryBuilder::OBJECT_SELECT,
+            QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id),
+            sort_column,
+            sort_dir
         );
 
+        // Use query_as with validated SQL (column names are validated above, not user input)
         let rows: Vec<ObjectRow> = sqlx::query_as::<_, ObjectRow>(&sql)
             .bind(&request.namespace)
             .bind(&request.tenant_id)
@@ -207,61 +192,69 @@ impl ObjectRepository for PostgresObjectRepository {
         let limit = request.limit.unwrap_or(100).min(1000);
         let offset = request.offset.unwrap_or(0);
 
-        let mut conditions = Vec::new();
-        let mut param_index = 3; // $1 and $2 are namespace and tenant_id
-
-        if search_in_key {
-            conditions.push(format!("key ILIKE ${}", param_index));
-            param_index += 1;
-        }
-
-        if search_in_metadata {
-            conditions.push(format!("metadata::text ILIKE ${}", param_index));
-            param_index += 1;
-        }
-
-        let conditions_str = if conditions.is_empty() {
-            "FALSE".to_string() // No search conditions = no results
+        // Build query with proper parameterization to prevent SQL injection
+        // Use conditional WHERE clauses based on search options
+        let rows: Vec<ObjectRow> = if search_in_key && search_in_metadata {
+            // Search in both key and metadata
+            let sql = format!(
+                "{} {} AND (key ILIKE $3 OR metadata::text ILIKE $4) ORDER BY created_at DESC LIMIT $5 OFFSET $6",
+                QueryBuilder::OBJECT_SELECT,
+                QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
+            );
+            sqlx::query_as::<_, ObjectRow>(&sql)
+                .bind(&request.namespace)
+                .bind(&request.tenant_id)
+                .bind(format!("%{}%", request.query))
+                .bind(format!("%{}%", request.query))
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+        } else if search_in_key {
+            // Search only in key
+            let sql = format!(
+                "{} {} AND key ILIKE $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5",
+                QueryBuilder::OBJECT_SELECT,
+                QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
+            );
+            sqlx::query_as::<_, ObjectRow>(&sql)
+                .bind(&request.namespace)
+                .bind(&request.tenant_id)
+                .bind(format!("%{}%", request.query))
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+        } else if search_in_metadata {
+            // Search only in metadata
+            let sql = format!(
+                "{} {} AND metadata::text ILIKE $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5",
+                QueryBuilder::OBJECT_SELECT,
+                QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
+            );
+            sqlx::query_as::<_, ObjectRow>(&sql)
+                .bind(&request.namespace)
+                .bind(&request.tenant_id)
+                .bind(format!("%{}%", request.query))
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
         } else {
-            format!("({})", conditions.join(" OR "))
+            // No search conditions = no results (but still valid query)
+            let sql = format!(
+                "{} {} AND FALSE ORDER BY created_at DESC LIMIT $3 OFFSET $4",
+                QueryBuilder::OBJECT_SELECT,
+                QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
+            );
+            sqlx::query_as::<_, ObjectRow>(&sql)
+                .bind(&request.namespace)
+                .bind(&request.tenant_id)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
         };
-
-        let sql = format!(
-            r#"
-            SELECT id, namespace, tenant_id, key, status, storage_class,
-                   content_hash, size_bytes, content_type, metadata,
-                   created_at, updated_at
-            FROM objects
-            WHERE status = 'COMMITTED'
-              AND namespace = $1
-              AND tenant_id = $2
-              AND {}
-            ORDER BY created_at DESC
-            LIMIT ${}
-            OFFSET ${}
-            "#,
-            conditions_str,
-            param_index,
-            param_index + 1
-        );
-
-        let mut query = sqlx::query_as::<_, ObjectRow>(&sql)
-            .bind(&request.namespace)
-            .bind(&request.tenant_id);
-
-        // Bind search parameters in order
-        if search_in_key {
-            query = query.bind(format!("%{}%", request.query));
-        }
-
-        if search_in_metadata {
-            query = query.bind(format!("%{}%", request.query));
-        }
-
-        // Bind pagination
-        query = query.bind(limit).bind(offset);
-
-        let rows: Vec<ObjectRow> = query.fetch_all(&self.pool).await?;
         rows.into_iter().map(|r| r.into_domain()).collect()
     }
 
@@ -272,6 +265,47 @@ impl ObjectRepository for PostgresObjectRepository {
             .await?;
 
         Ok(())
+    }
+
+    async fn find_stuck_writing_objects(
+        &self,
+        age_hours: i64,
+        limit: i64,
+    ) -> Result<Vec<ObjectId>, RepositoryError> {
+        #[derive(sqlx::FromRow)]
+        struct StuckObjectRow {
+            id: uuid::Uuid,
+        }
+
+        let rows = sqlx::query_as::<_, StuckObjectRow>(
+            r#"
+            SELECT id
+            FROM objects
+            WHERE status = 'WRITING'
+              AND created_at < now() - ($1 || ' hours')::interval
+            ORDER BY created_at ASC
+            LIMIT $2
+            "#,
+        )
+        .bind(age_hours)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| ObjectId::from_uuid(row.id))
+            .collect())
+    }
+
+    async fn cleanup_stuck_uploads(&self, age_hours: i64) -> Result<usize, RepositoryError> {
+        // Use the database function for atomic cleanup
+        let result: (i64,) = sqlx::query_as("SELECT cleanup_stuck_uploads($1) as deleted_count")
+            .bind(age_hours)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(result.0 as usize)
     }
 }
 

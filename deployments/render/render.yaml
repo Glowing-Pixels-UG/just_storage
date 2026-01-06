@@ -1,0 +1,107 @@
+# Render.com configuration for JustStorage
+# See: https://render.com/docs/yaml-spec
+
+services:
+  - type: web
+    name: just-storage
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    runtime: docker
+
+    # Environment variables
+    envVars:
+      - key: RUST_LOG
+        value: info
+      - key: GC_INTERVAL_SECS
+        value: "60"
+      - key: GC_BATCH_SIZE
+        value: "100"
+      - key: DB_MAX_CONNECTIONS
+        value: "20"
+      - key: DB_MIN_CONNECTIONS
+        value: "5"
+      - key: DB_ACQUIRE_TIMEOUT_SECS
+        value: "30"
+      - key: DB_IDLE_TIMEOUT_SECS
+        value: "600"
+      - key: DB_MAX_LIFETIME_SECS
+        value: "1800"
+      - key: HOT_STORAGE_ROOT
+        value: /app/data/hot
+      - key: COLD_STORAGE_ROOT
+        value: /app/data/cold
+      - key: JWT_SECRET
+        sync: false
+      - key: API_KEYS
+        sync: false
+
+    # Health checks
+    healthCheckPath: /health
+    healthCheckTimeout: 30
+
+    # Resource limits
+    disk:
+      name: just-storage-disk
+      mountPath: /app/data
+      sizeGB: 10
+
+    # Auto-scaling (paid plans only)
+    # minInstances: 1
+    # maxInstances: 3
+
+    # Build settings
+    buildCommand: docker build -t just-storage .
+    dockerCommand: ./target/release/just_storage
+
+    # Networking
+    httpHeaders:
+      - name: X-Frame-Options
+        value: DENY
+      - name: X-Content-Type-Options
+        value: nosniff
+      - name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - name: Permissions-Policy
+        value: geolocation=(), microphone=(), camera=()
+
+    autoDeploy: true
+
+  # PostgreSQL database
+  - type: pgsql
+    name: just-storage-db
+    plan: starter
+    region: oregon
+    databaseName: just_storage
+    databaseUser: just_storage
+    postgresMajorVersion: 15
+
+    # Database configuration
+    disk:
+      name: just-storage-db-disk
+      sizeGB: 10
+
+    # Environment variables for the web service to connect
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: pgsql
+          name: just-storage-db
+          property: connectionString
+
+# Environment groups for different deployment environments
+environments:
+  - name: production
+    envVars:
+      - key: RUST_LOG
+        value: warn
+      - key: GC_INTERVAL_SECS
+        value: "30"
+  - name: staging
+    envVars:
+      - key: RUST_LOG
+        value: info
+      - key: GC_INTERVAL_SECS
+        value: "60"

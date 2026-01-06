@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  just-storage:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/just_storage
+      - HOT_STORAGE_ROOT=/data/hot
+      - COLD_STORAGE_ROOT=/data/cold
+      - LISTEN_ADDR=0.0.0.0:8080
+      - GC_INTERVAL_SECS=60
+      - GC_BATCH_SIZE=100
+      - DB_MAX_CONNECTIONS=20
+      - DB_MIN_CONNECTIONS=5
+      - DB_ACQUIRE_TIMEOUT_SECS=30
+      - DB_IDLE_TIMEOUT_SECS=600
+      - DB_MAX_LIFETIME_SECS=1800
+      - RUST_LOG=info
+      - JWT_SECRET=development-secret-key-change-in-production
+      - API_KEYS=key1,key2,key3
+      - DISABLE_AUTH=false
+      - REQUEST_TIMEOUT_SECS=30
+      - MAX_BODY_SIZE=104857600
+      - RATE_LIMIT_RPM=60
+      - CORS_ALLOWED_ORIGINS=*
+      - SECURITY_HEADERS_ENABLED=true
+      - METRICS_ENABLED=true
+      - METRICS_PORT=9090
+    volumes:
+      - hot_storage:/data/hot
+      - cold_storage:/data/cold
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=just_storage
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@juststorage.com
+      - PGADMIN_DEFAULT_PASSWORD=password
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped
+
+volumes:
+  hot_storage:
+    driver: local
+  cold_storage:
+    driver: local
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  default:
+    name: just_storage_network
