@@ -1,8 +1,5 @@
-FROM debian:bookworm-slim
-
-RUN apt-get update && \
-    apt-get install -y ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Use debian:bookworm instead of bookworm-slim - it includes ca-certificates by default
+FROM debian:bookworm
 
 WORKDIR /app
 
