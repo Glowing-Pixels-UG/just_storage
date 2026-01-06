@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE api_keys\n            SET last_used_at = now()\n            WHERE id = $1 AND is_active = true\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "63a4944809198cba78baa7c51eecd064d81c8c1659b79881d2fcfe8ec4363923"
+}

@@ -72,7 +72,8 @@ fn file_descriptor_benchmarks(c: &mut Criterion) {
                         use tokio::io::AsyncWriteExt;
 
                         let start = std::time::Instant::now();
-                        for _ in 0..(iters / concurrent as u64) {
+                        let iterations = (iters / concurrent as u64).max(1);
+                        for _ in 0..iterations {
                             let futures: Vec<_> = (0..concurrent)
                                 .map(|i| {
                                     let path = temp_dir.join(format!("file_{}.tmp", i));

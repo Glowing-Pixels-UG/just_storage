@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 2,
+  "dockerfilePath": "./Dockerfile",
+  "serviceName": "just-storage",
+  "appName": "just-storage",
+  "appVersion": "1.0.0",
+  "description": "Content-addressable object storage service with strong consistency guarantees",
+  "ports": [
+    {
+      "protocol": "http",
+      "containerPort": 8080,
+      "hostPort": 80,
+      "httpOptions": {
+        "redirectToHttps": true,
+        "baseUrl": "/"
+      }
+    },
+    {
+      "protocol": "https",
+      "containerPort": 8080,
+      "hostPort": 443,
+      "httpOptions": {
+        "baseUrl": "/"
+      }
+    }
+  ],
+  "environments": [
+    {
+      "key": "RUST_LOG",
+      "value": "info",
+      "description": "Log level for the application"
+    },
+    {
+      "key": "GC_INTERVAL_SECS",
+      "value": "60",
+      "description": "Garbage collection interval in seconds"
+    },
+    {
+      "key": "GC_BATCH_SIZE",
+      "value": "100",
+      "description": "Number of blobs to process per GC cycle"
+    },
+    {
+      "key": "HOT_STORAGE_ROOT",
+      "value": "/data/hot",
+      "description": "Path for hot storage"
+    },
+    {
+      "key": "COLD_STORAGE_ROOT",
+      "value": "/data/cold",
+      "description": "Path for cold storage"
+    },
+    {
+      "key": "DB_MAX_CONNECTIONS",
+      "value": "20",
+      "description": "Maximum database connections"
+    },
+    {
+      "key": "DB_MIN_CONNECTIONS",
+      "value": "5",
+      "description": "Minimum database connections"
+    },
+    {
+      "key": "DB_ACQUIRE_TIMEOUT_SECS",
+      "value": "30",
+      "description": "Database connection acquire timeout"
+    },
+    {
+      "key": "DB_IDLE_TIMEOUT_SECS",
+      "value": "600",
+      "description": "Database connection idle timeout"
+    },
+    {
+      "key": "DB_MAX_LIFETIME_SECS",
+      "value": "1800",
+      "description": "Maximum database connection lifetime"
+    },
+    {
+      "key": "JWT_SECRET",
+      "value": "",
+      "description": "Secret key for JWT validation (REQUIRED - set in CapRover dashboard)",
+      "required": true
+    },
+    {
+      "key": "API_KEYS",
+      "value": "",
+      "description": "Comma-separated API keys (REQUIRED - set in CapRover dashboard)",
+      "required": true
+    }
+  ],
+  "volumes": [
+    {
+      "volumeName": "just_storage_hot_data",
+      "containerPath": "/data/hot",
+      "volumeType": "local",
+      "description": "Hot storage volume for frequently accessed data"
+    },
+    {
+      "volumeName": "just_storage_cold_data",
+      "containerPath": "/data/cold",
+      "volumeType": "local",
+      "description": "Cold storage volume for infrequently accessed data"
+    }
+  ],
+  "captainsLog": {
+    "enabled": true,
+    "maxSize": "10m"
+  },
+  "healthcheck": {
+    "enabled": true,
+    "path": "/health",
+    "interval": "30s",
+    "timeout": "5s",
+    "retries": 3
+  }
+}

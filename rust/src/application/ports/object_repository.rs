@@ -63,4 +63,15 @@ pub trait ObjectRepository: Send + Sync {
 
     /// Delete object (hard delete from DB)
     async fn delete(&self, id: &ObjectId) -> Result<(), RepositoryError>;
+
+    /// Find stuck WRITING objects older than specified age
+    /// Returns object IDs that are stuck in WRITING state
+    async fn find_stuck_writing_objects(
+        &self,
+        age_hours: i64,
+        limit: i64,
+    ) -> Result<Vec<ObjectId>, RepositoryError>;
+
+    /// Clean up stuck WRITING objects (orphaned uploads)
+    async fn cleanup_stuck_uploads(&self, age_hours: i64) -> Result<usize, RepositoryError>;
 }

@@ -4,7 +4,10 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](#license)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](#prerequisites)
 
-A production-ready, content-addressable object storage service with strong consistency guarantees, automatic deduplication, and crash-safe operations.
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/yourusername/just_storage)
+[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/yourusername/just_storage/tree/main)
+
+A content-addressable object storage service with strong consistency guarantees, automatic deduplication, and crash-safe operations.
 
 ---
 
@@ -27,14 +30,14 @@ A production-ready, content-addressable object storage service with strong consi
 
 **JustStorage** is an internal object storage service designed to replace generic S3/GCS usage with a domain-specific, streamlined interface:
 
-### Why JustStorage?
+### Design Approach
 
-Replace generic S3/GCS usage with a **domain-specific, streamlined interface** designed for your use cases:
+Replace generic S3/GCS usage with a domain-specific, streamlined interface designed for internal services:
 
-- ✅ **Simple API**: 10-15 well-defined operations, not 200+ S3 APIs
-- ✅ **Strong consistency**: Read-after-write guaranteed (no "eventual" nonsense)
-- ✅ **Clear costs**: No hidden pricing traps or complex storage classes
-- ✅ **Built for internal services**: Model Hub, knowledge base, file storage
+- Simple API with 10-15 well-defined operations
+- Strong consistency with read-after-write guarantees
+- Clear cost model without complex pricing tiers
+- Optimized for Model Hub, knowledge base, and file storage workloads
 
 ## Key Features
 
@@ -90,7 +93,7 @@ See [CLEAN_ARCHITECTURE.md](docs/CLEAN_ARCHITECTURE.md) for detailed architectur
 docker-compose up -d
 
 # View logs
-docker-compose logs -f activestorage
+docker-compose logs -f just_storage
 
 # Test API
 curl http://localhost:8080/health
@@ -116,8 +119,8 @@ docker-compose up -d postgres
 # 3. Create database and run migrations
 make db-setup
 # OR manually:
-# createdb activestorage
-# psql activestorage < schema.sql
+# createdb just_storage
+# psql just_storage < schema.sql
 
 # 4. Build and run
 cd rust
@@ -225,19 +228,19 @@ Comprehensive documentation is available in the `/docs` directory:
 
 ### What Longhorn + ZFS Solve (We Don't Re-Implement)
 
-- ✅ Node failures & replica management
-- ✅ Disk failures & checksums
-- ✅ Volume snapshots & backups to remote storage
-- ✅ Block-level integrity
+- Node failures & replica management
+- Disk failures & checksums
+- Volume snapshots & backups to remote storage
+- Block-level integrity
 
-### What ActiveStorage Handles
+### What JustStorage Handles
 
-- ✅ Object semantics (tenants, namespaces, keys)
-- ✅ Concurrency control (writes, deletes, GC)
-- ✅ Content-addressable storage with deduplication
-- ✅ Metadata indexing & fast listing
-- ✅ Object-level integrity (SHA-256 hashing)
-- ✅ API, auth, metrics
+- Object semantics (tenants, namespaces, keys)
+- Concurrency control (writes, deletes, GC)
+- Content-addressable storage with deduplication
+- Metadata indexing & fast listing
+- Object-level integrity (SHA-256 hashing)
+- API, auth, metrics
 
 ### S3/GCS Mistakes We Avoid
 
@@ -270,34 +273,71 @@ Every object transitions through explicit states:
 
 ## Deployment
 
+### One-Click Deploy
+
+Deploy JustStorage instantly to popular platforms with a single click:
+
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/yourusername/just_storage)
+[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/yourusername/just_storage/tree/main)
+
+**Note:** 
+- Replace `yourusername` in the URLs above with your actual GitHub username/organization
+- For Heroku: The button will prompt you to set `JWT_SECRET` and `API_KEYS` during deployment
+- For DigitalOcean: Set `JWT_SECRET` and `API_KEYS` as secrets in the dashboard after deployment
+
+### Quick Deployment Setup
+
+JustStorage includes a CLI tool for generating deployment configurations:
+
+```bash
+# Build the deployment CLI
+cd rust && cargo build --release --bin just-storage-deploy
+
+# Generate configuration for your platform
+cargo run --release --bin just-storage-deploy -- generate <platform>
+
+# Supported platforms: caprover, heroku, flyio, railway, render, digitalocean
+```
+
+**Example:**
+```bash
+# Generate Heroku configuration
+just-storage-deploy generate heroku
+
+# Generate Fly.io config with custom settings
+just-storage-deploy generate flyio --app-name my-app --region ord
+```
+
+See [Deployment Guide](docs/DEPLOYMENT.md) for detailed platform-specific instructions.
+
 ### Kubernetes (StatefulSet)
 
 ```yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: activestorage
+  name: just-storage
 spec:
-  serviceName: activestorage
+  serviceName: just-storage
   replicas: 1
   selector:
     matchLabels:
-      app: activestorage
+      app: just-storage
   template:
     metadata:
       labels:
-        app: activestorage
+        app: just-storage
     spec:
       containers:
-      - name: activestorage
-        image: activestorage:latest
+      - name: just-storage
+        image: just-storage:latest
         ports:
         - containerPort: 8080
         env:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: activestorage-secrets
+              name: just-storage-secrets
               key: database-url
         volumeMounts:
         - name: hot-storage
@@ -333,12 +373,12 @@ spec:
 ### Metrics (Prometheus)
 
 ```
-activestorage_requests_total{method, status, namespace}
-activestorage_request_duration_seconds{method, namespace}
-activestorage_objects_total{namespace, tenant, status}
-activestorage_storage_bytes{storage_class, namespace}
-activestorage_gc_runs_total
-activestorage_gc_deleted_blobs_total
+just_storage_requests_total{method, status, namespace}
+just_storage_request_duration_seconds{method, namespace}
+just_storage_objects_total{namespace, tenant, status}
+just_storage_storage_bytes{storage_class, namespace}
+just_storage_gc_runs_total
+just_storage_gc_deleted_blobs_total
 ```
 
 ## Testing
@@ -368,30 +408,30 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 
 ## Status & Roadmap
 
-### ✅ Production Ready (v0.1.0)
+### Implementation Status (v0.1.0)
 
 **Core Implementation Complete:**
 
-- ✅ Clean Architecture with domain/application/infrastructure/api layers
-- ✅ Database schema with state machine and migrations
-- ✅ All CRUD operations (upload, download, delete, list)
-- ✅ Content-addressable storage with automatic deduplication
-- ✅ Two-phase commit for crash safety
-- ✅ Background garbage collection with tested worker
-- ✅ JWT and API key authentication
-- ✅ Health check endpoints
-- ✅ Comprehensive error handling (no unsafe unwrap/expect in production)
-- ✅ Unit test coverage with in-memory mocks
-- ✅ Database validation CLI tool
-- ✅ Clippy-clean, formatted code
-- ✅ API documentation and examples
+- Clean Architecture with domain/application/infrastructure/api layers
+- Database schema with state machine and migrations
+- All CRUD operations (upload, download, delete, list)
+- Content-addressable storage with automatic deduplication
+- Two-phase commit for crash safety
+- Background garbage collection with tested worker
+- JWT and API key authentication
+- Health check endpoints
+- Error handling without unsafe unwrap/expect
+- Unit test coverage with in-memory mocks
+- Database validation CLI tool
+- Clippy-clean, formatted code
+- API documentation and examples
 
 **Deployment Ready:**
 
-- ✅ Docker and docker-compose configurations
-- ✅ Kubernetes StatefulSet manifests
-- ✅ Environment variable configuration
-- ✅ Migration scripts
+- Docker and docker-compose configurations
+- Kubernetes StatefulSet manifests
+- Environment variable configuration
+- Migration scripts
 
 ### 🎯 Next Steps
 

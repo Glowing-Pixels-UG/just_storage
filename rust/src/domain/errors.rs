@@ -4,6 +4,9 @@ use super::value_objects::ObjectStatus;
 
 #[derive(Debug, Error)]
 pub enum DomainError {
+    #[error("Validation error in field '{field}': {message}")]
+    ValidationError { field: String, message: String },
+
     #[error("Invalid state transition from {from:?} to {to:?}")]
     InvalidStateTransition {
         from: ObjectStatus,
