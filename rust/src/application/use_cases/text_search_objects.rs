@@ -1,22 +1,11 @@
 use std::sync::Arc;
-use thiserror::Error;
 
 use crate::application::dto::{ObjectDto, TextSearchRequest, TextSearchResponse};
-use crate::application::ports::{ObjectRepository, RepositoryError};
-use crate::domain::errors::DomainError;
-use crate::domain::value_objects::{Namespace, TenantId};
-
-#[derive(Debug, Error)]
-pub enum TextSearchError {
-    #[error("Domain error: {0}")]
-    Domain(#[from] DomainError),
-
-    #[error("Repository error: {0}")]
-    Repository(#[from] RepositoryError),
-
-    #[error("Invalid request: {0}")]
-    InvalidRequest(String),
-}
+use crate::application::errors::TextSearchUseCaseError;
+use crate::application::ports::ObjectRepository;
+use crate::application::validation::{
+    validate_namespace_and_tenant_for_text_search, validate_search_query,
+};
 
 /// Use case: Full-text search across object metadata and keys
 pub struct TextSearchObjectsUseCase {
@@ -32,19 +21,11 @@ impl TextSearchObjectsUseCase {
     pub async fn execute(
         &self,
         request: TextSearchRequest,
-    ) -> Result<TextSearchResponse, TextSearchError> {
+    ) -> Result<TextSearchResponse, TextSearchUseCaseError> {
         // 1. Parse and validate
-        let _namespace = Namespace::new(request.namespace.clone())
-            .map_err(|e| TextSearchError::InvalidRequest(e.to_string()))?;
-
-        let _tenant_id = TenantId::from_string(&request.tenant_id)
-            .map_err(|e| TextSearchError::InvalidRequest(e.to_string()))?;
-
-        if request.query.trim().is_empty() {
-            return Err(TextSearchError::InvalidRequest(
-                "Search query cannot be empty".to_string(),
-            ));
-        }
+        let (_namespace, _tenant_id) =
+            validate_namespace_and_tenant_for_text_search(&request.namespace, &request.tenant_id)?;
+        validate_search_query(&request.query)?;
 
         // 2. Query repository with text search
         let objects = self.object_repo.text_search(&request).await?;
@@ -138,6 +119,6 @@ mod tests {
         let result = use_case.execute(request).await;
 
         // Assert
-        assert!(matches!(result, Err(TextSearchError::InvalidRequest(_))));
+        assert!(matches!(result, Err(TextSearchUseCaseError::InvalidRequest(_))));
     }
 }

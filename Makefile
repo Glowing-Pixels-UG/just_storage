@@ -1,4 +1,4 @@
-.PHONY: help build test test-nextest run clean docker-build docker-up docker-down fmt fmt-check clippy clippy-all check lint security audit deny udeps bloat miri install-tools
+.PHONY: help build test test-nextest test-coverage run clean docker-build docker-up docker-down fmt fmt-check clippy clippy-all check lint security audit deny udeps bloat miri install-tools
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -12,6 +12,14 @@ test: ## Run tests
 test-nextest: ## Run tests with nextest (faster parallel test runner)
 	@command -v cargo-nextest >/dev/null 2>&1 || { echo "Installing cargo-nextest..."; cargo install cargo-nextest --locked; }
 	cd rust && cargo nextest run
+
+test-coverage: ## Generate code coverage report
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || { echo "Installing cargo-llvm-cov..."; cargo install cargo-llvm-cov --locked; }
+	cd rust && cargo llvm-cov --html --output-dir target/coverage
+
+test-coverage-ci: ## Generate code coverage for CI (LCOV format)
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || { echo "Installing cargo-llvm-cov..."; cargo install cargo-llvm-cov --locked; }
+	cd rust && cargo llvm-cov --lcov --output-path target/coverage/lcov.info
 
 run: ## Run service locally
 	cd rust && cargo run --release
@@ -50,14 +58,14 @@ docker-down: ## Stop Docker Compose services
 	docker-compose down
 
 docker-logs: ## Show Docker Compose logs
-	docker-compose logs -f activestorage
+	docker-compose logs -f just_storage
 
 db-setup: ## Create database and run migrations
-	createdb activestorage || true
-	psql activestorage < schema.sql
+	createdb just_storage || true
+	psql just_storage < schema.sql
 
 db-reset: ## Drop and recreate database
-	dropdb activestorage || true
+	dropdb just_storage || true
 	make db-setup
 
 dev: ## Start development environment
@@ -107,9 +115,10 @@ install-tools: ## Install all recommended Rust development tools
 	@command -v cargo-udeps >/dev/null 2>&1 || cargo install cargo-udeps --locked
 	@command -v cargo-bloat >/dev/null 2>&1 || cargo install cargo-bloat --locked
 	@command -v cargo-nextest >/dev/null 2>&1 || cargo install cargo-nextest --locked
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install cargo-llvm-cov --locked
 	@rustup +nightly component add miri 2>/dev/null || true
 	@echo "All tools installed successfully!"
 
 all: fmt clippy test build ## Format, lint, test, and build
 
-all-strict: fmt-check clippy-all security test-nextest build ## Run all checks with strict settings
+all-strict: fmt-check clippy-all security test-nextest test-coverage build ## Run all checks with strict settings including coverage

@@ -1,22 +1,9 @@
 use std::sync::Arc;
-use thiserror::Error;
 
 use crate::application::dto::{ListRequest, ListResponse, ObjectDto};
-use crate::application::ports::{ObjectRepository, RepositoryError};
-use crate::domain::errors::DomainError;
-use crate::domain::value_objects::{Namespace, TenantId};
-
-#[derive(Debug, Error)]
-pub enum ListError {
-    #[error("Domain error: {0}")]
-    Domain(#[from] DomainError),
-
-    #[error("Repository error: {0}")]
-    Repository(#[from] RepositoryError),
-
-    #[error("Invalid request: {0}")]
-    InvalidRequest(String),
-}
+use crate::application::errors::ObjectUseCaseError;
+use crate::application::ports::ObjectRepository;
+use crate::application::validation::validate_namespace_and_tenant;
 
 /// Use case: List objects
 pub struct ListObjectsUseCase {
@@ -29,13 +16,10 @@ impl ListObjectsUseCase {
     }
 
     /// Execute list with pagination
-    pub async fn execute(&self, request: ListRequest) -> Result<ListResponse, ListError> {
+    pub async fn execute(&self, request: ListRequest) -> Result<ListResponse, ObjectUseCaseError> {
         // 1. Parse and validate
-        let namespace = Namespace::new(request.namespace)
-            .map_err(|e| ListError::InvalidRequest(e.to_string()))?;
-
-        let tenant_id = TenantId::from_string(&request.tenant_id)
-            .map_err(|e| ListError::InvalidRequest(e.to_string()))?;
+        let (namespace, tenant_id) =
+            validate_namespace_and_tenant(&request.namespace, &request.tenant_id)?;
 
         let limit = request.limit.unwrap_or(100).min(1000); // Cap at 1000
         let offset = request.offset.unwrap_or(0);

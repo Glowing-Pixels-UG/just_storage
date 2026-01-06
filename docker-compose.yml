@@ -4,9 +4,9 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: activestorage
+      POSTGRES_DB: just_storage
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
@@ -16,12 +16,12 @@ services:
       timeout: 5s
       retries: 5
 
-  activestorage:
+  just_storage:
     build:
       context: .
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgres://postgres:password@postgres:5432/activestorage
+      DATABASE_URL: postgres://postgres:password@postgres:5432/just_storage
       HOT_STORAGE_ROOT: /data/hot
       COLD_STORAGE_ROOT: /data/cold
       LISTEN_ADDR: 0.0.0.0:8080

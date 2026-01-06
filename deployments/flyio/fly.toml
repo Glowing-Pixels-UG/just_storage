@@ -1,0 +1,95 @@
+# Fly.io configuration for JustStorage
+# See: https://fly.io/docs/reference/configuration/
+
+app = "just-storage"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  RUST_LOG = "info"
+  GC_INTERVAL_SECS = "60"
+  GC_BATCH_SIZE = "100"
+  DB_MAX_CONNECTIONS = "20"
+  DB_MIN_CONNECTIONS = "5"
+  DB_ACQUIRE_TIMEOUT_SECS = "30"
+  DB_IDLE_TIMEOUT_SECS = "600"
+  DB_MAX_LIFETIME_SECS = "1800"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  max_machines_running = 3
+  processes = ["app"]
+
+  # Concurrency settings
+  concurrency = { type = "connections", hard_limit = 1000, soft_limit = 500 }
+
+  # HTTP/2 and other optimizations
+  http_options = { h2_backend = true, compress = true }
+
+  # TLS configuration
+  tls_options = { alpn = ["h2", "http/1.1"], versions = ["TLSv1.3", "TLSv1.2"] }
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "30s"
+  method = "GET"
+  timeout = "10s"
+  path = "/health"
+  headers = { Host = "just-storage.fly.dev" }
+
+# Readiness check
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "15s"
+  method = "GET"
+  timeout = "5s"
+  path = "/api/health"
+  headers = { Host = "just-storage.fly.dev" }
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024
+
+# Persistent storage for data
+[mounts]
+  source = "just_storage_data"
+  destination = "/data"
+  initial_size = "10gb"
+
+# Database (optional - can use managed PostgreSQL)
+# [[fly_postgres.attachments]]
+#   database_name = "just_storage"
+#   database_user = "just_storage"
+#   name = "just_storage_db"
+
+# Metrics and monitoring
+[metrics]
+  port = 9090
+  path = "/metrics"
+
+# Processes configuration
+[processes]
+  app = "/app/just_storage"
+
+# Health checks for the app process
+[checks]
+  [checks.app_health]
+    port = 8080
+    type = "http"
+    interval = "30s"
+    timeout = "10s"
+    method = "GET"
+    path = "/health"
+    http_headers = { "Host" = "just-storage.fly.dev" }
+
+# Restart policy
+[restart]
+  policy = "on-failure"
+  max_retries = 3

@@ -36,9 +36,12 @@ pub mod config;
 pub mod domain;
 pub mod infrastructure;
 
+// Re-export commonly used types
+pub use application::builder::ApplicationBuilder;
+pub use config::Config;
+
 // Re-export key types explicitly to avoid ambiguity
 pub use api::errors as api_errors;
-pub use application::{dto, ports, use_cases};
-pub use config::Config;
+pub use application::{dto, errors as application_errors, ports, use_cases};
 pub use domain::errors as domain_errors;
 pub use domain::{entities, value_objects};

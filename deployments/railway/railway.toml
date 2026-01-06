@@ -1,0 +1,51 @@
+# Railway configuration for JustStorage
+# Railway auto-detects Dockerfile, but this file can be used for advanced configuration
+# See: https://docs.railway.app/reference/config
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+buildCommand = "docker build -t just-storage ."
+dockerfileTarget = ""
+
+[deploy]
+startCommand = "./target/release/just_storage"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+healthcheckInterval = 30
+healthcheckStartPeriod = 10
+
+# Environment variables
+[environments]
+  RUST_LOG = "info"
+  GC_INTERVAL_SECS = "60"
+  GC_BATCH_SIZE = "100"
+  DB_MAX_CONNECTIONS = "20"
+  DB_MIN_CONNECTIONS = "5"
+  DB_ACQUIRE_TIMEOUT_SECS = "30"
+  DB_IDLE_TIMEOUT_SECS = "600"
+  DB_MAX_LIFETIME_SECS = "1800"
+  HOT_STORAGE_ROOT = "/app/data/hot"
+  COLD_STORAGE_ROOT = "/app/data/cold"
+
+# Resource allocation
+[resources]
+  cpu = 1000
+  memory = 1024
+
+# Volumes for persistent storage
+[volumes]
+  hot_storage = "/app/data/hot"
+  cold_storage = "/app/data/cold"
+
+# Network configuration
+[network]
+  tcpProxyApplicationPort = 8080
+  customDomain = ""
+
+# Monitoring and logging
+[monitoring]
+  enableMetrics = true
+  enableLogs = true

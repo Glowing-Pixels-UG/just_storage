@@ -1,0 +1,62 @@
+name: just-storage
+region: nyc
+services:
+  - name: just-storage
+    github:
+      repo: yourusername/just_storage
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    docker_build_context: .
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      failure_threshold: 3
+    routes:
+      - path: /
+    envs:
+      - key: RUST_LOG
+        value: info
+      - key: GC_INTERVAL_SECS
+        value: "60"
+      - key: GC_BATCH_SIZE
+        value: "100"
+      - key: DB_MAX_CONNECTIONS
+        value: "20"
+      - key: DB_MIN_CONNECTIONS
+        value: "5"
+      - key: DB_ACQUIRE_TIMEOUT_SECS
+        value: "30"
+      - key: DB_IDLE_TIMEOUT_SECS
+        value: "600"
+      - key: DB_MAX_LIFETIME_SECS
+        value: "1800"
+      - key: HOT_STORAGE_ROOT
+        value: /app/data/hot
+      - key: COLD_STORAGE_ROOT
+        value: /app/data/cold
+      - key: PORT
+        value: "8080"
+      - key: JWT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: API_KEYS
+        scope: RUN_TIME
+        type: SECRET
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+
+databases:
+  - name: just-storage-db
+    engine: PG
+    production: false
+    version: "15"
+    db_name: just_storage
+    db_user: just_storage
+    size: professional-xs

@@ -1,26 +1,8 @@
 use std::sync::Arc;
-use thiserror::Error;
 
-use crate::application::ports::{
-    BlobRepository, BlobStore, ObjectRepository, RepositoryError, StorageError,
-};
-use crate::domain::errors::DomainError;
+use crate::application::errors::DeleteUseCaseError;
+use crate::application::ports::{BlobRepository, BlobStore, ObjectRepository};
 use crate::domain::value_objects::ObjectId;
-
-#[derive(Debug, Error)]
-pub enum DeleteError {
-    #[error("Domain error: {0}")]
-    Domain(#[from] DomainError),
-
-    #[error("Repository error: {0}")]
-    Repository(#[from] RepositoryError),
-
-    #[error("Storage error: {0}")]
-    Storage(#[from] StorageError),
-
-    #[error("Object not found: {0}")]
-    NotFound(String),
-}
 
 /// Use case: Delete an object
 pub struct DeleteObjectUseCase {
@@ -43,16 +25,16 @@ impl DeleteObjectUseCase {
     }
 
     /// Execute delete workflow
-    pub async fn execute(&self, object_id: &ObjectId) -> Result<(), DeleteError> {
+    pub async fn execute(&self, object_id: &ObjectId) -> Result<(), DeleteUseCaseError> {
         // 1. Find object
         let mut object = match self.object_repo.find_by_id(object_id).await {
             Ok(Some(obj)) => obj,
-            Ok(None) => return Err(DeleteError::NotFound(object_id.to_string())),
+            Ok(None) => return Err(DeleteUseCaseError::NotFound(object_id.to_string())),
             Err(crate::application::ports::RepositoryError::SerializationError(e)) => {
                 tracing::error!(%e, "Repository serialization error while loading object {}", object_id);
-                return Err(DeleteError::NotFound(object_id.to_string()));
+                return Err(DeleteUseCaseError::NotFound(object_id.to_string()));
             }
-            Err(e) => return Err(DeleteError::Repository(e)),
+            Err(e) => return Err(DeleteUseCaseError::Repository(e)),
         };
 
         // 2. Mark for deletion (domain validation)
@@ -178,7 +160,7 @@ mod tests {
 
         // Assert
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DeleteError::NotFound(_)));
+        assert!(matches!(result.unwrap_err(), DeleteUseCaseError::NotFound(_)));
     }
 
     #[tokio::test]

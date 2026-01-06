@@ -1,3 +1,4 @@
+pub mod api_key;
 mod content_hash;
 mod metadata;
 mod namespace;
@@ -6,6 +7,7 @@ mod object_status;
 mod storage_class;
 mod tenant_id;
 
+pub use api_key::*;
 pub use content_hash::ContentHash;
 pub use metadata::*;
 pub use namespace::Namespace;

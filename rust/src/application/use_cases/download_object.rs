@@ -1,26 +1,9 @@
 use std::sync::Arc;
-use thiserror::Error;
 
 use crate::application::dto::DownloadMetadata;
-use crate::application::ports::{
-    BlobReader, BlobStore, ObjectRepository, RepositoryError, StorageError,
-};
+use crate::application::errors::DownloadUseCaseError;
+use crate::application::ports::{BlobReader, BlobStore, ObjectRepository};
 use crate::domain::value_objects::ObjectId;
-
-#[derive(Debug, Error)]
-pub enum DownloadError {
-    #[error("Repository error: {0}")]
-    Repository(#[from] RepositoryError),
-
-    #[error("Storage error: {0}")]
-    Storage(#[from] StorageError),
-
-    #[error("Object not found: {0}")]
-    NotFound(String),
-
-    #[error("Object not readable (status: {0})")]
-    NotReadable(String),
-}
 
 /// Use case: Download an object
 pub struct DownloadObjectUseCase {
@@ -40,31 +23,33 @@ impl DownloadObjectUseCase {
     pub async fn execute_by_id(
         &self,
         object_id: &ObjectId,
-    ) -> Result<(DownloadMetadata, BlobReader), DownloadError> {
+    ) -> Result<(DownloadMetadata, BlobReader), DownloadUseCaseError> {
         // 1. Find object by ID
         let object = match self.object_repo.find_by_id(object_id).await {
             Ok(Some(obj)) => obj,
-            Ok(None) => return Err(DownloadError::NotFound(object_id.to_string())),
+            Ok(None) => return Err(DownloadUseCaseError::NotFound(object_id.to_string())),
             Err(crate::application::ports::RepositoryError::SerializationError(e)) => {
                 tracing::error!(%e, "Repository serialization error while loading object {}", object_id);
-                return Err(DownloadError::NotFound(object_id.to_string()));
+                return Err(DownloadUseCaseError::NotFound(object_id.to_string()));
             }
-            Err(e) => return Err(DownloadError::Repository(e)),
+            Err(e) => return Err(DownloadUseCaseError::Repository(e)),
         };
 
         // 2. Verify object is readable
         if !object.is_readable() {
-            return Err(DownloadError::NotReadable(object.status().to_string()));
+            return Err(DownloadUseCaseError::NotReadable(
+                object.status().to_string(),
+            ));
         }
 
         // 3. Extract metadata
         let content_hash = object
             .content_hash()
-            .ok_or_else(|| DownloadError::NotReadable("No content hash".to_string()))?;
+            .ok_or_else(|| DownloadUseCaseError::NotReadable("No content hash".to_string()))?;
 
         let size_bytes = object
             .size_bytes()
-            .ok_or_else(|| DownloadError::NotReadable("No size".to_string()))?;
+            .ok_or_else(|| DownloadUseCaseError::NotReadable("No size".to_string()))?;
 
         // 4. Open blob for reading
         let reader = self
@@ -88,15 +73,15 @@ impl DownloadObjectUseCase {
         namespace: &str,
         tenant_id: &str,
         key: &str,
-    ) -> Result<(DownloadMetadata, BlobReader), DownloadError> {
+    ) -> Result<(DownloadMetadata, BlobReader), DownloadUseCaseError> {
         use crate::domain::value_objects::{Namespace, TenantId};
 
         // Parse namespace and tenant
         let namespace = Namespace::new(namespace.to_string())
-            .map_err(|e| DownloadError::NotFound(e.to_string()))?;
+            .map_err(|e| DownloadUseCaseError::NotFound(e.to_string()))?;
 
-        let tenant_id =
-            TenantId::from_string(tenant_id).map_err(|e| DownloadError::NotFound(e.to_string()))?;
+        let tenant_id = TenantId::from_string(tenant_id)
+            .map_err(|e| DownloadUseCaseError::NotFound(e.to_string()))?;
 
         // Find by key
         let object = match self
@@ -106,19 +91,19 @@ impl DownloadObjectUseCase {
         {
             Ok(Some(obj)) => obj,
             Ok(None) => {
-                return Err(DownloadError::NotFound(format!(
+                return Err(DownloadUseCaseError::NotFound(format!(
                     "{}/{}/{}",
                     namespace, tenant_id, key
                 )))
             }
             Err(crate::application::ports::RepositoryError::SerializationError(e)) => {
                 tracing::error!(%e, "Repository serialization error while loading object by key {}/{}/{}", namespace, tenant_id, key);
-                return Err(DownloadError::NotFound(format!(
+                return Err(DownloadUseCaseError::NotFound(format!(
                     "{}/{}/{}",
                     namespace, tenant_id, key
                 )));
             }
-            Err(e) => return Err(DownloadError::Repository(e)),
+            Err(e) => return Err(DownloadUseCaseError::Repository(e)),
         };
 
         // Reuse by_id logic
@@ -208,7 +193,7 @@ mod tests {
         let result = use_case.execute_by_id(&object_id).await;
 
         // Assert
-        assert!(matches!(result, Err(DownloadError::NotFound(_))));
+        assert!(matches!(result, Err(DownloadUseCaseError::NotFound(_))));
     }
 
     #[tokio::test]
@@ -232,6 +217,6 @@ mod tests {
         let result = use_case.execute_by_id(&object_id).await;
 
         // Assert
-        assert!(matches!(result, Err(DownloadError::NotReadable(_))));
+        assert!(matches!(result, Err(DownloadUseCaseError::NotReadable(_))));
     }
 }

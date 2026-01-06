@@ -1,0 +1,41 @@
+[tarpaulin]
+# Code coverage configuration for JustStorage
+
+# Exclude files from coverage
+exclude-files = [
+    "*/tests/*",
+    "*/benches/*",
+    "*/tools/*",
+    "src/main.rs",
+    "src/lib.rs",
+]
+
+# Exclude specific files that are hard to test or not worth testing
+exclude = [
+    "src/infrastructure/storage/local_filesystem_store.rs",  # File system operations
+    "src/infrastructure/persistence/postgres_*.rs",  # Database operations
+]
+
+# Ignore tests (don't include test code in coverage)
+ignore-tests = true
+
+# Generate branch coverage
+branch = true
+
+# Fail if coverage is below threshold (for CI)
+fail-under = 75.0
+
+# Output format for CI
+output-directory = "target/coverage"
+
+# Verbose output
+verbose = false
+
+# Run tests in release mode for better performance
+release = true
+
+# Timeout for long-running tests
+timeout = 300
+
+# Number of test threads
+test-threads = 4

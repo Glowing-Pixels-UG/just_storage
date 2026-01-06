@@ -1,0 +1,84 @@
+{
+  "name": "JustStorage",
+  "description": "Content-addressable object storage service with strong consistency guarantees",
+  "repository": "https://github.com/yourusername/just_storage",
+  "keywords": ["rust", "storage", "object-storage", "content-addressable", "api"],
+  "success_url": "/health",
+  "website": "https://github.com/yourusername/just_storage",
+  "buildpacks": [
+    {
+      "url": "https://github.com/emk/heroku-buildpack-rust.git"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "standard-1x"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:mini",
+      "options": {
+        "version": "15"
+      }
+    }
+  ],
+  "env": {
+    "RUST_LOG": {
+      "description": "Log level for the application",
+      "value": "info"
+    },
+    "GC_INTERVAL_SECS": {
+      "description": "Garbage collection interval in seconds",
+      "value": "60"
+    },
+    "GC_BATCH_SIZE": {
+      "description": "Number of blobs to process per GC cycle",
+      "value": "100"
+    },
+    "HOT_STORAGE_ROOT": {
+      "description": "Path for hot storage (ephemeral on Heroku)",
+      "value": "/tmp/hot"
+    },
+    "COLD_STORAGE_ROOT": {
+      "description": "Path for cold storage (ephemeral on Heroku)",
+      "value": "/tmp/cold"
+    },
+    "DB_MAX_CONNECTIONS": {
+      "description": "Maximum database connections",
+      "value": "10"
+    },
+    "DB_MIN_CONNECTIONS": {
+      "description": "Minimum database connections",
+      "value": "2"
+    },
+    "DB_ACQUIRE_TIMEOUT_SECS": {
+      "description": "Database connection acquire timeout",
+      "value": "30"
+    },
+    "DB_IDLE_TIMEOUT_SECS": {
+      "description": "Database connection idle timeout",
+      "value": "600"
+    },
+    "DB_MAX_LIFETIME_SECS": {
+      "description": "Maximum database connection lifetime",
+      "value": "1800"
+    },
+    "JWT_SECRET": {
+      "description": "Secret key for JWT validation (REQUIRED for production)",
+      "generator": "secret"
+    },
+    "API_KEYS": {
+      "description": "Comma-separated API keys (REQUIRED for production)"
+    },
+    "DISABLE_AUTH": {
+      "description": "Disable authentication (development only, DO NOT USE IN PRODUCTION)",
+      "value": "false"
+    }
+  },
+  "scripts": {
+    "postdeploy": "echo 'JustStorage deployed successfully! Visit /health to verify.' && echo 'Note: Heroku uses ephemeral storage. For persistent storage, consider using S3 or another cloud storage service.'"
+  },
+  "stack": "heroku-22"
+}

@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utoipa::ToSchema;
 
 /// Object kind/category for domain-specific metadata
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ObjectKind {
     Model,
@@ -13,7 +14,7 @@ pub enum ObjectKind {
 }
 
 /// Model-specific metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ModelMetadata {
     pub model_name: String,
     pub version: String,
@@ -26,7 +27,7 @@ pub struct ModelMetadata {
 }
 
 /// Model file format
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ModelFormat {
     Gguf,
@@ -39,7 +40,7 @@ pub enum ModelFormat {
 }
 
 /// Knowledge base document metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct KbDocMetadata {
     pub title: String,
     pub source: String, // confluence, pdf, email, zendesk
@@ -56,7 +57,7 @@ pub struct KbDocMetadata {
 }
 
 /// Extended metadata container with domain-specific fields
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ObjectMetadata {
     /// Object kind/category
     pub kind: ObjectKind,
@@ -87,7 +88,7 @@ pub struct ObjectMetadata {
 }
 
 /// Origin/provenance information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OriginInfo {
     pub source_system: Option<String>,
     pub s3_bucket: Option<String>,

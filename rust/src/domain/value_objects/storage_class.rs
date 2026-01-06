@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// Storage tier for performance/cost trade-offs
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum StorageClass {
     /// NVMe-backed fast storage
@@ -16,6 +17,18 @@ impl std::fmt::Display for StorageClass {
         match self {
             StorageClass::Hot => write!(f, "hot"),
             StorageClass::Cold => write!(f, "cold"),
+        }
+    }
+}
+
+impl std::str::FromStr for StorageClass {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "hot" => Ok(StorageClass::Hot),
+            "cold" => Ok(StorageClass::Cold),
+            _ => Err(format!("Invalid storage class: {}", s)),
         }
     }
 }
@@ -47,17 +60,5 @@ mod tests {
     #[test]
     fn test_storage_class_default() {
         assert_eq!(StorageClass::default(), StorageClass::Hot);
-    }
-}
-
-impl std::str::FromStr for StorageClass {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "hot" => Ok(StorageClass::Hot),
-            "cold" => Ok(StorageClass::Cold),
-            _ => Err(format!("Invalid storage class: {}", s)),
-        }
     }
 }

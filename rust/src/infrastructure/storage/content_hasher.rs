@@ -10,6 +10,13 @@ use crate::domain::value_objects::ContentHash;
 /// for most modern storage systems while balancing memory usage.
 const BUFFER_SIZE: usize = 256 * 1024;
 
+/// Minimum buffer size for small files to avoid excessive memory allocation
+const MIN_BUFFER_SIZE: usize = 8 * 1024;
+
+/// Tiny file threshold - files smaller than this bypass adaptive buffering
+/// to avoid peek overhead for very small files
+const TINY_FILE_THRESHOLD: usize = 512;
+
 /// Utility for computing SHA-256 content hashes.
 ///
 /// # Design Decision: SHA-256 for Content-Addressable Storage
@@ -85,18 +92,167 @@ impl ContentHasher {
     /// - `size_bytes`: Total number of bytes written
     pub async fn write_and_hash_with_durability(
         dest_path: &Path,
+        reader: impl AsyncRead + Unpin,
+        durable: bool,
+    ) -> Result<(ContentHash, u64), StorageError> {
+        Self::write_and_hash_with_durability_adaptive(dest_path, reader, durable, true).await
+    }
+
+    /// Write and hash with optional adaptive buffering control
+    pub async fn write_and_hash_with_durability_adaptive(
+        dest_path: &Path,
+        reader: impl AsyncRead + Unpin,
+        durable: bool,
+        use_adaptive_buffering: bool,
+    ) -> Result<(ContentHash, u64), StorageError> {
+        // REGULAR PATH: Adaptive buffering for larger files (or when disabled)
+        if use_adaptive_buffering {
+            Self::write_and_hash_adaptive(dest_path, reader, durable).await
+        } else {
+            Self::write_and_hash_simple(dest_path, reader, durable).await
+        }
+    }
+
+    /// Fast path for tiny files - uses already peeked data
+    async fn write_and_hash_tiny_file_from_peek(
+        _dest_path: &Path,
+        file: File,
+        mut reader: impl AsyncRead + Unpin,
+        durable: bool,
+        initial_data: &[u8],
+    ) -> Result<(ContentHash, u64), StorageError> {
+        let mut file = tokio::io::BufWriter::with_capacity(1024, file);
+
+        let mut hasher = Sha256::new();
+        let mut total_bytes = initial_data.len() as u64;
+
+        // Process initial peeked data
+        hasher.update(initial_data);
+        file.write_all(initial_data).await?;
+
+        // Read remaining data (should be minimal for tiny files)
+        let mut buffer = vec![0u8; TINY_FILE_THRESHOLD];
+        loop {
+            let n = reader.read(&mut buffer).await?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buffer[..n]);
+            file.write_all(&buffer[..n]).await?;
+            total_bytes += n as u64;
+        }
+
+        file.flush().await?;
+
+        if durable {
+            file.get_mut().sync_all().await?;
+        }
+
+        // Finalize hash: SHA-256 produces 32 bytes = 64 hex characters
+        let hash_bytes = hasher.finalize();
+        let hash_hex = hex::encode(hash_bytes);
+        let content_hash =
+            ContentHash::from_hex(hash_hex).map_err(|e| StorageError::Internal(e.to_string()))?;
+
+        Ok((content_hash, total_bytes))
+    }
+
+    /// Simple path without adaptive buffering (fixed buffer size)
+    async fn write_and_hash_simple(
+        dest_path: &Path,
         mut reader: impl AsyncRead + Unpin,
         durable: bool,
     ) -> Result<(ContentHash, u64), StorageError> {
-        // Open temp file for writing with optimized buffer capacity
+        let file = File::create(dest_path).await?;
+        let mut file = tokio::io::BufWriter::with_capacity(BUFFER_SIZE * 2, file);
+
+        let mut hasher = Sha256::new();
+        let mut buffer = vec![0u8; BUFFER_SIZE];
+        let mut total_bytes = 0u64;
+
+        // Stream data: hash and write simultaneously
+        loop {
+            let n = reader.read(&mut buffer).await?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buffer[..n]);
+            file.write_all(&buffer[..n]).await?;
+            total_bytes += n as u64;
+        }
+
+        file.flush().await?;
+
+        if durable {
+            file.get_mut().sync_all().await?;
+        }
+
+        let hash_bytes = hasher.finalize();
+        let hash_hex = hex::encode(hash_bytes);
+        let content_hash =
+            ContentHash::from_hex(hash_hex).map_err(|e| StorageError::Internal(e.to_string()))?;
+
+        Ok((content_hash, total_bytes))
+    }
+
+    /// Regular path with adaptive buffering for larger files
+    async fn write_and_hash_adaptive(
+        dest_path: &Path,
+        mut reader: impl AsyncRead + Unpin,
+        durable: bool,
+    ) -> Result<(ContentHash, u64), StorageError> {
+        // Open temp file for writing
+        let file = File::create(dest_path).await?;
+
+        // Try to peek at first chunk to estimate size for adaptive buffering
+        // Use a small initial buffer to avoid over-allocation
+        let mut peek_buffer = vec![0u8; 4096]; // Small initial peek
+        let peek_size = reader.read(&mut peek_buffer).await?;
+
+        // FAST PATH: If first read is tiny, use simplified path
+        if peek_size > 0 && peek_size <= TINY_FILE_THRESHOLD {
+            return Self::write_and_hash_tiny_file_from_peek(
+                dest_path,
+                file,
+                reader,
+                durable,
+                &peek_buffer[..peek_size],
+            )
+            .await;
+        }
+
+        // Determine optimal buffer size based on initial read
+        // For small files, use smaller buffers to reduce memory overhead
+        let buffer_size = if peek_size == 0 {
+            // Empty file
+            1024
+        } else if peek_size < 4096 {
+            // Very small file, use minimal buffer
+            peek_size.max(1024)
+        } else if peek_size < 64 * 1024 {
+            // Small-medium file, use moderate buffer
+            MIN_BUFFER_SIZE
+        } else {
+            // Large file, use full buffer
+            BUFFER_SIZE
+        };
+
+        // Create BufWriter with adaptive buffer capacity
         // Using 2x buffer size for BufWriter to minimize syscalls
-        let mut file =
-            tokio::io::BufWriter::with_capacity(BUFFER_SIZE * 2, File::create(dest_path).await?);
+        let mut file = tokio::io::BufWriter::with_capacity(buffer_size * 2, file);
 
         // Initialize SHA-256 hasher (with SIMD optimizations if available)
         let mut hasher = Sha256::new();
-        let mut total_bytes = 0u64;
-        let mut buffer = vec![0u8; BUFFER_SIZE];
+        let mut total_bytes = peek_size as u64;
+
+        // Process initial peek data if any
+        if peek_size > 0 {
+            hasher.update(&peek_buffer[..peek_size]);
+            file.write_all(&peek_buffer[..peek_size]).await?;
+        }
+
+        // Allocate buffer for remaining data
+        let mut buffer = vec![0u8; buffer_size];
 
         // Stream data: hash and write simultaneously
         loop {

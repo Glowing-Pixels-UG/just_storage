@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM api_keys\n            WHERE expires_at < now() AND is_active = true\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "4b5e9c0617e661b3404e23f3a1dfb97473a2a804ebe03a136d726078f0175f87"
+}

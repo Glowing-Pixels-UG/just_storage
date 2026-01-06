@@ -1,28 +1,10 @@
 use std::sync::Arc;
-use thiserror::Error;
 
 use crate::application::dto::{ObjectDto, UploadRequest};
-use crate::application::ports::{
-    BlobReader, BlobRepository, BlobStore, ObjectRepository, RepositoryError, StorageError,
-};
+use crate::application::errors::ObjectUseCaseError;
+use crate::application::ports::{BlobReader, BlobRepository, BlobStore, ObjectRepository};
+use crate::application::validation::validate_namespace_and_tenant;
 use crate::domain::entities::Object;
-use crate::domain::errors::DomainError;
-use crate::domain::value_objects::{Namespace, TenantId};
-
-#[derive(Debug, Error)]
-pub enum UploadError {
-    #[error("Domain error: {0}")]
-    Domain(#[from] DomainError),
-
-    #[error("Repository error: {0}")]
-    Repository(#[from] RepositoryError),
-
-    #[error("Storage error: {0}")]
-    Storage(#[from] StorageError),
-
-    #[error("Invalid request: {0}")]
-    InvalidRequest(String),
-}
 
 /// Use case: Upload an object
 pub struct UploadObjectUseCase {
@@ -49,13 +31,10 @@ impl UploadObjectUseCase {
         &self,
         request: UploadRequest,
         reader: BlobReader,
-    ) -> Result<ObjectDto, UploadError> {
+    ) -> Result<ObjectDto, ObjectUseCaseError> {
         // 1. Parse and validate request
-        let namespace = Namespace::new(request.namespace)
-            .map_err(|e| UploadError::InvalidRequest(e.to_string()))?;
-
-        let tenant_id = TenantId::from_string(&request.tenant_id)
-            .map_err(|e| UploadError::InvalidRequest(e.to_string()))?;
+        let (namespace, tenant_id) =
+            validate_namespace_and_tenant(&request.namespace, &request.tenant_id)?;
 
         let storage_class = request.storage_class.unwrap_or_default();
 
@@ -85,6 +64,7 @@ impl UploadObjectUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::errors::ObjectUseCaseError;
     use crate::application::ports::{MockBlobRepository, MockBlobStore, MockObjectRepository};
     use crate::domain::value_objects::{ContentHash, ObjectStatus, StorageClass};
     use std::io::Cursor;

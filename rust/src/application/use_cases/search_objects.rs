@@ -1,22 +1,9 @@
 use std::sync::Arc;
-use thiserror::Error;
 
 use crate::application::dto::{ObjectDto, SearchRequest, SearchResponse};
-use crate::application::ports::{ObjectRepository, RepositoryError};
-use crate::domain::errors::DomainError;
-use crate::domain::value_objects::{Namespace, TenantId};
-
-#[derive(Debug, Error)]
-pub enum SearchError {
-    #[error("Domain error: {0}")]
-    Domain(#[from] DomainError),
-
-    #[error("Repository error: {0}")]
-    Repository(#[from] RepositoryError),
-
-    #[error("Invalid request: {0}")]
-    InvalidRequest(String),
-}
+use crate::application::errors::ObjectUseCaseError;
+use crate::application::ports::ObjectRepository;
+use crate::application::validation::validate_namespace_and_tenant;
 
 /// Use case: Advanced search for objects with filters
 pub struct SearchObjectsUseCase {
@@ -29,13 +16,13 @@ impl SearchObjectsUseCase {
     }
 
     /// Execute advanced search with filters
-    pub async fn execute(&self, request: SearchRequest) -> Result<SearchResponse, SearchError> {
+    pub async fn execute(
+        &self,
+        request: SearchRequest,
+    ) -> Result<SearchResponse, ObjectUseCaseError> {
         // 1. Parse and validate namespace and tenant_id for logging/security
-        let _namespace = Namespace::new(request.namespace.clone())
-            .map_err(|e| SearchError::InvalidRequest(e.to_string()))?;
-
-        let _tenant_id = TenantId::from_string(&request.tenant_id)
-            .map_err(|e| SearchError::InvalidRequest(e.to_string()))?;
+        let (_namespace, _tenant_id) =
+            validate_namespace_and_tenant(&request.namespace, &request.tenant_id)?;
 
         // Note: We don't validate the search request here as it's optional filters
 
