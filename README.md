@@ -82,7 +82,7 @@ API Layer (HTTP Handlers)
 - **Testability**: Easy to mock ports for unit testing
 - **Extensibility**: Add new storage backends without touching business logic
 
-See [CLEAN_ARCHITECTURE.md](docs/CLEAN_ARCHITECTURE.md) for detailed architecture documentation.
+See [Architecture Overview](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Architecture) for detailed architecture documentation.
 
 ## Quick Start
 
@@ -127,7 +127,7 @@ cd rust
 cargo run --release
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed development guide.
+See [Contributing Guide](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Contributing) for detailed development guide.
 
 ## Example Usage
 
@@ -184,43 +184,32 @@ curl -X DELETE http://localhost:8080/v1/objects/550e8400-e29b-41d4-a716-44665544
 
 ---
 
-## Documentation Index
+## Documentation
 
-Comprehensive documentation is available in the `/docs` directory:
+Comprehensive documentation is available in the [project wiki](https://github.com/Glowing-Pixels-UG/just_storage/wiki):
 
 ### 📖 Getting Started
 
-- **[Quick Start Guide](docs/QUICKSTART.md)** - Get running in 5 minutes
-- **[API Reference](docs/API.md)** - Complete API documentation with examples
-- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design and components
+- **[Quick Start Guide](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Getting-Started)** - Get running in 5 minutes
+- **[API Reference](https://github.com/Glowing-Pixels-UG/just_storage/wiki/API-Reference)** - Complete API documentation with examples
+- **[Architecture Overview](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Architecture)** - System design and components
+
+### 💻 Development & Operations
+
+- **[Performance Analysis](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Performance)** - Detailed performance benchmarks and analysis
+- **[Contributing Guide](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Contributing)** - How to contribute to the project
+- **[Deployment Guide](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Deployment)** - Production deployment instructions
 
 ### 🏗️ Architecture & Design
 
-- **[Clean Architecture](docs/CLEAN_ARCHITECTURE.md)** - Layer separation and patterns
-- **[Design Decisions](DESIGN.md)** - State machine and consistency model
-- **[Database Schema](docs/DATABASE.md)** - Schema, indexes, and migrations
-- **[Responsibility Boundaries](docs/LONGHORN_VS_SERVICE.md)** - What we handle vs infrastructure
+- **[Clean Architecture](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Architecture)** - Layer separation and patterns
+- **[Design Decisions](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Architecture)** - State machine and consistency model
+- **[Database Schema](schema.sql)** - Schema, indexes, and migrations
 
-### 💻 Development
+### 📚 Additional Resources
 
-- **[Development Guide](DEVELOPMENT.md)** - Setup and workflow
-- **[Linting & Static Analysis](LINTING_SETUP.md)** - Code quality tools and setup
-- **[Rust Best Practices](docs/RUST_BEST_PRACTICES.md)** - Coding standards
-- **[Testing Guide](docs/TESTING.md)** - Testing strategy and examples
-- **[Contributing](docs/CONTRIBUTING.md)** - How to contribute
-
-### 🚀 Operations
-
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment
-- **[Operations Manual](docs/OPERATIONS.md)** - Day-to-day operations
-- **[Monitoring Setup](docs/MONITORING.md)** - Metrics and alerting
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-
-### 📚 Reference
-
-- **[Implementation Details](IMPLEMENTATION.md)** - Code examples and patterns
-- **[Completion Summary](COMPLETION_SUMMARY.md)** - Implementation checklist
-- **[Documentation Index](docs/INDEX.md)** - Complete documentation map
+- **[Benchmark Tools](BENCHMARK_REMOTE_README.md)** - Remote performance testing guide
+- **[Contributing Guidelines](CONTRIBUTING.md)** - Development workflow and standards
 
 ---
 
@@ -308,7 +297,7 @@ just-storage-deploy generate heroku
 just-storage-deploy generate flyio --app-name my-app --region ord
 ```
 
-See [Deployment Guide](docs/DEPLOYMENT.md) for detailed platform-specific instructions.
+See [Deployment Guide](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Deployment) for detailed platform-specific instructions.
 
 ### Kubernetes (StatefulSet)
 
@@ -396,9 +385,9 @@ cargo tarpaulin --out Html
 
 ## Contributing
 
-1. Read `DESIGN.md` for architecture context
-2. Check `docs/LONGHORN_VS_SERVICE.md` for responsibility boundaries
-3. Follow patterns in `IMPLEMENTATION.md`
+1. Read the [Architecture Overview](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Architecture) for design context
+2. Check the [Contributing Guide](https://github.com/Glowing-Pixels-UG/just_storage/wiki/Contributing) for development guidelines
+3. Follow established patterns in the codebase
 4. Write tests for new features
 5. Update metrics for new operations
 
