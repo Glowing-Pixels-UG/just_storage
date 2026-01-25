@@ -18,7 +18,5 @@ jobs:
     - name: Dependency Review
       uses: actions/dependency-review-action@v3
       with:
-        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, 0BSD, CC0-1.0, Unlicense, Unicode-3.0
+        # Deny any dependencies using these licenses to avoid viral or restrictive licenses
         deny-licenses: GPL-2.0, GPL-3.0, AGPL-1.0, AGPL-3.0, LGPL-2.0, LGPL-2.1, LGPL-3.0
-        fail-on-vulnerability: false
-        fail-on-scored-criticial: false
