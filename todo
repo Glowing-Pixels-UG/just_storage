@@ -33,7 +33,7 @@ Priority: 🔴 CRITICAL - Blocks all other improvements
 - [x] Create tests/common/http_client.rs - Typed HTTP request builders
 - [x] Create tests/common/database.rs - DB setup & migration utilities
 
-**Progress:** Initial skeletons created; proof-of-concept migration of `integration_test.rs` complete. Next: extract remaining helpers from `test_fixtures.rs` into `tests/common` modules and replace usages in other tests.
+**Progress:** Initial skeletons created; proof-of-concept migration of `integration_test.rs` complete. API endpoint tests and `testcontainers_integration.rs` migrated to use `tests/common` helpers. Next: extract remaining helpers from `test_fixtures.rs` into `tests/common` modules, replace usages in other tests, and delete duplicate implementations.
 
 ### 2. Consolidate TestEnvironment with builder pattern
 
@@ -56,12 +56,12 @@ Priority: 🔴 CRITICAL - Blocks all other improvements
 
 ### 4. Migration Steps
 
-- [ ] Move TestEnvironment from test_fixtures to common/environment.rs
-- [ ] Update api_endpoint_tests.rs to use common::environment::TestEnvironment
+- [ ] Move TestEnvironment from test_fixtures to common/environment.rs (in progress)
+- [x] Update api_endpoint_tests.rs to use common::environment::TestEnvironment
+- [x] Update testcontainers_integration.rs to use common::environment::TestEnvironment
 - [x] Update integration_test.rs to use common::environment::TestEnvironment (proof-of-concept)
-- [ ] Update testcontainers_integration.rs to use common::environment::TestEnvironment
 - [ ] Delete duplicate implementations
-- [ ] Verify all tests still pass (293 tests)
+- [ ] Verify all tests still pass (293 tests) — next: run full suite after migrating remaining tests
 
 ## Success Criteria
 
