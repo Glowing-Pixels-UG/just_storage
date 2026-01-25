@@ -37,7 +37,7 @@ Priority: 🔴 CRITICAL - Blocks all other improvements
 
 ### 2. Consolidate TestEnvironment with builder pattern
 
-- [ ] Implement TestEnvironmentBuilder struct
+- [x] Implement TestEnvironmentBuilder struct (wiring for `with_use_cases` and `with_api_server` implemented)
   - with_database: bool
   - with_use_cases: bool
   - with_api_server: bool
