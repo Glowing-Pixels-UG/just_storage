@@ -56,7 +56,7 @@ Priority: 🔴 CRITICAL - Blocks all other improvements
 
 ### 4. Migration Steps
 
-- [ ] Move TestEnvironment from test_fixtures to common/environment.rs (in progress)
+- [x] Move TestEnvironment from test_fixtures to common/environment.rs (completed) — Replaced duplicate implementation with shared `tests/common::TestEnvironment` and updated tests to use the shared environment. All tests pass locally (293/293).
 - [x] Update api_endpoint_tests.rs to use common::environment::TestEnvironment
 - [x] Update testcontainers_integration.rs to use common::environment::TestEnvironment
 - [x] Update integration_test.rs to use common::environment::TestEnvironment (proof-of-concept)
