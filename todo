@@ -60,7 +60,7 @@ Priority: 🔴 CRITICAL - Blocks all other improvements
 - [x] Update api_endpoint_tests.rs to use common::environment::TestEnvironment
 - [x] Update testcontainers_integration.rs to use common::environment::TestEnvironment
 - [x] Update integration_test.rs to use common::environment::TestEnvironment (proof-of-concept)
-- [ ] Delete duplicate implementations
+- [ ] Delete duplicate implementations (in progress) — Remove remaining duplicated helpers and cleanup `test_fixtures.rs` once all usages point to `tests/common`.
 - [x] Verify all tests still pass (293 tests) — full suite run on local machine: 293 passed ✔️
 
 **Recent progress:**
