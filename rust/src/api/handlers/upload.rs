@@ -13,7 +13,6 @@ use crate::application::use_cases::UploadObjectUseCase;
 use crate::domain::authorization::UserContext;
 use crate::domain::value_objects::StorageClass;
 
-
 /// POST /v1/objects
 /// Upload object with streaming body
 #[utoipa::path(

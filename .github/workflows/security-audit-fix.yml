@@ -23,6 +23,9 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
     permissions:
       issues: write
       contents: read
