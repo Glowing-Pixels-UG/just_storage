@@ -6,10 +6,10 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use just_storage::application::ports::ObjectRepository;
 use just_storage::application::ports::RepositoryError;
 use just_storage::domain::entities::Object;
 use just_storage::domain::value_objects::{Namespace, ObjectId, TenantId};
-use just_storage::application::ports::ObjectRepository;
 
 /// In-memory object repository for testing
 pub struct InMemoryObjectRepository {
@@ -84,11 +84,17 @@ impl ObjectRepository for InMemoryObjectRepository {
         Ok(filtered.into_iter().skip(start).take(end - start).collect())
     }
 
-    async fn search(&self, _request: &just_storage::application::dto::SearchRequest) -> Result<Vec<Object>, RepositoryError> {
+    async fn search(
+        &self,
+        _request: &just_storage::application::dto::SearchRequest,
+    ) -> Result<Vec<Object>, RepositoryError> {
         Ok(vec![])
     }
 
-    async fn text_search(&self, _request: &just_storage::application::dto::TextSearchRequest) -> Result<Vec<Object>, RepositoryError> {
+    async fn text_search(
+        &self,
+        _request: &just_storage::application::dto::TextSearchRequest,
+    ) -> Result<Vec<Object>, RepositoryError> {
         Ok(vec![])
     }
 
@@ -98,7 +104,11 @@ impl ObjectRepository for InMemoryObjectRepository {
         Ok(())
     }
 
-    async fn find_stuck_writing_objects(&self, _age_hours: i64, _limit: i64) -> Result<Vec<ObjectId>, RepositoryError> {
+    async fn find_stuck_writing_objects(
+        &self,
+        _age_hours: i64,
+        _limit: i64,
+    ) -> Result<Vec<ObjectId>, RepositoryError> {
         Ok(vec![])
     }
 

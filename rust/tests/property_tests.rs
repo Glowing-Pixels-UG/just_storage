@@ -7,12 +7,12 @@ use proptest::prelude::*;
 use std::collections::HashSet;
 use uuid::Uuid;
 
-use just_storage::domain::value_objects::{
-    ContentHash, Namespace, ObjectId, StorageClass, TenantId, ObjectStatus
-};
-use just_storage::domain::entities::{Object, Blob};
 use just_storage::application::validation::{
-    validate_namespace_and_tenant_for_text_search, validate_search_query
+    validate_namespace_and_tenant_for_text_search, validate_search_query,
+};
+use just_storage::domain::entities::{Blob, Object};
+use just_storage::domain::value_objects::{
+    ContentHash, Namespace, ObjectId, ObjectStatus, StorageClass, TenantId,
 };
 
 /// Strategy for generating valid namespace strings
@@ -35,18 +35,12 @@ fn content_hash_strategy() -> impl Strategy<Value = ContentHash> {
 
 /// Strategy for generating valid object keys
 fn object_key_strategy() -> impl Strategy<Value = Option<String>> {
-    prop_oneof![
-        Just(None),
-        "[a-zA-Z0-9_-]{1,255}".prop_map(Some)
-    ]
+    prop_oneof![Just(None), "[a-zA-Z0-9_-]{1,255}".prop_map(Some)]
 }
 
 /// Strategy for generating storage classes
 fn storage_class_strategy() -> impl Strategy<Value = StorageClass> {
-    prop_oneof![
-        Just(StorageClass::Hot),
-        Just(StorageClass::Cold)
-    ]
+    prop_oneof![Just(StorageClass::Hot), Just(StorageClass::Cold)]
 }
 
 /// Strategy for generating object statuses
@@ -304,7 +298,7 @@ mod config {
 
     fn proptest_config() -> Config {
         Config {
-            cases: 1000,  // Run 1000 test cases per property
+            cases: 1000, // Run 1000 test cases per property
             ..Config::default()
         }
     }

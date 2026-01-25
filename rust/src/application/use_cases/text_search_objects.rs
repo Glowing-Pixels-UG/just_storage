@@ -119,6 +119,9 @@ mod tests {
         let result = use_case.execute(request).await;
 
         // Assert
-        assert!(matches!(result, Err(TextSearchUseCaseError::InvalidRequest(_))));
+        assert!(matches!(
+            result,
+            Err(TextSearchUseCaseError::InvalidRequest(_))
+        ));
     }
 }
