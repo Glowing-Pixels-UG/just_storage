@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 //! Test environment with builder pattern (Phase 1 skeleton)
 
 use sqlx::PgPool;

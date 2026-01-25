@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Custom assertion helpers for tests (Phase 1)
 
 use axum::body::to_bytes;

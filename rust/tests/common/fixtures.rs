@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Domain object factories & test builders (Phase 1 subset)
 
 use uuid::Uuid;

@@ -1,10 +1,12 @@
+#![allow(unused_imports)]
+
 //! Common test utilities and re-exports for integration tests
 
 pub mod assertions;
+pub mod builders;
 pub mod database;
 pub mod environment;
 pub mod fixtures;
-pub mod builders;
 pub use builders::*;
 
 pub mod http;

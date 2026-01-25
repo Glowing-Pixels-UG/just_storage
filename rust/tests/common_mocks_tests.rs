@@ -1,6 +1,6 @@
 mod common;
-use common::mocks::InMemoryObjectRepository;
 use common::builders::ObjectBuilder;
+use common::mocks::InMemoryObjectRepository;
 use just_storage::application::ports::ObjectRepository; // bring trait into scope for methods
 
 #[tokio::test]

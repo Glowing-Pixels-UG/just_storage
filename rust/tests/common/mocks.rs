@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! In-memory mocks for tests
 
 use async_trait::async_trait;

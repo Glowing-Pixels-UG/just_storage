@@ -1,11 +1,14 @@
+#![allow(dead_code)]
+
 //! Builders for test objects, blobs, and DTOs (Phase 1 helpers)
 
-use std::str::FromStr;
 use uuid::Uuid;
 
 use just_storage::application::dto::UploadRequest;
 use just_storage::domain::entities::{Blob, Object};
-use just_storage::domain::value_objects::{ContentHash, ObjectStatus, StorageClass, TenantId, Namespace};
+use just_storage::domain::value_objects::{
+    ContentHash, Namespace, ObjectStatus, StorageClass, TenantId,
+};
 
 /// Builder for domain `Object` test instances
 pub struct ObjectBuilder {

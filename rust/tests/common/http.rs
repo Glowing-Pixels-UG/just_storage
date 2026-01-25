@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! HTTP helpers for tests (request builders)
 
 use axum::body::Body;

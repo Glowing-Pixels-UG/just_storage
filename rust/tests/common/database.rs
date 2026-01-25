@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Database helpers for tests (testcontainers + migrations)
 
 use sqlx::PgPool;
