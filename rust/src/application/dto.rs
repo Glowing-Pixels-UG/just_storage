@@ -319,9 +319,17 @@ mod tests {
             let request = SearchRequest {
                 namespace: "test".to_string(),
                 tenant_id: "tenant".to_string(),
-                query: "valid query".to_string(),
+                key_contains: Some("valid".to_string()),
                 limit: Some(10),
                 offset: Some(0),
+                sort_by: None,
+                sort_direction: None,
+                content_type: None,
+                storage_class: None,
+                size_range: None,
+                created_at_range: None,
+                updated_at_range: None,
+                metadata_filters: None,
             };
 
             assert!(request.validate().is_ok());
@@ -332,12 +340,21 @@ mod tests {
             let request = SearchRequest {
                 namespace: "test".to_string(),
                 tenant_id: "tenant".to_string(),
-                query: "".to_string(),
+                key_contains: Some("".to_string()),
                 limit: Some(10),
                 offset: Some(0),
+                sort_by: None,
+                sort_direction: None,
+                content_type: None,
+                storage_class: None,
+                size_range: None,
+                created_at_range: None,
+                updated_at_range: None,
+                metadata_filters: None,
             };
 
-            assert!(request.validate().is_err());
+            // Empty key_contains is allowed
+            assert!(request.validate().is_ok());
         }
 
         #[test]
@@ -345,12 +362,21 @@ mod tests {
             let request = SearchRequest {
                 namespace: "test".to_string(),
                 tenant_id: "tenant".to_string(),
-                query: "   ".to_string(),
+                key_contains: Some("   ".to_string()),
                 limit: Some(10),
                 offset: Some(0),
+                sort_by: None,
+                sort_direction: None,
+                content_type: None,
+                storage_class: None,
+                size_range: None,
+                created_at_range: None,
+                updated_at_range: None,
+                metadata_filters: None,
             };
 
-            assert!(request.validate().is_err());
+            // Whitespace is allowed
+            assert!(request.validate().is_ok());
         }
     }
 
@@ -410,9 +436,17 @@ mod tests {
         let valid_search = SearchRequest {
             namespace: "valid-namespace".to_string(),
             tenant_id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
-            query: "valid query".to_string(),
+            key_contains: Some("valid".to_string()),
             limit: Some(10),
             offset: Some(0),
+            sort_by: None,
+            sort_direction: None,
+            content_type: None,
+            storage_class: None,
+            size_range: None,
+            created_at_range: None,
+            updated_at_range: None,
+            metadata_filters: None,
         };
 
         let valid_create_api_key = CreateApiKeyRequest {
