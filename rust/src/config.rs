@@ -139,6 +139,11 @@ impl Config {
             return Err("GC_BATCH_SIZE must be between 1 and 1000".to_string());
         }
 
+        // Validate upload size
+        if self.max_upload_size_bytes == 0 {
+            return Err("MAX_UPLOAD_SIZE_BYTES must be greater than 0".to_string());
+        }
+
         // Validate database pool settings
         if self.db_max_connections < self.db_min_connections {
             return Err("DB_MAX_CONNECTIONS must be >= DB_MIN_CONNECTIONS".to_string());
