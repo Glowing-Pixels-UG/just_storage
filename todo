@@ -67,6 +67,7 @@ Priority: 🔴 CRITICAL - Blocks all other improvements
 
 - Added `tests/common/mocks.rs` with `InMemoryObjectRepository` and migrated inline mocks to shared module ✅
 - Re-exported `http` and `assertions` helpers from `tests/common` and replaced most inline usages ✅
+- Fixed smoke tests (use domain getters), constrained fixture `ContentHash` test data to valid 64-char hex, and made `test_default_config_values` robust to existing `DATABASE_URL` env var ✅
 - Committed and pushed migration changes to branch `test-suite-analysis-report-2026-01-25` ✅
 - Ran full test suite: 293 tests passed locally ✅
 
