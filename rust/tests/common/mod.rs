@@ -4,6 +4,9 @@ pub mod assertions;
 pub mod database;
 pub mod environment;
 pub mod fixtures;
+pub mod builders;
+pub use builders::*;
+
 pub mod http;
 pub mod mocks;
 

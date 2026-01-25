@@ -13,7 +13,7 @@ use just_storage::infrastructure::{
 
 // Use-case types for optional wiring by the TestEnvironmentBuilder
 use just_storage::application::use_cases::{
-    UploadObjectUseCase, DownloadObjectUseCase, DeleteObjectUseCase,
+    DeleteObjectUseCase, DownloadObjectUseCase, UploadObjectUseCase,
 };
 
 // Inline minimal DB & storage helpers to avoid fragile module resolution during phased migration
@@ -75,7 +75,8 @@ pub struct TestEnvironment {
     pub download_use_case: Option<std::sync::Arc<DownloadObjectUseCase>>,
     pub delete_use_case: Option<std::sync::Arc<DeleteObjectUseCase>>,
     pub api_router: Option<axum::Router>,
-    pub api_container: Option<testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>>,
+    pub api_container:
+        Option<testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>>,
     pub api_temp_dir: Option<tempfile::TempDir>,
 }
 

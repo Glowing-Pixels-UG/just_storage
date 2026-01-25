@@ -48,19 +48,20 @@ Priority: 🔴 CRITICAL - Blocks all other improvements
   - router: Option<Router>
   - _cleanup: Vec<Box<dyn Drop>>
 
-### 3. Extract specialized builders
+### 3. Extract specialized builders ✅
 
-- [ ] ObjectBuilder for test objects
-- [ ] BlobBuilder for test blobs
-- [ ] UploadRequestBuilder for DTOs
+- [x] ObjectBuilder for test objects
+- [x] BlobBuilder for test blobs
+- [x] UploadRequestBuilder for DTOs
 
+**Notes:** Added `tests/common/builders.rs` and exercised builders in `tests/common_builders_tests.rs`. The builders are also used in mock tests to exercise `InMemoryObjectRepository`.
 ### 4. Migration Steps
 
 - [x] Move TestEnvironment from test_fixtures to common/environment.rs (completed) — Replaced duplicate implementation with shared `tests/common::TestEnvironment` and updated tests to use the shared environment. All tests pass locally (293/293).
 - [x] Update api_endpoint_tests.rs to use common::environment::TestEnvironment
 - [x] Update testcontainers_integration.rs to use common::environment::TestEnvironment
 - [x] Update integration_test.rs to use common::environment::TestEnvironment (proof-of-concept)
-- [ ] Delete duplicate implementations (in progress) — Remove remaining duplicated helpers and cleanup `test_fixtures.rs` once all usages point to `tests/common`.
+- [x] Delete duplicate implementations — Remaining duplication removed or re-exported; `test_fixtures.rs` shim is no longer required and references consolidated into `tests/common`. (Final removal verified locally)
 - [x] Verify all tests still pass (293 tests) — full suite run on local machine: 293 passed ✔️
 
 **Recent progress:**
