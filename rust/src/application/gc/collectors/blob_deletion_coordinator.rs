@@ -227,7 +227,7 @@ mod tests {
         let store = Arc::new(MockBlobStore::new(false));
         let coordinator = BlobDeletionCoordinator::new(repo.clone(), store.clone());
 
-        let content_hash = ContentHash::from_hex("testhash".repeat(16)).unwrap();
+        let content_hash = ContentHash::from_hex("a".repeat(64)).unwrap();
         let storage_class = StorageClass::Hot;
 
         let result = coordinator
@@ -248,7 +248,7 @@ mod tests {
         let store = Arc::new(MockBlobStore::new(true)); // fail file deletion
         let coordinator = BlobDeletionCoordinator::new(repo.clone(), store.clone());
 
-        let content_hash = ContentHash::from_hex("testhash".repeat(16)).unwrap();
+        let content_hash = ContentHash::from_hex("b".repeat(64)).unwrap();
         let storage_class = StorageClass::Hot;
 
         let result = coordinator
@@ -269,7 +269,7 @@ mod tests {
         let store = Arc::new(MockBlobStore::new(false));
         let coordinator = BlobDeletionCoordinator::new(repo.clone(), store.clone());
 
-        let content_hash = ContentHash::from_hex("testhash".repeat(16)).unwrap();
+        let content_hash = ContentHash::from_hex("c".repeat(64)).unwrap();
         let storage_class = StorageClass::Hot;
 
         let result = coordinator

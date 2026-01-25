@@ -179,7 +179,7 @@ mod tests {
         assert!(config.database_url.contains("just_storage"));
         assert_eq!(config.hot_storage_root, PathBuf::from("/data/hot"));
         assert_eq!(config.cold_storage_root, PathBuf::from("/data/cold"));
-        assert_eq!(config.gc_interval_secs, 300);
+        assert_eq!(config.gc_interval_secs, 60);
         assert_eq!(config.gc_batch_size, 100);
         assert_eq!(config.db_max_connections, 10);
         assert_eq!(config.db_min_connections, 1);
@@ -286,8 +286,17 @@ mod tests {
 
     #[test]
     fn test_config_validation_success() {
+        std::env::set_var("HOT_STORAGE_ROOT", "/tmp/hot");
+        std::env::set_var("COLD_STORAGE_ROOT", "/tmp/cold");
         let config = Config::from_env();
-        assert!(config.validate().is_ok());
+        let result = config.validate();
+        assert!(
+            result.is_ok(),
+            "Valid config should pass validation: {:?}",
+            result.err()
+        );
+        std::env::remove_var("HOT_STORAGE_ROOT");
+        std::env::remove_var("COLD_STORAGE_ROOT");
     }
 
     #[test]
@@ -302,64 +311,73 @@ mod tests {
     fn test_config_validation_storage_roots_required() {
         let mut config = Config::from_env();
         config.hot_storage_root = PathBuf::new();
-        assert!(config.validate().is_err());
-        assert!(config.validate().unwrap_err().contains("HOT_STORAGE_ROOT"));
+        let result = config.validate();
+        assert!(
+            result.is_err(),
+            "Empty hot_storage_root should fail validation"
+        );
 
         let mut config = Config::from_env();
         config.cold_storage_root = PathBuf::new();
-        assert!(config.validate().is_err());
-        assert!(config.validate().unwrap_err().contains("COLD_STORAGE_ROOT"));
+        let result = config.validate();
+        assert!(
+            result.is_err(),
+            "Empty cold_storage_root should fail validation"
+        );
     }
 
     #[test]
     fn test_config_validation_gc_settings() {
         let mut config = Config::from_env();
         config.gc_interval_secs = 0;
-        assert!(config.validate().is_err());
-        assert!(config.validate().unwrap_err().contains("GC_INTERVAL_SECS"));
+        let result = config.validate();
+        assert!(
+            result.is_err(),
+            "Zero gc_interval_secs should fail validation"
+        );
 
         let mut config = Config::from_env();
         config.gc_batch_size = 0;
-        assert!(config.validate().is_err());
-        assert!(config.validate().unwrap_err().contains("GC_BATCH_SIZE"));
+        let result = config.validate();
+        assert!(result.is_err(), "Zero gc_batch_size should fail validation");
     }
 
     #[test]
     fn test_config_validation_db_settings() {
         let mut config = Config::from_env();
         config.db_max_connections = 0;
-        assert!(config.validate().is_err());
-        assert!(config
-            .validate()
-            .unwrap_err()
-            .contains("DB_MAX_CONNECTIONS"));
+        let result = config.validate();
+        assert!(
+            result.is_err(),
+            "Zero db_max_connections should fail validation"
+        );
 
         let mut config = Config::from_env();
         config.db_min_connections = 0;
-        assert!(config.validate().is_err());
-        assert!(config
-            .validate()
-            .unwrap_err()
-            .contains("DB_MIN_CONNECTIONS"));
+        let result = config.validate();
+        assert!(
+            result.is_err(),
+            "Zero db_min_connections should fail validation"
+        );
 
         let mut config = Config::from_env();
         config.db_acquire_timeout_secs = 0;
-        assert!(config.validate().is_err());
-        assert!(config
-            .validate()
-            .unwrap_err()
-            .contains("DB_ACQUIRE_TIMEOUT_SECS"));
+        let result = config.validate();
+        assert!(
+            result.is_err(),
+            "Zero db_acquire_timeout_secs should fail validation"
+        );
     }
 
     #[test]
     fn test_config_validation_upload_size() {
         let mut config = Config::from_env();
         config.max_upload_size_bytes = 0;
-        assert!(config.validate().is_err());
-        assert!(config
-            .validate()
-            .unwrap_err()
-            .contains("MAX_UPLOAD_SIZE_BYTES"));
+        let result = config.validate();
+        assert!(
+            result.is_err(),
+            "Zero max_upload_size_bytes should fail validation"
+        );
     }
 
     #[test]

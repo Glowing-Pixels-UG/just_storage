@@ -218,11 +218,17 @@ impl ObjectRepository for MockObjectRepository {
         unimplemented!("Not needed for GC collector tests")
     }
 
-    async fn search(&self, _request: &crate::application::dto::SearchRequest) -> Result<Vec<crate::domain::entities::Object>, RepositoryError> {
+    async fn search(
+        &self,
+        _request: &crate::application::dto::SearchRequest,
+    ) -> Result<Vec<crate::domain::entities::Object>, RepositoryError> {
         unimplemented!("Not needed for GC collector tests")
     }
 
-    async fn text_search(&self, _request: &crate::application::dto::TextSearchRequest) -> Result<Vec<crate::domain::entities::Object>, RepositoryError> {
+    async fn text_search(
+        &self,
+        _request: &crate::application::dto::TextSearchRequest,
+    ) -> Result<Vec<crate::domain::entities::Object>, RepositoryError> {
         unimplemented!("Not needed for GC collector tests")
     }
 
@@ -244,11 +250,16 @@ impl ObjectRepository for MockObjectRepository {
 
 /// Helper function to create a test blob
 pub fn create_test_blob(content_hash_str: &str, ref_count: i32) -> Blob {
-    Blob::new(
-        ContentHash::from_hex(content_hash_str.to_string()).unwrap(),
-        StorageClass::Hot,
-        100,
-    )
+    let hash = if content_hash_str.len() == 64 {
+        content_hash_str.to_string()
+    } else {
+        content_hash_str
+            .repeat(64 / content_hash_str.len().max(1))
+            .chars()
+            .take(64)
+            .collect()
+    };
+    Blob::new(ContentHash::from_hex(hash).unwrap(), StorageClass::Hot, 100)
 }
 
 /// Helper function to create multiple test blobs
