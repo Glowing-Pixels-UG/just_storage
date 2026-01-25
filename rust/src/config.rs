@@ -216,6 +216,8 @@ mod tests {
 
     #[test]
     fn test_env_var_override_listen_addr() {
+        // Ensure PORT is not set to avoid interference
+        std::env::remove_var("PORT");
         with_env_var("LISTEN_ADDR", "127.0.0.1:9000", || {
             let config = Config::from_env();
             assert_eq!(config.listen_addr, "127.0.0.1:9000");

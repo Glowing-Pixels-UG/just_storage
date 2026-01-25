@@ -46,7 +46,9 @@ pub fn create_development_cors_layer() -> CorsLayer {
         .allow_origin(AllowOrigin::any())
         .allow_methods(AllowMethods::any())
         .allow_headers(AllowHeaders::any())
-        .allow_credentials(true)
+        // Note: Cannot use allow_credentials(true) with AllowHeaders::any()
+        // If credentials are needed, specify explicit headers instead
+        .allow_credentials(false)
 }
 
 /// Select appropriate CORS layer based on environment
@@ -109,7 +111,7 @@ mod tests {
         // Test with multiple valid origins
         std::env::set_var(
             "ALLOWED_ORIGINS",
-            "https://example.com,https://app.example.com,http://localhost:3000"
+            "https://example.com,https://app.example.com,http://localhost:3000",
         );
         let cors = create_cors_layer();
         assert!(matches!(cors, CorsLayer { .. }));
@@ -148,7 +150,7 @@ mod tests {
         // Test with mix of valid and invalid origins
         std::env::set_var(
             "ALLOWED_ORIGINS",
-            "https://valid.com,invalid-origin,https://another-valid.com"
+            "https://valid.com,invalid-origin,https://another-valid.com",
         );
         let cors = create_cors_layer();
         // Should create layer with valid origins only
@@ -161,7 +163,7 @@ mod tests {
         // Test with origins containing whitespace
         std::env::set_var(
             "ALLOWED_ORIGINS",
-            "  https://example.com  ,  https://app.example.com  "
+            "  https://example.com  ,  https://app.example.com  ",
         );
         let cors = create_cors_layer();
         assert!(matches!(cors, CorsLayer { .. }));

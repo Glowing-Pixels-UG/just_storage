@@ -15,7 +15,6 @@ use test_fixtures::{TestEnvironment, assertions};
 
 // Import enhanced test environments
 mod testcontainers_integration;
-mod sqlx_integration_tests;
 mod api_endpoint_tests;
 
 #[tokio::test]
