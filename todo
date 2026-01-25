@@ -61,7 +61,16 @@ Priority: 🔴 CRITICAL - Blocks all other improvements
 - [x] Update testcontainers_integration.rs to use common::environment::TestEnvironment
 - [x] Update integration_test.rs to use common::environment::TestEnvironment (proof-of-concept)
 - [ ] Delete duplicate implementations
-- [ ] Verify all tests still pass (293 tests) — next: run full suite after migrating remaining tests
+- [x] Verify all tests still pass (293 tests) — full suite run on local machine: 293 passed ✔️
+
+**Recent progress:**
+
+- Added `tests/common/mocks.rs` with `InMemoryObjectRepository` and migrated inline mocks to shared module ✅
+- Re-exported `http` and `assertions` helpers from `tests/common` and replaced most inline usages ✅
+- Committed and pushed migration changes to branch `test-suite-analysis-report-2026-01-25` ✅
+- Ran full test suite: 293 tests passed locally ✅
+
+Next steps: continue moving `TestEnvironment` out of `test_fixtures.rs` into `tests/common/environment.rs` (in progress), delete remaining duplicates, and run final full-suite verification after removal.
 
 ## Success Criteria
 

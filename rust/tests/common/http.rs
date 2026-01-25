@@ -1,8 +1,8 @@
 //! HTTP helpers for tests (request builders)
 
 use axum::body::Body;
-use axum::http::Request;
 use axum::http::Method;
+use axum::http::Request;
 use serde_json::Value;
 
 /// Create a JSON request body

@@ -34,5 +34,11 @@ pub async fn assert_error_response(response: Response, expected_status: StatusCo
 
 /// Assert that a response has the expected status code
 pub async fn assert_status(response: Response, expected: StatusCode) {
-    assert_eq!(response.status(), expected, "Expected status {}, got {}", expected, response.status());
+    assert_eq!(
+        response.status(),
+        expected,
+        "Expected status {}, got {}",
+        expected,
+        response.status()
+    );
 }
