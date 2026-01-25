@@ -53,7 +53,7 @@ impl UploadObjectUseCase {
             .await?;
 
         // 6. Commit: update object state to COMMITTED
-        object.commit(content_hash, size_bytes)?;
+        object.commit(&content_hash, size_bytes)?;
         self.object_repo.save(&object).await?;
 
         // 7. Return DTO

@@ -884,9 +884,9 @@ networks:
     name: just_storage_network
 "#;
 
-    let file_path = output_dir.join("docker-compose.yml");
+    let file_path = output_dir.join("docker compose.yml");
     fs::write(&file_path, content)
-        .with_context(|| format!("Failed to write docker-compose.yml to {:?}", file_path))?;
+        .with_context(|| format!("Failed to write docker compose.yml to {:?}", file_path))?;
 
     // Generate environment file
     let env_content = r#"# Docker Compose Environment Configuration for JustStorage
@@ -934,19 +934,19 @@ METRICS_ENABLED=true
 METRICS_PORT=9090
 "#;
 
-    let env_path = output_dir.join("docker-compose.env");
+    let env_path = output_dir.join("docker compose.env");
     fs::write(&env_path, env_content)
-        .with_context(|| format!("Failed to write docker-compose.env to {:?}", env_path))?;
+        .with_context(|| format!("Failed to write docker compose.env to {:?}", env_path))?;
 
-    println!("Created: docker-compose.yml");
-    println!("Created: docker-compose.env");
+    println!("Created: docker compose.yml");
+    println!("Created: docker compose.env");
     Ok(())
 }
 
 fn validate_docker_compose(content: &str) -> Result<()> {
     // Basic YAML validation
     let _: serde_yaml::Value =
-        serde_yaml::from_str(content).context("Invalid YAML format for docker-compose.yml")?;
+        serde_yaml::from_str(content).context("Invalid YAML format for docker compose.yml")?;
     Ok(())
 }
 
@@ -958,7 +958,7 @@ fn list_platforms() {
     println!("  railway      - Railway");
     println!("  render       - Render.com");
     println!("  digitalocean - DigitalOcean App Platform");
-    println!("  docker-compose - Local development with Docker Compose");
+    println!("  docker compose - Local development with Docker Compose");
     println!("\nUse 'just-storage-deploy generate <platform>' to create configuration files.");
 }
 
@@ -1042,7 +1042,7 @@ fn print_next_steps(platform: &Platform) {
     match platform {
         Platform::DockerCompose => {
             println!("  1. Install Docker and Docker Compose");
-            println!("  2. Run: docker-compose up -d");
+            println!("  2. Run: docker compose up -d");
             println!("  3. Access at: http://localhost:8080");
             println!("  4. Optional: pgAdmin at http://localhost:8081");
         }

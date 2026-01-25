@@ -54,7 +54,6 @@ struct RateLimitResponse {
     retry_after: Option<u64>,
 }
 
-
 /// Thread-safe rate limiter using DashMap
 #[derive(Debug, Clone)]
 pub struct RateLimiter {
@@ -382,32 +381,28 @@ mod tests {
         };
         let limiter = RateLimiter::new(config);
 
-        // Test IP limiting
-        for i in 0..3 {
-            assert!(limiter
-                .check_limit(&format!("ip_{}", i), LimitType::IP)
-                .is_ok());
+        // Test IP limiting - use same key to exceed limit
+        for _ in 0..3 {
+            assert!(limiter.check_limit("ip_test", LimitType::IP).is_ok());
         }
         assert!(matches!(
             limiter.check_limit("ip_test", LimitType::IP),
             Err(RateLimitError::LimitExceeded(_))
         ));
 
-        // Test user limiting (different limit)
-        for i in 0..5 {
-            assert!(limiter
-                .check_limit(&format!("user_{}", i), LimitType::User)
-                .is_ok());
+        // Test user limiting (different limit) - use same key
+        for _ in 0..5 {
+            assert!(limiter.check_limit("user_test", LimitType::User).is_ok());
         }
         assert!(matches!(
             limiter.check_limit("user_test", LimitType::User),
             Err(RateLimitError::LimitExceeded(_))
         ));
 
-        // Test tenant limiting
-        for i in 0..5 {
+        // Test tenant limiting - use same key, tenant limit is auth_limit * 5 = 25
+        for _ in 0..25 {
             assert!(limiter
-                .check_limit(&format!("tenant_{}", i), LimitType::Tenant)
+                .check_limit("tenant_test", LimitType::Tenant)
                 .is_ok());
         }
         assert!(matches!(

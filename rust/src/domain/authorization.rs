@@ -159,7 +159,10 @@ impl UserContext {
 
     /// Check if user is a tenant admin
     pub fn is_tenant_admin(&self) -> bool {
-        self.has_role("tenant_admin") || self.has_permission(permissions::TENANT_ADMIN)
+        self.has_role("admin")
+            || self.has_role("tenant_admin")
+            || self.has_permission(permissions::ADMIN)
+            || self.has_permission(permissions::TENANT_ADMIN)
     }
 
     /// Check if user can read objects

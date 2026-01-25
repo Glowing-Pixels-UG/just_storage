@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use super::value_objects::ObjectStatus;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum DomainError {
     #[error("Validation error in field '{field}': {message}")]
     ValidationError { field: String, message: String },
