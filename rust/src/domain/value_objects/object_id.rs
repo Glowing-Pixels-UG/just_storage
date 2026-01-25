@@ -96,8 +96,7 @@ mod tests {
         for invalid in invalid_uuids {
             assert!(
                 invalid.parse::<ObjectId>().is_err(),
-                "Should fail to parse invalid UUID: {}",
-                invalid
+                "Should fail to parse invalid UUID"
             );
         }
     }
