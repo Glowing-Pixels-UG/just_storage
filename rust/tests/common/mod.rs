@@ -1,5 +1,10 @@
+//! Common test utilities and re-exports for integration tests
+
 pub mod assertions;
+pub mod database;
 pub mod environment;
 pub mod fixtures;
+pub mod http;
 
-// Re-export common testing utilities here for use by test suites
+pub use environment::TestEnvironment;
+pub use fixtures::*;

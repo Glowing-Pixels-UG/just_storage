@@ -1,0 +1,87 @@
+# Test Suite Consolidation - Phase 1: Foundation
+
+# PR: chore(tests): consolidate test environment (Phase 1)
+
+# <https://github.com/Glowing-Pixels-UG/just_storage/pull/6>
+
+## Phase 1: Foundation - Shared Test Infrastructure (CRITICAL)
+
+Priority: 🔴 CRITICAL - Blocks all other improvements
+
+### Problem Statement
+
+- THREE different TestEnvironment implementations with ~200 duplicate lines
+- test_fixtures.rs violates SRP with 6+ responsibilities in 440 lines
+- Changes must be synchronized across 3 locations
+
+### Goals
+
+- ✅ Eliminate code duplication (consolidate 3 TestEnvironment implementations into 1)
+- ✅ Establish single source of truth for test infrastructure
+- ✅ Create reusable builder pattern for test setup
+- ✅ Split monolithic test_fixtures.rs into focused modules
+
+## Implementation Plan
+
+### 1. Create tests/common/ module structure
+
+- [x] Create tests/common/ directory
+- [x] Create tests/common/mod.rs with re-exports
+- [x] Create tests/common/environment.rs - Single TestEnvironment with builder
+- [x] Create tests/common/fixtures.rs - Domain object factories & builders
+- [x] Create tests/common/assertions.rs - Custom assertion helpers
+- [x] Create tests/common/http_client.rs - Typed HTTP request builders
+- [x] Create tests/common/database.rs - DB setup & migration utilities
+
+**Progress:** Initial skeletons created; proof-of-concept migration of `integration_test.rs` complete. Next: extract remaining helpers from `test_fixtures.rs` into `tests/common` modules and replace usages in other tests.
+
+### 2. Consolidate TestEnvironment with builder pattern
+
+- [ ] Implement TestEnvironmentBuilder struct
+  - with_database: bool
+  - with_use_cases: bool
+  - with_api_server: bool
+- [ ] Implement TestEnvironment struct
+  - pool: Option<PgPool>
+  - repos: Option<Repositories>
+  - use_cases: Option<UseCases>
+  - router: Option<Router>
+  - _cleanup: Vec<Box<dyn Drop>>
+
+### 3. Extract specialized builders
+
+- [ ] ObjectBuilder for test objects
+- [ ] BlobBuilder for test blobs
+- [ ] UploadRequestBuilder for DTOs
+
+### 4. Migration Steps
+
+- [ ] Move TestEnvironment from test_fixtures to common/environment.rs
+- [ ] Update api_endpoint_tests.rs to use common::environment::TestEnvironment
+- [x] Update integration_test.rs to use common::environment::TestEnvironment (proof-of-concept)
+- [ ] Update testcontainers_integration.rs to use common::environment::TestEnvironment
+- [ ] Delete duplicate implementations
+- [ ] Verify all tests still pass (293 tests)
+
+## Success Criteria
+
+- [ ] Single TestEnvironment implementation
+- [ ] All tests use common infrastructure
+- [ ] Zero code duplication in test setup
+- [ ] Full test suite passes (293 tests)
+
+## Current Stats
+
+- Test Files: 6 integration test files, 1,825+ lines
+- Duplication: ~200 lines of duplicate TestEnvironment code
+- Technical Debt: ~400 lines of duplicated test infrastructure
+
+## Related Issues
+
+Part of comprehensive test suite refactoring tracked in related PRs (Phase 2-6)
+
+## Estimated Effort: 2-3 days
+
+## ROI: Reduces test maintenance time by ~40%, unblocks all other refactoring phases</content>
+
+<parameter name="filePath">/home/damir/projects/just_storage/todo

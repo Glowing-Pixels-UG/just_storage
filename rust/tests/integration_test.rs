@@ -10,8 +10,8 @@ use just_storage::{
 };
 
 // Import shared test fixtures
-mod test_fixtures;
-use test_fixtures::{assertions, TestEnvironment};
+mod common;
+use common::{assertions, TestEnvironment};
 
 // Import enhanced test environments
 mod api_endpoint_tests;
@@ -94,7 +94,7 @@ async fn test_full_lifecycle() {
 #[cfg(test)]
 mod api_tests {
     use super::*;
-    use crate::test_fixtures::{assertions, http};
+    use crate::common::{assertions, http};
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use just_storage::api::create_router;
