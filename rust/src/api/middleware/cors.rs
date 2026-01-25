@@ -68,7 +68,6 @@ pub fn create_cors_layer_for_environment() -> CorsLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::Method;
 
     #[test]
     fn test_create_cors_layer_basic() {

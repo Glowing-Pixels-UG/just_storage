@@ -214,7 +214,6 @@ fn validate_jwt(token: &str) -> Result<Claims, StatusCode> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_validate_api_key() {
