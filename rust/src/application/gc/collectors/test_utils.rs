@@ -259,7 +259,15 @@ pub fn create_test_blob(content_hash_str: &str, ref_count: i32) -> Blob {
             .take(64)
             .collect()
     };
-    Blob::new(ContentHash::from_hex(hash).unwrap(), StorageClass::Hot, 100)
+    let content_hash = ContentHash::from_hex(hash).unwrap();
+    // Use reconstruct to set custom ref_count instead of new() which always sets ref_count=1
+    Blob::reconstruct(
+        content_hash,
+        StorageClass::Hot,
+        100,
+        ref_count,
+        chrono::Utc::now(),
+    )
 }
 
 /// Helper function to create multiple test blobs
