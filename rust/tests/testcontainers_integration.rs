@@ -3,9 +3,9 @@
 //! This module provides comprehensive integration testing with real PostgreSQL
 //! containers, automatic schema setup, and proper test isolation.
 
+use sqlx::{Executor, PgPool};
 use std::sync::Arc;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
-use sqlx::{PgPool, Executor};
 
 use just_storage::application::{
     dto::UploadRequest,
@@ -38,7 +38,10 @@ impl TestEnvironment {
             .await
             .expect("Failed to start PostgreSQL container");
 
-        let host = container.get_host().await.expect("Failed to get container host");
+        let host = container
+            .get_host()
+            .await
+            .expect("Failed to get container host");
         let port = container
             .get_host_port_ipv4(5432)
             .await
@@ -52,14 +55,12 @@ impl TestEnvironment {
             .expect("Failed to connect to test database");
 
         // Setup repositories and use cases
-        let object_repo: Arc<dyn ObjectRepository> =
-            Arc::new(just_storage::infrastructure::persistence::PostgresObjectRepository::new(
-                pool.clone(),
-            ));
-        let blob_repo: Arc<dyn BlobRepository> =
-            Arc::new(just_storage::infrastructure::persistence::PostgresBlobRepository::new(
-                pool.clone(),
-            ));
+        let object_repo: Arc<dyn ObjectRepository> = Arc::new(
+            just_storage::infrastructure::persistence::PostgresObjectRepository::new(pool.clone()),
+        );
+        let blob_repo: Arc<dyn BlobRepository> = Arc::new(
+            just_storage::infrastructure::persistence::PostgresBlobRepository::new(pool.clone()),
+        );
 
         // Create temporary storage directories
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
@@ -68,10 +69,8 @@ impl TestEnvironment {
         std::fs::create_dir_all(&hot_dir).expect("Failed to create hot storage dir");
         std::fs::create_dir_all(&cold_dir).expect("Failed to create cold storage dir");
 
-        let store = just_storage::infrastructure::storage::LocalFilesystemStore::new(
-            hot_dir,
-            cold_dir,
-        );
+        let store =
+            just_storage::infrastructure::storage::LocalFilesystemStore::new(hot_dir, cold_dir);
         store.init().await.expect("Failed to init storage");
         let blob_store: Arc<dyn BlobStore> = Arc::new(store);
 
@@ -116,19 +115,34 @@ impl TestEnvironment {
 
         for statement in statements {
             if !statement.trim().is_empty() {
-                pool.execute(statement)
-                    .await
-                    .unwrap_or_else(|e| panic!("Failed to execute schema statement: {}\nStatement: {}", e, statement));
+                pool.execute(statement).await.unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to execute schema statement: {}\nStatement: {}",
+                        e, statement
+                    )
+                });
             }
         }
     }
 
     /// Clean up test data between tests
     pub async fn cleanup(&self) {
-        sqlx::query("DELETE FROM audit_logs").execute(&self.pool).await.ok();
-        sqlx::query("DELETE FROM api_keys").execute(&self.pool).await.ok();
-        sqlx::query("DELETE FROM objects").execute(&self.pool).await.ok();
-        sqlx::query("DELETE FROM blobs").execute(&self.pool).await.ok();
+        sqlx::query("DELETE FROM audit_logs")
+            .execute(&self.pool)
+            .await
+            .ok();
+        sqlx::query("DELETE FROM api_keys")
+            .execute(&self.pool)
+            .await
+            .ok();
+        sqlx::query("DELETE FROM objects")
+            .execute(&self.pool)
+            .await
+            .ok();
+        sqlx::query("DELETE FROM blobs")
+            .execute(&self.pool)
+            .await
+            .ok();
     }
 }
 
@@ -155,7 +169,8 @@ mod tests {
         };
 
         // Test upload
-        let object = env.upload_use_case
+        let object = env
+            .upload_use_case
             .execute(request, reader)
             .await
             .expect("Upload failed");
@@ -168,7 +183,8 @@ mod tests {
         let object_id = object.id.parse().expect("Invalid object ID");
 
         // Test download
-        let (metadata, mut reader) = env.download_use_case
+        let (metadata, mut reader) = env
+            .download_use_case
             .execute_by_id(&object_id)
             .await
             .expect("Download failed");
@@ -213,7 +229,8 @@ mod tests {
         let test_data = b"Validation test data";
         let reader = Box::pin(std::io::Cursor::new(test_data));
 
-        let object = env.upload_use_case
+        let object = env
+            .upload_use_case
             .execute(request, reader)
             .await
             .expect("Upload with valid namespace should succeed");
@@ -248,7 +265,8 @@ mod tests {
             let test_data = format!("Content of {}", filename).into_bytes();
             let reader = Box::pin(std::io::Cursor::new(test_data));
 
-            let object = env.upload_use_case
+            let object = env
+                .upload_use_case
                 .execute(request, reader)
                 .await
                 .expect(&format!("Upload failed for {}", filename));
@@ -259,7 +277,8 @@ mod tests {
 
         // Verify all objects exist
         for object_id in &object_ids {
-            let (metadata, _) = env.download_use_case
+            let (metadata, _) = env
+                .download_use_case
                 .execute_by_id(object_id)
                 .await
                 .expect(&format!("Download failed for object {}", object_id));
@@ -290,7 +309,8 @@ mod tests {
             storage_class: Some(StorageClass::Cold), // Test cold storage
         };
 
-        let object = env.upload_use_case
+        let object = env
+            .upload_use_case
             .execute(request, reader)
             .await
             .expect("Upload to cold storage failed");

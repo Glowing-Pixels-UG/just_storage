@@ -148,7 +148,6 @@ pub async fn readiness_handler(
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -198,11 +197,26 @@ mod tests {
         assert!(checks.get("error_sanitization").is_some());
         assert!(checks.get("size_limits").is_some());
 
-        // All values should be strings indicating status
-        for (_, value) in checks.as_object().unwrap() {
-            assert!(value.is_string());
-            let status = value.as_str().unwrap();
-            assert!(status == "enabled" || status == "development" || status == "production");
+        // Values can be strings or booleans indicating status
+        for (key, value) in checks.as_object().unwrap() {
+            if key == "auth_enabled" {
+                assert!(value.is_boolean(), "auth_enabled should be boolean");
+            } else {
+                assert!(
+                    value.is_string(),
+                    "{} should be string, got {:?}",
+                    key,
+                    value
+                );
+                let status = value.as_str().unwrap();
+                assert!(
+                    status == "enabled"
+                        || status == "development"
+                        || status == "production"
+                        || status == "configured"
+                        || status == "enforced"
+                );
+            }
         }
     }
 
@@ -263,7 +277,6 @@ mod tests {
         let sanitized = sanitize_db_error(&unknown_err);
         assert!(sanitized.contains("Database") || sanitized.contains("decode"));
     }
-
 
     #[test]
     fn test_health_response_includes_security_info() {

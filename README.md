@@ -90,10 +90,10 @@ See [Architecture Overview](https://github.com/Glowing-Pixels-UG/just_storage/wi
 
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f just_storage
+docker compose logs -f just_storage
 
 # Test API
 curl http://localhost:8080/health
@@ -113,7 +113,7 @@ curl http://localhost:8080/health
 cp .env.example .env
 
 # 2. Start PostgreSQL
-docker-compose up -d postgres
+docker compose up -d postgres
 # OR use local PostgreSQL
 
 # 3. Create database and run migrations
@@ -269,7 +269,8 @@ Deploy JustStorage instantly to popular platforms with a single click:
 [![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/yourusername/just_storage)
 [![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/yourusername/just_storage/tree/main)
 
-**Note:** 
+**Note:**
+
 - Replace `yourusername` in the URLs above with your actual GitHub username/organization
 - For Heroku: The button will prompt you to set `JWT_SECRET` and `API_KEYS` during deployment
 - For DigitalOcean: Set `JWT_SECRET` and `API_KEYS` as secrets in the dashboard after deployment
@@ -289,6 +290,7 @@ cargo run --release --bin just-storage-deploy -- generate <platform>
 ```
 
 **Example:**
+
 ```bash
 # Generate Heroku configuration
 just-storage-deploy generate heroku
@@ -417,7 +419,7 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 
 **Deployment Ready:**
 
-- Docker and docker-compose configurations
+- Docker and docker compose configurations
 - Kubernetes StatefulSet manifests
 - Environment variable configuration
 - Migration scripts

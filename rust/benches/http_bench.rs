@@ -234,7 +234,7 @@ fn http_handler_benchmarks(c: &mut Criterion) {
                         Some("key1".to_string()),
                         StorageClass::Hot,
                     );
-                    object.commit(hash.clone(), s as u64).unwrap();
+                    object.commit(&hash, s as u64).unwrap();
                     let object_id = *object.id();
 
                     let object_repo = Arc::new(MockObjectRepository::new());

@@ -133,7 +133,7 @@ mod tests {
         );
         if status != ObjectStatus::Writing {
             let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
-            object.commit(content_hash, 123).unwrap();
+            object.commit(&content_hash, 123).unwrap();
         }
         if status == ObjectStatus::Deleting || status == ObjectStatus::Deleted {
             object.mark_for_deletion().unwrap();

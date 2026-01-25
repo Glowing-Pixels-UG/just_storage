@@ -177,7 +177,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_collect_orphaned_blobs() {
-        let blob = create_test_blob("testhash", 0); // ref_count = 0 (orphaned)
+        let blob = create_test_blob("a", 0); // ref_count = 0 (orphaned), "a" repeats to make valid hex
 
         let mock_repo = Arc::new(MockBlobRepository::new(vec![blob]));
         let mock_store = Arc::new(MockBlobStore::new());

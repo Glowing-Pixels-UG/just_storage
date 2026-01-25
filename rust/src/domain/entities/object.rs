@@ -9,7 +9,7 @@ use crate::domain::{
 };
 
 /// Object aggregate root - represents a stored object with metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Object {
     id: ObjectId,
     namespace: Namespace,
@@ -85,7 +85,7 @@ impl Object {
     /// Commit object after successful upload
     pub fn commit(
         &mut self,
-        content_hash: ContentHash,
+        content_hash: &ContentHash,
         size_bytes: u64,
     ) -> Result<(), DomainError> {
         if self.status != ObjectStatus::Writing {
@@ -96,7 +96,7 @@ impl Object {
         }
 
         self.status = ObjectStatus::Committed;
-        self.content_hash = Some(content_hash);
+        self.content_hash = Some(content_hash.clone());
         self.size_bytes = Some(size_bytes);
         self.updated_at = Utc::now();
 
@@ -202,7 +202,7 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::value_objects::{Namespace, TenantId, ObjectKind};
+    use crate::domain::value_objects::{Namespace, ObjectKind, TenantId};
     use std::str::FromStr;
     use uuid::Uuid;
 
@@ -231,7 +231,7 @@ mod tests {
         let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
         let size_bytes = 123;
 
-        object.commit(content_hash.clone(), size_bytes).unwrap();
+        object.commit(&content_hash.clone(), size_bytes).unwrap();
 
         assert_eq!(object.status(), ObjectStatus::Committed);
         assert_eq!(object.content_hash(), Some(&content_hash));
@@ -242,9 +242,9 @@ mod tests {
     fn test_object_commit_invalid_state() {
         let mut object = create_test_object();
         let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
-        object.commit(content_hash.clone(), 123).unwrap();
+        object.commit(&content_hash.clone(), 123).unwrap();
 
-        let err = object.commit(content_hash, 123).unwrap_err();
+        let err = object.commit(&content_hash, 123).unwrap_err();
         assert!(matches!(err, DomainError::InvalidStateTransition { .. }));
     }
 
@@ -252,7 +252,7 @@ mod tests {
     fn test_object_mark_for_deletion_valid() {
         let mut object = create_test_object();
         let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
-        object.commit(content_hash, 123).unwrap();
+        object.commit(&content_hash, 123).unwrap();
 
         object.mark_for_deletion().unwrap();
         assert_eq!(object.status(), ObjectStatus::Deleting);
@@ -269,7 +269,7 @@ mod tests {
     fn test_object_mark_deleted_valid() {
         let mut object = create_test_object();
         let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
-        object.commit(content_hash, 123).unwrap();
+        object.commit(&content_hash, 123).unwrap();
         object.mark_for_deletion().unwrap();
 
         object.mark_deleted().unwrap();
@@ -289,7 +289,7 @@ mod tests {
         assert!(!object.is_readable());
 
         let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
-        object.commit(content_hash, 123).unwrap();
+        object.commit(&content_hash, 123).unwrap();
         assert!(object.is_readable());
 
         object.mark_for_deletion().unwrap();
@@ -302,7 +302,7 @@ mod tests {
         assert!(!object.is_terminal());
 
         let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
-        object.commit(content_hash, 123).unwrap();
+        object.commit(&content_hash, 123).unwrap();
         assert!(!object.is_terminal());
 
         object.mark_for_deletion().unwrap();
@@ -359,7 +359,7 @@ mod tests {
             Some(long_key.clone()),
             StorageClass::Hot,
         );
-        assert_eq!(object_long_key.key(), Some(&long_key));
+        assert_eq!(object_long_key.key(), Some(long_key.as_str()));
     }
 
     #[test]
@@ -391,12 +391,15 @@ mod tests {
 
         // Commit object
         let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
-        object.commit(content_hash, 1024).unwrap();
+        object.commit(&content_hash, 1024).unwrap();
         assert_eq!(object.status(), ObjectStatus::Committed);
 
         // Test that committed object can't be committed again
-        let result = object.commit(content_hash, 2048);
-        assert!(matches!(result, Err(DomainError::InvalidStateTransition { .. })));
+        let result = object.commit(&content_hash, 2048);
+        assert!(matches!(
+            result,
+            Err(DomainError::InvalidStateTransition { .. })
+        ));
     }
 
     #[test]
@@ -448,7 +451,7 @@ mod tests {
         let content_hash = ContentHash::from_str(&"b".repeat(64)).unwrap();
         let size = 2048u64;
 
-        object.commit(content_hash.clone(), size).unwrap();
+        object.commit(&content_hash.clone(), size).unwrap();
 
         // Verify all properties after commit
         assert_eq!(object.status(), ObjectStatus::Committed);
@@ -463,12 +466,12 @@ mod tests {
 
         // Test with zero size
         let content_hash = ContentHash::from_str(&"c".repeat(64)).unwrap();
-        object.commit(content_hash, 0).unwrap(); // Zero size should be allowed
+        object.commit(&content_hash, 0).unwrap(); // Zero size should be allowed
 
         // Test with very large size
         let mut object2 = create_test_object();
         let large_size = u64::MAX;
-        object2.commit(content_hash, large_size).unwrap();
+        object2.commit(&content_hash, large_size).unwrap();
         assert_eq!(object2.size_bytes(), Some(large_size));
     }
 }
