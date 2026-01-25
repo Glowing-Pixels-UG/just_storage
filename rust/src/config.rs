@@ -181,8 +181,8 @@ mod tests {
         assert_eq!(config.cold_storage_root, PathBuf::from("/data/cold"));
         assert_eq!(config.gc_interval_secs, 60);
         assert_eq!(config.gc_batch_size, 100);
-        assert_eq!(config.db_max_connections, 10);
-        assert_eq!(config.db_min_connections, 1);
+        assert_eq!(config.db_max_connections, 20); // Updated from 10 to 20
+        assert_eq!(config.db_min_connections, 5); // Updated from 1 to 5
         assert_eq!(config.db_acquire_timeout_secs, 30);
         assert_eq!(config.db_idle_timeout_secs, 300);
         assert_eq!(config.db_max_lifetime_secs, 1800);

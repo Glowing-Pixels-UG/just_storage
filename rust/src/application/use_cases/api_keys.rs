@@ -337,6 +337,11 @@ mod tests {
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
             mock_repo
+                .expect_count_by_tenant()
+                .with(eq("tenant-123"))
+                .times(1)
+                .returning(|_| Ok(2));
+            mock_repo
                 .expect_list_by_tenant()
                 .with(eq("tenant-123"), eq(50), eq(0))
                 .times(1)
@@ -364,11 +369,6 @@ mod tests {
             )];
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
-            mock_repo
-                .expect_count_by_tenant()
-                .with(eq("tenant-123"))
-                .times(1)
-                .returning(|_| Ok(2));
             mock_repo
                 .expect_count_by_tenant()
                 .with(eq("tenant-123"))

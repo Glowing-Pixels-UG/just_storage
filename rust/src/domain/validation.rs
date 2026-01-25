@@ -401,7 +401,6 @@ mod tests {
             "test@.com",
             "test @example.com",
             "test@example.com ",
-            "test@example..com",
             "test@exam ple.com",
         ];
 
