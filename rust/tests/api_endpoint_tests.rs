@@ -12,7 +12,6 @@ use tower::ServiceExt;
 
 #[path = "common/assertions.rs"]
 mod assertions;
-mod common;
 #[path = "common/environment.rs"]
 mod env;
 #[path = "common/http.rs"]

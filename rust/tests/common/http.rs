@@ -47,3 +47,29 @@ pub fn delete_request(uri: &str) -> Request<Body> {
         .body(Body::empty())
         .unwrap()
 }
+
+/// Create an authenticated request
+pub fn authenticated_request(method: Method, uri: &str, api_key: &str) -> Request<Body> {
+    Request::builder()
+        .method(method)
+        .uri(uri)
+        .header("authorization", format!("Bearer {}", api_key))
+        .body(Body::empty())
+        .unwrap()
+}
+
+/// Create an authenticated request with JSON body
+pub fn authenticated_json_request(
+    method: Method,
+    uri: &str,
+    api_key: &str,
+    data: Value,
+) -> Request<Body> {
+    Request::builder()
+        .method(method)
+        .uri(uri)
+        .header("authorization", format!("Bearer {}", api_key))
+        .header("content-type", "application/json")
+        .body(json_body(data))
+        .unwrap()
+}

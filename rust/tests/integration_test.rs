@@ -107,56 +107,7 @@ mod api_tests {
         testcontainers::ContainerAsync<Postgres>,
         tempfile::TempDir,
     ) {
-        // Start PostgreSQL container (migrations will be handled by ApplicationBuilder)
-        let container = Postgres::default()
-            .start()
-            .await
-            .expect("Failed to start PostgreSQL container");
-
-        let host = container
-            .get_host()
-            .await
-            .expect("Failed to get container host");
-        let port = container
-            .get_host_port_ipv4(5432)
-            .await
-            .expect("Failed to get container port");
-
-        let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
-
-        // Create temporary storage directories
-        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
-        let hot_dir = temp_dir.path().join("hot");
-        let cold_dir = temp_dir.path().join("cold");
-        std::fs::create_dir_all(&hot_dir).expect("Failed to create hot storage dir");
-        std::fs::create_dir_all(&cold_dir).expect("Failed to create cold storage dir");
-
-        // Create test config
-        let mut config = just_storage::Config::from_env();
-        config.database_url = database_url;
-        config.hot_storage_root = hot_dir;
-        config.cold_storage_root = cold_dir;
-
-        // Build application - chain in correct order
-        let builder = ApplicationBuilder::new(config)
-            .with_database()
-            .await
-            .unwrap()
-            .with_infrastructure()
-            .await
-            .unwrap();
-
-        // Build and start GC (after infrastructure is initialized)
-        let gc = builder.build_gc().unwrap();
-        tokio::spawn(Arc::clone(&gc).run());
-
-        let (state, api_key_repo, audit_repo) =
-            builder.with_api_keys().await.unwrap().build().unwrap();
-
-        // Create router
-        let router = create_router(state, api_key_repo, audit_repo);
-
-        (router, container, temp_dir)
+        common::setup_test_api_server().await
     }
 
     #[tokio::test]

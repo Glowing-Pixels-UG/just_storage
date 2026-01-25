@@ -11,7 +11,49 @@ use just_storage::infrastructure::{
     storage::LocalFilesystemStore,
 };
 
-use super::database::{cleanup_test_data, setup_test_database, setup_test_storage};
+// Inline minimal DB & storage helpers to avoid fragile module resolution during phased migration
+async fn start_postgres_with_schema() -> (PgPool, testcontainers::ContainerAsync<Postgres>) {
+    let init_sql = include_str!("../../../schema.sql");
+    let container = Postgres::default()
+        .with_init_sql(init_sql.as_bytes().to_vec())
+        .start()
+        .await
+        .expect("Failed to start PostgreSQL container");
+
+    let host = container
+        .get_host()
+        .await
+        .expect("Failed to get container host");
+    let port = container
+        .get_host_port_ipv4(5432)
+        .await
+        .expect("Failed to get container port");
+    let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
+
+    let pool = PgPool::connect(&database_url)
+        .await
+        .expect("Failed to connect to test database");
+
+    // Clean up any existing test data
+    sqlx::query("DELETE FROM audit_logs")
+        .execute(&pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM api_keys")
+        .execute(&pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM objects").execute(&pool).await.ok();
+    sqlx::query("DELETE FROM blobs").execute(&pool).await.ok();
+
+    (pool, container)
+}
+
+fn create_temp_storage_dirs() -> (tempfile::TempDir, tempfile::TempDir) {
+    let hot_dir = tempfile::TempDir::new().expect("Failed to create temp hot storage dir");
+    let cold_dir = tempfile::TempDir::new().expect("Failed to create temp cold storage dir");
+    (hot_dir, cold_dir)
+}
 
 /// A single source of truth TestEnvironment used by tests
 pub struct TestEnvironment {
@@ -27,8 +69,8 @@ pub struct TestEnvironment {
 impl TestEnvironment {
     /// Create a full environment using TestContainers and local storage
     pub async fn new() -> Self {
-        let (pool, container) = setup_test_database().await;
-        let (hot_dir, cold_dir) = setup_test_storage();
+        let (pool, container) = start_postgres_with_schema().await;
+        let (hot_dir, cold_dir) = create_temp_storage_dirs();
 
         let object_repo: Arc<dyn ObjectRepository> =
             Arc::new(PostgresObjectRepository::new(pool.clone()));
@@ -39,9 +81,6 @@ impl TestEnvironment {
             LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
         store.init().await.expect("Failed to init storage");
         let blob_store: Arc<dyn BlobStore> = Arc::new(store);
-
-        // Ensure DB is clean before returning
-        cleanup_test_data(&pool).await;
 
         Self {
             pool,

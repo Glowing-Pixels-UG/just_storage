@@ -5,7 +5,7 @@ use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncR
 
 /// Start a PostgreSQL container and return a connected PgPool and the container handle
 pub async fn setup_test_database() -> (PgPool, testcontainers::ContainerAsync<Postgres>) {
-    let init_sql = include_str!("../../schema.sql");
+    let init_sql = include_str!("../../../schema.sql");
     let container = Postgres::default()
         .with_init_sql(init_sql.as_bytes().to_vec())
         .start()
