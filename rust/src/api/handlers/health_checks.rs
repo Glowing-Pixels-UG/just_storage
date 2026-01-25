@@ -61,8 +61,8 @@ pub fn sanitize_db_error(error: &sqlx::Error) -> String {
         sqlx::Error::ColumnNotFound(_) => "Database column error".to_string(),
         sqlx::Error::ColumnDecode { .. } => "Database decode error".to_string(),
         sqlx::Error::Decode(_) => "Database decode error".to_string(),
-        sqlx::Error::PoolTimedOut => "Database timeout".to_string(),
-        sqlx::Error::PoolClosed => "Database connection closed".to_string(),
+        sqlx::Error::PoolTimedOut => "Database pool timeout".to_string(),
+        sqlx::Error::PoolClosed => "Database pool closed".to_string(),
         sqlx::Error::WorkerCrashed => "Database worker error".to_string(),
         _ => "Database error".to_string(),
     }
