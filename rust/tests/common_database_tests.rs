@@ -1,5 +1,5 @@
 mod common;
-use common::database::{setup_test_database, cleanup_test_data};
+use common::database::{cleanup_test_data, setup_test_database};
 
 #[tokio::test]
 async fn test_setup_and_cleanup_database() {

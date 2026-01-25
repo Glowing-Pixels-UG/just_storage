@@ -8,8 +8,12 @@ use common::assertions;
 #[tokio::test]
 async fn test_assertions_helpers() {
     // JSON response with keys
-    let body = Body::from(serde_json::to_string(&serde_json::json!({"ok": true, "data": {}})).unwrap());
-    let response = Response::builder().status(StatusCode::OK).body(body).unwrap();
+    let body =
+        Body::from(serde_json::to_string(&serde_json::json!({"ok": true, "data": {}})).unwrap());
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .body(body)
+        .unwrap();
 
     assertions::assert_json_response(response, &["ok", "data"]).await;
 
@@ -23,6 +27,9 @@ async fn test_assertions_helpers() {
     assertions::assert_error_response(err_resp, StatusCode::UNAUTHORIZED).await;
 
     // Status assertion
-    let resp = Response::builder().status(StatusCode::CREATED).body(Body::empty()).unwrap();
+    let resp = Response::builder()
+        .status(StatusCode::CREATED)
+        .body(Body::empty())
+        .unwrap();
     assertions::assert_status(resp, StatusCode::CREATED).await;
 }
