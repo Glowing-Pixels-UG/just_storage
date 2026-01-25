@@ -96,3 +96,60 @@ impl TestEnvironmentBuilder {
         }
     }
 }
+
+/// Helper to create an API server (Router) wired with application state for tests
+/// Returns (Router, container, temp_dir) where `temp_dir` must be kept alive by caller
+pub async fn setup_test_api_server() -> (
+    axum::Router,
+    testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>,
+    tempfile::TempDir,
+) {
+    use just_storage::{api::create_router, ApplicationBuilder, Config};
+
+    // Start PostgreSQL container (migrations will be run by ApplicationBuilder)
+    let container = Postgres::default()
+        .start()
+        .await
+        .expect("Failed to start PostgreSQL container");
+
+    let host = container
+        .get_host()
+        .await
+        .expect("Failed to get container host");
+    let port = container
+        .get_host_port_ipv4(5432)
+        .await
+        .expect("Failed to get container port");
+    let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
+
+    // Create test config
+    let mut config = Config::from_env();
+    config.database_url = database_url;
+
+    // Setup temporary storage
+    let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+    config.hot_storage_root = temp_dir.path().join("hot");
+    config.cold_storage_root = temp_dir.path().join("cold");
+    std::fs::create_dir_all(&config.hot_storage_root).expect("Failed to create hot storage");
+    std::fs::create_dir_all(&config.cold_storage_root).expect("Failed to create cold storage");
+
+    // Build application
+    let builder = ApplicationBuilder::new(config)
+        .with_database()
+        .await
+        .unwrap();
+
+    let (state, api_key_repo, audit_repo) = builder
+        .with_infrastructure()
+        .await
+        .unwrap()
+        .with_api_keys()
+        .await
+        .unwrap()
+        .build()
+        .unwrap();
+
+    let app = create_router(state, api_key_repo, audit_repo);
+
+    (app, container, temp_dir)
+}

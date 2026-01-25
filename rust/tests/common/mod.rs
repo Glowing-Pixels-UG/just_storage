@@ -6,5 +6,6 @@ pub mod environment;
 pub mod fixtures;
 pub mod http;
 
+pub use environment::setup_test_api_server;
 pub use environment::TestEnvironment;
 pub use fixtures::*;
