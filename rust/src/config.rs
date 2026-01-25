@@ -315,16 +315,20 @@ mod tests {
     #[test]
     fn test_config_validation_storage_roots_required() {
         let mut config = Config::from_env();
-        config.hot_storage_root = PathBuf::from("");
+        config.hot_storage_root = PathBuf::new();
         let result = config.validate();
-        // Empty path doesn't necessarily fail validation because parent() returns None
-        // so we just ensure the config can be created
-        assert!(result.is_ok() || result.is_err());
+        assert!(
+            result.is_err(),
+            "Empty hot_storage_root should fail validation"
+        );
 
         let mut config = Config::from_env();
-        config.cold_storage_root = PathBuf::from("");
+        config.cold_storage_root = PathBuf::new();
         let result = config.validate();
-        assert!(result.is_ok() || result.is_err());
+        assert!(
+            result.is_err(),
+            "Empty cold_storage_root should fail validation"
+        );
     }
 
     #[test]

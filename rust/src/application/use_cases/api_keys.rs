@@ -373,6 +373,11 @@ mod tests {
                 .expect_count_by_tenant()
                 .with(eq("tenant-123"))
                 .times(1)
+                .returning(|_| Ok(2));
+            mock_repo
+                .expect_count_by_tenant()
+                .with(eq("tenant-123"))
+                .times(1)
                 .returning(|_| Ok(1));
             mock_repo
                 .expect_list_by_tenant()

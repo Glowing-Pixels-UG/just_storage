@@ -470,11 +470,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_gc_collect_once_with_orphaned() {
-        use crate::application::gc::collectors::test_utils::{
-            create_test_blob, MockBlobRepository, MockBlobStore,
-        };
-
-        let blob = create_test_blob("d", 0); // ref_count = 0 (orphaned)
+        let content_hash = ContentHash::from_hex("d".repeat(64)).unwrap();
+        let blob = Blob::reconstruct(content_hash, StorageClass::Hot, 42, 0, Utc::now());
 
         let repo = Arc::new(MockBlobRepository::new(vec![blob]));
         let store = Arc::new(MockBlobStore::new());
