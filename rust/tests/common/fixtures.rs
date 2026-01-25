@@ -1,6 +1,5 @@
 //! Domain object factories & test builders (Phase 1 subset)
 
-use std::sync::Arc;
 use uuid::Uuid;
 
 use just_storage::domain::entities::Blob;
@@ -18,8 +17,7 @@ pub fn create_test_object() -> Object {
         StorageClass::Hot,
     );
     // Commit the object to set content hash and size
-    let content_hash =
-        ContentHash::from_hex("a".repeat(64)).unwrap();
+    let content_hash = ContentHash::from_hex("a".repeat(64)).unwrap();
     obj.commit(&content_hash, 1024).unwrap();
     obj.set_content_type("application/json".to_string());
     obj

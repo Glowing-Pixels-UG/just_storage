@@ -10,12 +10,8 @@ use common::{assertions, http, TestEnvironment};
 
 #[tokio::test]
 async fn smoke_assertions_helpers() {
-    // Prepare a response with JSON error body
-    let body = Body::from(r#"{"error":"unauthorized"}"#);
-    let response = Response::builder()
-        .status(StatusCode::UNAUTHORIZED)
-        .body(body)
-        .unwrap();
+    // Prepare an example JSON error body (unused variable removed)
+    let _body = Body::from(r#"{"error":"unauthorized"}"#);
 
     // Use helpers
     let response_for_status = Response::builder()

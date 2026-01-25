@@ -11,6 +11,11 @@ use just_storage::infrastructure::{
     storage::LocalFilesystemStore,
 };
 
+// Use-case types for optional wiring by the TestEnvironmentBuilder
+use just_storage::application::use_cases::{
+    UploadObjectUseCase, DownloadObjectUseCase, DeleteObjectUseCase,
+};
+
 // Inline minimal DB & storage helpers to avoid fragile module resolution during phased migration
 async fn start_postgres_with_schema() -> (PgPool, testcontainers::ContainerAsync<Postgres>) {
     let init_sql = include_str!("../../../schema.sql");
@@ -64,6 +69,14 @@ pub struct TestEnvironment {
     pub hot_dir: TempDir,
     pub cold_dir: TempDir,
     _container: testcontainers::ContainerAsync<Postgres>,
+
+    // Optional higher-level helpers created by the builder
+    pub upload_use_case: Option<std::sync::Arc<UploadObjectUseCase>>,
+    pub download_use_case: Option<std::sync::Arc<DownloadObjectUseCase>>,
+    pub delete_use_case: Option<std::sync::Arc<DeleteObjectUseCase>>,
+    pub api_router: Option<axum::Router>,
+    pub api_container: Option<testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>>,
+    pub api_temp_dir: Option<tempfile::TempDir>,
 }
 
 impl TestEnvironment {
@@ -90,6 +103,13 @@ impl TestEnvironment {
             hot_dir,
             cold_dir,
             _container: container,
+
+            upload_use_case: None,
+            download_use_case: None,
+            delete_use_case: None,
+            api_router: None,
+            api_container: None,
+            api_temp_dir: None,
         }
     }
 
@@ -125,14 +145,42 @@ impl TestEnvironmentBuilder {
 
     /// Build the TestEnvironment according to the flags
     pub async fn build(self) -> TestEnvironment {
-        // For Phase 1 we only support database-backed environments
-        // Future steps will use flags to enable use-cases and API server
-        if self.with_database || (!self.with_use_cases && !self.with_api_server) {
-            TestEnvironment::new().await
-        } else {
-            // Fall back to the default full environment
-            TestEnvironment::new().await
+        // For Phase 1 we use the DB-backed environment as the base
+        let mut env = TestEnvironment::new().await;
+
+        // Wire use-cases if requested
+        if self.with_use_cases {
+            let upload_uc = std::sync::Arc::new(UploadObjectUseCase::new(
+                std::sync::Arc::clone(&env.object_repo),
+                std::sync::Arc::clone(&env.blob_repo),
+                std::sync::Arc::clone(&env.blob_store),
+            ));
+
+            let download_uc = std::sync::Arc::new(DownloadObjectUseCase::new(
+                std::sync::Arc::clone(&env.object_repo),
+                std::sync::Arc::clone(&env.blob_store),
+            ));
+
+            let delete_uc = std::sync::Arc::new(DeleteObjectUseCase::new(
+                std::sync::Arc::clone(&env.object_repo),
+                std::sync::Arc::clone(&env.blob_repo),
+                std::sync::Arc::clone(&env.blob_store),
+            ));
+
+            env.upload_use_case = Some(upload_uc);
+            env.download_use_case = Some(download_uc);
+            env.delete_use_case = Some(delete_uc);
         }
+
+        // Start a lightweight API server for testing if requested (separate container)
+        if self.with_api_server {
+            let (router, container, temp_dir) = setup_test_api_server().await;
+            env.api_router = Some(router);
+            env.api_container = Some(container);
+            env.api_temp_dir = Some(temp_dir);
+        }
+
+        env
     }
 }
 
