@@ -33,8 +33,7 @@ jobs:
         run: cargo fmt -- --check --color always
 
       - name: Run clippy
-        run: cargo clippy -- -D warnings --color always
-
+        run: cargo clippy -- -D warnings
       - name: Run tests
         run: cargo test --color always
 
