@@ -247,7 +247,7 @@ mod tests {
 
         // Pool errors
         let pool_timeout = sqlx::Error::PoolTimedOut;
-        assert_eq!(sanitize_db_error(&pool_timeout), "Database timeout");
+        assert_eq!(sanitize_db_error(&pool_timeout), "Database pool timeout");
 
         let pool_closed = sqlx::Error::PoolClosed;
         assert_eq!(sanitize_db_error(&pool_closed), "Database pool closed");
