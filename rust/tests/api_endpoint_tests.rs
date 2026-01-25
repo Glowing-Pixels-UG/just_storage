@@ -16,6 +16,7 @@ use just_storage::{api::create_router, ApplicationBuilder, Config};
 async fn setup_test_api_server() -> (
     Router,
     testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>,
+    tempfile::TempDir,
 ) {
     // Start PostgreSQL container (migrations will be run by ApplicationBuilder)
     let container = Postgres::default()
@@ -63,7 +64,8 @@ async fn setup_test_api_server() -> (
     // Create router
     let app = create_router(state, api_key_repo, audit_repo);
 
-    (app, container)
+    // Return temp_dir so it remains alive for the duration of the tests
+    (app, container, temp_dir)
 }
 
 /// Helper to create authenticated requests
@@ -150,6 +152,7 @@ async fn api_test_openapi_specification() {
 async fn api_test_unauthenticated_requests() {
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
+    let (app, _container) = setup_test_api_server().await;
 
     // Test various endpoints without authentication
     let endpoints = vec![
@@ -181,6 +184,7 @@ async fn api_test_unauthenticated_requests() {
 async fn api_test_invalid_authentication() {
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
+    let (app, _container) = setup_test_api_server().await;
 
     // Test with invalid API key format
     let req = authenticated_request(Method::GET, "/v1/objects", "invalid-key-format", None);
@@ -204,6 +208,7 @@ async fn api_test_invalid_authentication() {
 async fn api_test_malformed_requests() {
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
+    let (app, _container) = setup_test_api_server().await;
 
     // Test with invalid JSON
     let req = Request::builder()
@@ -225,6 +230,7 @@ async fn api_test_malformed_requests() {
 
 #[tokio::test]
 async fn api_test_validation_errors() {
+    let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
 
@@ -275,6 +281,7 @@ async fn api_test_validation_errors() {
 async fn api_test_rate_limiting() {
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
+    let (app, _container) = setup_test_api_server().await;
 
     // Make multiple rapid requests to test rate limiting
     // Note: This assumes rate limiting is configured
@@ -300,6 +307,7 @@ async fn api_test_rate_limiting() {
 async fn api_test_cors_headers() {
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
+    let (app, _container) = setup_test_api_server().await;
 
     let req = Request::builder()
         .method(Method::OPTIONS)
@@ -323,6 +331,7 @@ async fn api_test_cors_headers() {
 async fn api_test_security_headers() {
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
+    let (app, _container) = setup_test_api_server().await;
 
     let req = Request::builder()
         .method(Method::GET)
@@ -341,6 +350,7 @@ async fn api_test_security_headers() {
 
 #[tokio::test]
 async fn api_test_input_sanitization() {
+    let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
 
@@ -367,6 +377,7 @@ async fn api_test_input_sanitization() {
 async fn api_test_content_type_validation() {
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
+    let (app, _container) = setup_test_api_server().await;
 
     // Test with invalid content type
     let req = Request::builder()
@@ -383,6 +394,7 @@ async fn api_test_content_type_validation() {
 
 #[tokio::test]
 async fn api_test_request_size_limits() {
+    let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
 
@@ -406,6 +418,7 @@ async fn api_test_request_size_limits() {
 
 #[tokio::test]
 async fn api_test_concurrent_requests() {
+    let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
     let (app, _container) = setup_test_api_server().await;
 
