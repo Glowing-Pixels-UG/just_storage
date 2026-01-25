@@ -19,7 +19,7 @@ pub fn create_test_object() -> Object {
     );
     // Commit the object to set content hash and size
     let content_hash =
-        ContentHash::from_hex("testhash12345678901234567890123456789012".to_string()).unwrap();
+        ContentHash::from_hex("a".repeat(64)).unwrap();
     obj.commit(&content_hash, 1024).unwrap();
     obj.set_content_type("application/json".to_string());
     obj

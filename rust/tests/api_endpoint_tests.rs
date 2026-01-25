@@ -5,9 +5,9 @@
 
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
-use axum::Router;
+
 use serde_json::json;
-use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
+
 use tower::ServiceExt;
 
 #[path = "common/assertions.rs"]

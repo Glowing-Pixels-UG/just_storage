@@ -178,7 +178,18 @@ mod tests {
 
     #[test]
     fn test_default_config_values() {
+        // Ensure DATABASE_URL is not set to simulate default environment
+        let prev_db = env::var("DATABASE_URL").ok();
+        if prev_db.is_some() {
+            env::remove_var("DATABASE_URL");
+        }
+
         let config = Config::from_env();
+
+        // Restore previous DATABASE_URL if any
+        if let Some(val) = prev_db {
+            env::set_var("DATABASE_URL", val);
+        }
 
         // Test default values when no env vars are set
         assert!(config.database_url.contains("just_storage"));

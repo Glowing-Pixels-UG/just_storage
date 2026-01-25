@@ -3,16 +3,13 @@
 //! This module provides comprehensive integration testing with real PostgreSQL
 //! containers, automatic schema setup, and proper test isolation.
 
-use sqlx::{Executor, PgPool};
 use std::sync::Arc;
-use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
 
 #[path = "common/environment.rs"]
 mod env;
 
 use just_storage::application::{
     dto::UploadRequest,
-    ports::{BlobRepository, BlobStore, ObjectRepository},
     use_cases::{DeleteObjectUseCase, DownloadObjectUseCase, UploadObjectUseCase},
 };
 use just_storage::domain::value_objects::StorageClass;
@@ -29,7 +26,10 @@ mod tests {
     /// Full object lifecycle test using testcontainers
     #[tokio::test]
     async fn test_full_object_lifecycle_with_testcontainers() {
-        let common_env = env::TestEnvironment::new().await;
+        let common_env = env::TestEnvironment::builder()
+            .with_database(true)
+            .build()
+            .await;
 
         // Create use cases using common environment components
         let upload_use_case = Arc::new(UploadObjectUseCase::new(
@@ -38,7 +38,7 @@ mod tests {
             Arc::clone(&common_env.blob_store),
         ));
 
-        let download_use_case = Arc::new(DownloadObjectUseCase::new(
+        let _download_use_case = Arc::new(DownloadObjectUseCase::new(
             Arc::clone(&common_env.object_repo),
             Arc::clone(&common_env.blob_store),
         ));
@@ -74,7 +74,7 @@ mod tests {
         let object_id = object.id.parse().expect("Invalid object ID");
 
         // Test download
-        let (metadata, mut reader) = download_use_case
+        let (metadata, mut reader) = _download_use_case
             .execute_by_id(&object_id)
             .await
             .expect("Download failed");
@@ -96,14 +96,17 @@ mod tests {
             .expect("Delete failed");
 
         // Verify object is gone
-        let result = download_use_case.execute_by_id(&object_id).await;
+        let result = _download_use_case.execute_by_id(&object_id).await;
         assert!(result.is_err());
     }
 
     /// Test namespace and tenant validation
     #[tokio::test]
     async fn test_namespace_validation_with_testcontainers() {
-        let common_env = env::TestEnvironment::new().await;
+        let common_env = env::TestEnvironment::builder()
+            .with_database(true)
+            .build()
+            .await;
 
         let upload_use_case = Arc::new(UploadObjectUseCase::new(
             Arc::clone(&common_env.object_repo),
@@ -151,7 +154,10 @@ mod tests {
     /// Test multiple objects in same namespace
     #[tokio::test]
     async fn test_multiple_objects_same_namespace() {
-        let common_env = env::TestEnvironment::new().await;
+        let common_env = env::TestEnvironment::builder()
+            .with_database(true)
+            .build()
+            .await;
 
         let upload_use_case = Arc::new(UploadObjectUseCase::new(
             Arc::clone(&common_env.object_repo),
@@ -159,7 +165,7 @@ mod tests {
             Arc::clone(&common_env.blob_store),
         ));
 
-        let download_use_case = Arc::new(DownloadObjectUseCase::new(
+        let _download_use_case = Arc::new(DownloadObjectUseCase::new(
             Arc::clone(&common_env.object_repo),
             Arc::clone(&common_env.blob_store),
         ));
@@ -199,7 +205,7 @@ mod tests {
 
         // Verify all objects exist
         for object_id in &object_ids {
-            let (metadata, _) = download_use_case
+            let (metadata, _) = _download_use_case
                 .execute_by_id(object_id)
                 .await
                 .expect(&format!("Download failed for object {}", object_id));
@@ -218,7 +224,10 @@ mod tests {
     /// Test storage class behavior
     #[tokio::test]
     async fn test_storage_class_behavior() {
-        let common_env = env::TestEnvironment::new().await;
+        let common_env = env::TestEnvironment::builder()
+            .with_database(true)
+            .build()
+            .await;
 
         let upload_use_case = Arc::new(UploadObjectUseCase::new(
             Arc::clone(&common_env.object_repo),
@@ -226,7 +235,7 @@ mod tests {
             Arc::clone(&common_env.blob_store),
         ));
 
-        let download_use_case = Arc::new(DownloadObjectUseCase::new(
+        let _download_use_case = Arc::new(DownloadObjectUseCase::new(
             Arc::clone(&common_env.object_repo),
             Arc::clone(&common_env.blob_store),
         ));

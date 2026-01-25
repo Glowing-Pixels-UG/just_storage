@@ -3,7 +3,7 @@ use std::sync::Arc;
 use just_storage::{
     application::{
         dto::UploadRequest,
-        ports::{BlobRepository, BlobStore, ObjectRepository},
+
         use_cases::{DeleteObjectUseCase, DownloadObjectUseCase, UploadObjectUseCase},
     },
     domain::value_objects::StorageClass,
@@ -20,7 +20,7 @@ mod testcontainers_integration;
 #[tokio::test]
 async fn test_full_lifecycle() {
     // Setup test environment using shared fixtures
-    let env = TestEnvironment::new().await;
+    let env = TestEnvironment::builder().with_database(true).build().await;
 
     // Create use cases using environment components
     let upload_use_case = Arc::new(UploadObjectUseCase::new(
