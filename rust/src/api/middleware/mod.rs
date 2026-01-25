@@ -6,6 +6,7 @@ pub mod audit_types;
 pub mod auth;
 pub mod authorization;
 pub mod config;
+pub mod content_type;
 pub mod cors;
 pub mod error_handling;
 pub mod factory;

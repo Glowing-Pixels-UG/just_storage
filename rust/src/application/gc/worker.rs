@@ -399,7 +399,6 @@ mod tests {
             unimplemented!()
         }
 
-
         async fn save(
             &self,
             _object: &crate::domain::entities::Object,
@@ -433,11 +432,17 @@ mod tests {
             unimplemented!()
         }
 
-        async fn search(&self, _request: &crate::application::dto::SearchRequest) -> Result<Vec<crate::domain::entities::Object>, RepositoryError> {
+        async fn search(
+            &self,
+            _request: &crate::application::dto::SearchRequest,
+        ) -> Result<Vec<crate::domain::entities::Object>, RepositoryError> {
             unimplemented!()
         }
 
-        async fn text_search(&self, _request: &crate::application::dto::TextSearchRequest) -> Result<Vec<crate::domain::entities::Object>, RepositoryError> {
+        async fn text_search(
+            &self,
+            _request: &crate::application::dto::TextSearchRequest,
+        ) -> Result<Vec<crate::domain::entities::Object>, RepositoryError> {
             unimplemented!()
         }
 
@@ -465,11 +470,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_gc_collect_once_with_orphaned() {
-        let content_hash = ContentHash::from_hex("testhash".repeat(16)).unwrap();
-        let blob = Blob::new(content_hash, StorageClass::Hot, 42);
+        use crate::application::gc::collectors::test_utils::{
+            create_test_blob, MockBlobRepository, MockBlobStore,
+        };
+
+        let blob = create_test_blob("d", 0); // ref_count = 0 (orphaned)
 
         let repo = Arc::new(MockBlobRepository::new(vec![blob]));
-        let store = Arc::new(MockBlobStore);
+        let store = Arc::new(MockBlobStore::new());
 
         let gc = GarbageCollector::new(repo, store, Duration::from_secs(60), 100);
 

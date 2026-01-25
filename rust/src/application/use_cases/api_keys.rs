@@ -212,7 +212,7 @@ pub enum ApiKeyUseCaseError {
 mod tests {
     use super::*;
     use crate::domain::entities::ApiKey;
-    use crate::domain::value_objects::{ApiKeyId, ApiKeyValue, ApiKeyPermissions};
+    use crate::domain::value_objects::{ApiKeyId, ApiKeyPermissions, ApiKeyValue};
     use async_trait::async_trait;
     use mockall::mock;
     use mockall::predicate::*;
@@ -241,10 +241,7 @@ mod tests {
         #[tokio::test]
         async fn test_create_api_key_success() {
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
-            mock_repo
-                .expect_create()
-                .times(1)
-                .returning(|_| Ok(()));
+            mock_repo.expect_create().times(1).returning(|_| Ok(()));
 
             let use_case = CreateApiKeyUseCase::new(Arc::new(mock_repo));
 
@@ -260,7 +257,10 @@ mod tests {
             assert!(result.is_ok());
             let api_key_dto = result.unwrap();
             assert_eq!(api_key_dto.name, "Test API Key");
-            assert_eq!(api_key_dto.description, Some("Test description".to_string()));
+            assert_eq!(
+                api_key_dto.description,
+                Some("Test description".to_string())
+            );
             assert_eq!(api_key_dto.permissions, ApiKeyPermissions::read_only());
             assert_eq!(api_key_dto.tenant_id, "tenant-123");
         }
@@ -268,10 +268,7 @@ mod tests {
         #[tokio::test]
         async fn test_create_api_key_default_permissions() {
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
-            mock_repo
-                .expect_create()
-                .times(1)
-                .returning(|_| Ok(()));
+            mock_repo.expect_create().times(1).returning(|_| Ok(()));
 
             let use_case = CreateApiKeyUseCase::new(Arc::new(mock_repo));
 
@@ -309,7 +306,10 @@ mod tests {
             let result = use_case.execute("tenant-123".to_string(), request).await;
 
             assert!(result.is_err());
-            assert!(matches!(result.unwrap_err(), ApiKeyUseCaseError::Repository(_)));
+            assert!(matches!(
+                result.unwrap_err(),
+                ApiKeyUseCaseError::Repository(_)
+            ));
         }
     }
 
@@ -336,6 +336,11 @@ mod tests {
             ];
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
+            mock_repo
+                .expect_count_by_tenant()
+                .with(eq("tenant-123"))
+                .times(1)
+                .returning(|_| Ok(2));
             mock_repo
                 .expect_list_by_tenant()
                 .with(eq("tenant-123"), eq(50), eq(0))
@@ -365,6 +370,11 @@ mod tests {
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
             mock_repo
+                .expect_count_by_tenant()
+                .with(eq("tenant-123"))
+                .times(1)
+                .returning(|_| Ok(1));
+            mock_repo
                 .expect_list_by_tenant()
                 .with(eq("tenant-123"), eq(10), eq(20))
                 .times(1)
@@ -372,7 +382,9 @@ mod tests {
 
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 
-            let result = use_case.execute("tenant-123".to_string(), Some(10), Some(20)).await;
+            let result = use_case
+                .execute("tenant-123".to_string(), Some(10), Some(20))
+                .await;
 
             assert!(result.is_ok());
         }
@@ -380,6 +392,10 @@ mod tests {
         #[tokio::test]
         async fn test_list_api_keys_empty() {
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
+            mock_repo
+                .expect_count_by_tenant()
+                .times(1)
+                .returning(|_| Ok(0));
             mock_repo
                 .expect_list_by_tenant()
                 .times(1)
@@ -418,7 +434,9 @@ mod tests {
 
             let use_case = GetApiKeyUseCase::new(Arc::new(mock_repo));
 
-            let result = use_case.execute("tenant-123", &api_key_id.to_string()).await;
+            let result = use_case
+                .execute("tenant-123", &api_key_id.to_string())
+                .await;
 
             assert!(result.is_ok());
             let api_key_dto = result.unwrap();
@@ -438,10 +456,15 @@ mod tests {
 
             let use_case = GetApiKeyUseCase::new(Arc::new(mock_repo));
 
-            let result = use_case.execute("tenant-123", &api_key_id.to_string()).await;
+            let result = use_case
+                .execute("tenant-123", &api_key_id.to_string())
+                .await;
 
             assert!(result.is_err());
-            assert!(matches!(result.unwrap_err(), ApiKeyUseCaseError::NotFound(_)));
+            assert!(matches!(
+                result.unwrap_err(),
+                ApiKeyUseCaseError::NotFound(_)
+            ));
         }
     }
 
@@ -466,10 +489,7 @@ mod tests {
                 .times(1)
                 .returning(move |_| Ok(Some(api_key.clone())));
 
-            mock_repo
-                .expect_update()
-                .times(1)
-                .returning(|_| Ok(()));
+            mock_repo.expect_update().times(1).returning(|_| Ok(()));
 
             let use_case = UpdateApiKeyUseCase::new(Arc::new(mock_repo));
 
@@ -481,7 +501,9 @@ mod tests {
                 expires_at: None,
             };
 
-            let result = use_case.execute("tenant-123", &api_key_id.to_string(), request).await;
+            let result = use_case
+                .execute("tenant-123", &api_key_id.to_string(), request)
+                .await;
 
             assert!(result.is_ok());
             let api_key_dto = result.unwrap();
@@ -510,10 +532,15 @@ mod tests {
                 expires_at: None,
             };
 
-            let result = use_case.execute("tenant-123", &api_key_id.to_string(), request).await;
+            let result = use_case
+                .execute("tenant-123", &api_key_id.to_string(), request)
+                .await;
 
             assert!(result.is_err());
-            assert!(matches!(result.unwrap_err(), ApiKeyUseCaseError::NotFound(_)));
+            assert!(matches!(
+                result.unwrap_err(),
+                ApiKeyUseCaseError::NotFound(_)
+            ));
         }
     }
 
@@ -523,8 +550,20 @@ mod tests {
         #[tokio::test]
         async fn test_delete_api_key_success() {
             let api_key_id = ApiKeyId::new();
+            let api_key = ApiKey::new(
+                "tenant-123".to_string(),
+                "Test Key".to_string(),
+                None,
+                ApiKeyPermissions::read_only(),
+                None,
+            );
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
+            mock_repo
+                .expect_find_by_id()
+                .with(eq(api_key_id))
+                .times(1)
+                .returning(move |_| Ok(Some(api_key.clone())));
             mock_repo
                 .expect_delete()
                 .with(eq(api_key_id))
@@ -533,7 +572,9 @@ mod tests {
 
             let use_case = DeleteApiKeyUseCase::new(Arc::new(mock_repo));
 
-            let result = use_case.execute("tenant-123", &api_key_id.to_string()).await;
+            let result = use_case
+                .execute("tenant-123", &api_key_id.to_string())
+                .await;
 
             assert!(result.is_ok());
         }
@@ -541,8 +582,20 @@ mod tests {
         #[tokio::test]
         async fn test_delete_api_key_repository_error() {
             let api_key_id = ApiKeyId::new();
+            let api_key = ApiKey::new(
+                "tenant-123".to_string(),
+                "Test Key".to_string(),
+                None,
+                ApiKeyPermissions::read_only(),
+                None,
+            );
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
+            mock_repo
+                .expect_find_by_id()
+                .with(eq(api_key_id))
+                .times(1)
+                .returning(move |_| Ok(Some(api_key.clone())));
             mock_repo
                 .expect_delete()
                 .with(eq(api_key_id))
@@ -551,10 +604,15 @@ mod tests {
 
             let use_case = DeleteApiKeyUseCase::new(Arc::new(mock_repo));
 
-            let result = use_case.execute("tenant-123", &api_key_id.to_string()).await;
+            let result = use_case
+                .execute("tenant-123", &api_key_id.to_string())
+                .await;
 
             assert!(result.is_err());
-            assert!(matches!(result.unwrap_err(), ApiKeyUseCaseError::Repository(_)));
+            assert!(matches!(
+                result.unwrap_err(),
+                ApiKeyUseCaseError::Repository(_)
+            ));
         }
     }
 }

@@ -82,7 +82,7 @@ mod tests {
             StorageClass::Hot,
         );
         let content_hash = ContentHash::from_str(&"a".repeat(64)).unwrap();
-        object.commit(content_hash, 123).unwrap();
+        object.commit(&content_hash, 123).unwrap();
         object
     }
 
@@ -160,7 +160,10 @@ mod tests {
 
         // Assert
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DeleteUseCaseError::NotFound(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DeleteUseCaseError::NotFound(_)
+        ));
     }
 
     #[tokio::test]

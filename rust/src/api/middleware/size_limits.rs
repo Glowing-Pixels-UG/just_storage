@@ -144,7 +144,6 @@ impl RequestSizeLimitMiddleware {
     }
 }
 
-
 /// File upload size validation for specific endpoints
 #[derive(Clone)]
 pub struct FileUploadLimitMiddleware {
@@ -331,8 +330,6 @@ pub fn create_request_size_limit_middleware() -> RequestSizeLimitLayer {
     RequestSizeLimitLayer::new()
 }
 
-
-
 /// File upload limit layer
 #[derive(Clone)]
 pub struct FileUploadLimitLayer {
@@ -428,8 +425,7 @@ pub fn create_file_upload_limit_middleware() -> FileUploadLimitLayer {
 }
 
 /// Create comprehensive size limit middleware stack
-pub fn create_size_limit_middleware_stack(
-) -> Stack<FileUploadLimitLayer, RequestSizeLimitLayer> {
+pub fn create_size_limit_middleware_stack() -> Stack<FileUploadLimitLayer, RequestSizeLimitLayer> {
     let request_limits = create_request_size_limit_middleware();
     let file_limits = create_file_upload_limit_middleware();
 
@@ -457,7 +453,7 @@ pub fn validate_size(size: u64, max_size: u64, context: &str) -> Result<(), Stri
 
 /// Format bytes in human-readable format
 pub fn format_bytes(bytes: u64) -> String {
-    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
+    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB", "PB"];
 
     if bytes == 0 {
         return "0 B".to_string();

@@ -86,8 +86,8 @@ pub enum DeleteUseCaseError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::ports::{ApiKeyRepositoryError, RepositoryError, StorageError};
     use crate::domain::errors::DomainError;
-    use crate::application::ports::{RepositoryError, StorageError, ApiKeyRepositoryError};
 
     mod object_use_case_error_tests {
         use super::*;
@@ -193,7 +193,10 @@ mod tests {
         fn test_text_search_use_case_error_invalid_request() {
             let search_err = TextSearchUseCaseError::InvalidRequest("test message".to_string());
 
-            assert!(matches!(search_err, TextSearchUseCaseError::InvalidRequest(_)));
+            assert!(matches!(
+                search_err,
+                TextSearchUseCaseError::InvalidRequest(_)
+            ));
             assert!(search_err.to_string().contains("Invalid request"));
             assert!(search_err.to_string().contains("test message"));
         }
@@ -225,7 +228,11 @@ mod tests {
             let download_err = DownloadUseCaseError::NotFound("test object".to_string());
 
             assert!(matches!(download_err, DownloadUseCaseError::NotFound(_)));
-            assert!(download_err.to_string().contains("Not found"));
+            assert!(
+                download_err.to_string().contains("not found"),
+                "Expected 'not found' in: {}",
+                download_err
+            );
             assert!(download_err.to_string().contains("test object"));
         }
     }
@@ -241,7 +248,11 @@ mod tests {
         assert!(obj_err.to_string().contains("Invalid request"));
         assert!(api_err.to_string().contains("API key not found"));
         assert!(search_err.to_string().contains("Invalid request"));
-        assert!(download_err.to_string().contains("Not found"));
+        assert!(
+            download_err.to_string().contains("not found"),
+            "Expected 'not found' in: {}",
+            download_err
+        );
     }
 
     #[test]

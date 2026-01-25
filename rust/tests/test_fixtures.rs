@@ -3,18 +3,19 @@
 //! This module provides common test setup patterns to reduce duplication
 //! and make tests more maintainable.
 
-use std::sync::Arc;
+use sqlx::{Executor, PgPool};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tempfile::TempDir;
-use sqlx::{PgPool, Executor};
+use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
 use uuid::Uuid;
 
-use just_storage::domain::entities::{Object, Blob};
-use just_storage::domain::value_objects::{
-    ContentHash, StorageClass, Namespace, TenantId, ObjectId
-};
 use just_storage::application::ports::{
-    BlobRepository, BlobStore, ObjectRepository, ApiKeyRepository, AuditRepository
+    ApiKeyRepository, AuditRepository, BlobRepository, BlobStore, ObjectRepository,
+};
+use just_storage::domain::entities::{Blob, Object};
+use just_storage::domain::value_objects::{
+    ContentHash, Namespace, ObjectId, StorageClass, TenantId,
 };
 use just_storage::infrastructure::{
     persistence::{PostgresBlobRepository, PostgresObjectRepository},
@@ -31,12 +32,13 @@ pub struct TestEnvironment {
     pub cold_dir: TempDir,
     pub api_key_repo: Option<Arc<dyn ApiKeyRepository>>,
     pub audit_repo: Option<Arc<dyn AuditRepository>>,
+    _container: testcontainers::ContainerAsync<Postgres>,
 }
 
 impl TestEnvironment {
     /// Create a complete test environment with database and storage
     pub async fn new() -> Self {
-        let pool = setup_test_database().await;
+        let (pool, container) = setup_test_database().await;
         let (hot_dir, cold_dir) = setup_test_storage();
 
         let object_repo: Arc<dyn ObjectRepository> =
@@ -44,10 +46,8 @@ impl TestEnvironment {
         let blob_repo: Arc<dyn BlobRepository> =
             Arc::new(PostgresBlobRepository::new(pool.clone()));
 
-        let store = LocalFilesystemStore::new(
-            hot_dir.path().to_path_buf(),
-            cold_dir.path().to_path_buf(),
-        );
+        let store =
+            LocalFilesystemStore::new(hot_dir.path().to_path_buf(), cold_dir.path().to_path_buf());
         store.init().await.expect("Failed to init storage");
         let blob_store: Arc<dyn BlobStore> = Arc::new(store);
 
@@ -60,6 +60,7 @@ impl TestEnvironment {
             cold_dir,
             api_key_repo: None,
             audit_repo: None,
+            _container: container,
         }
     }
 
@@ -76,43 +77,44 @@ impl TestEnvironment {
     }
 }
 
-/// Database setup utilities
-pub async fn setup_test_database() -> PgPool {
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5432/test".to_string());
+/// Database setup utilities using testcontainers
+pub async fn setup_test_database() -> (PgPool, testcontainers::ContainerAsync<Postgres>) {
+    // Start PostgreSQL container with schema initialization
+    let init_sql = include_str!("../../schema.sql");
+    let container = Postgres::default()
+        .with_init_sql(init_sql.as_bytes().to_vec())
+        .start()
+        .await
+        .expect("Failed to start PostgreSQL container");
 
+    let host = container
+        .get_host()
+        .await
+        .expect("Failed to get container host");
+    let port = container
+        .get_host_port_ipv4(5432)
+        .await
+        .expect("Failed to get container port");
+
+    let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
+
+    // Create connection pool
     let pool = PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to test database");
 
-    // Run migrations/schema setup
-    setup_schema(&pool).await;
+    // Clean up any existing test data
     cleanup_test_data(&pool).await;
 
-    pool
-}
-
-/// Setup database schema from SQL file
-async fn setup_schema(pool: &PgPool) {
-    let schema = include_str!("../../schema.sql");
-    let statements: Vec<&str> = schema
-        .split(';')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty() && !s.starts_with("--"))
-        .collect();
-
-    for statement in statements {
-        if !statement.trim().is_empty() {
-            pool.execute(statement)
-                .await
-                .unwrap_or_else(|e| panic!("Failed to execute schema statement: {}\nStatement: {}", e, statement));
-        }
-    }
+    (pool, container)
 }
 
 /// Clean up test data between tests
 pub async fn cleanup_test_data(pool: &PgPool) {
-    sqlx::query("DELETE FROM audit_logs").execute(pool).await.ok();
+    sqlx::query("DELETE FROM audit_logs")
+        .execute(pool)
+        .await
+        .ok();
     sqlx::query("DELETE FROM api_keys").execute(pool).await.ok();
     sqlx::query("DELETE FROM objects").execute(pool).await.ok();
     sqlx::query("DELETE FROM blobs").execute(pool).await.ok();
@@ -129,9 +131,7 @@ pub fn setup_test_storage() -> (TempDir, TempDir) {
 pub mod factories {
     use super::*;
     use just_storage::domain::entities::Object;
-    use just_storage::domain::value_objects::{
-        Namespace, TenantId, ObjectId, ObjectStatus
-    };
+    use just_storage::domain::value_objects::{Namespace, ObjectId, ObjectStatus, TenantId};
 
     /// Create a test object with default values
     pub fn create_test_object() -> Object {
@@ -142,8 +142,9 @@ pub mod factories {
             StorageClass::Hot,
         );
         // Commit the object to set content hash and size
-        let content_hash = ContentHash::from_hex("testhash12345678901234567890123456789012".to_string()).unwrap();
-        obj.commit(content_hash, 1024).unwrap();
+        let content_hash =
+            ContentHash::from_hex("testhash12345678901234567890123456789012".to_string()).unwrap();
+        obj.commit(&content_hash, 1024).unwrap();
         obj.set_content_type("application/json".to_string());
         // Metadata is already initialized with default values
         obj
@@ -171,7 +172,7 @@ pub mod factories {
         if status == just_storage::domain::value_objects::ObjectStatus::Committed {
             if let Some(size) = size_bytes {
                 let hash = ContentHash::from_hex(content_hash.to_string()).unwrap();
-                obj.commit(hash, size).unwrap();
+                obj.commit(&hash, size).unwrap();
             }
         }
 
@@ -192,7 +193,7 @@ pub mod factories {
 /// HTTP testing utilities
 pub mod http {
     use axum::body::Body;
-    use axum::http::{Request, Method, Uri};
+    use axum::http::{Method, Request, Uri};
     use serde_json::Value;
 
     /// Create a JSON request body
@@ -249,7 +250,12 @@ pub mod http {
     }
 
     /// Create an authenticated request with JSON body
-    pub fn authenticated_json_request(method: Method, uri: &str, api_key: &str, data: Value) -> Request<Body> {
+    pub fn authenticated_json_request(
+        method: Method,
+        uri: &str,
+        api_key: &str,
+        data: Value,
+    ) -> Request<Body> {
         Request::builder()
             .method(method)
             .uri(uri)
@@ -292,13 +298,19 @@ pub mod mocks {
 
     #[async_trait]
     impl ObjectRepository for InMemoryObjectRepository {
-        async fn save(&self, object: &Object) -> Result<(), just_storage::application::ports::RepositoryError> {
+        async fn save(
+            &self,
+            object: &Object,
+        ) -> Result<(), just_storage::application::ports::RepositoryError> {
             let mut objects = self.objects.lock().unwrap();
             objects.insert(object.id().clone(), object.clone());
             Ok(())
         }
 
-        async fn find_by_id(&self, id: &ObjectId) -> Result<Option<Object>, just_storage::application::ports::RepositoryError> {
+        async fn find_by_id(
+            &self,
+            id: &ObjectId,
+        ) -> Result<Option<Object>, just_storage::application::ports::RepositoryError> {
             let objects = self.objects.lock().unwrap();
             Ok(objects.get(id).cloned())
         }
@@ -310,11 +322,14 @@ pub mod mocks {
             key: &str,
         ) -> Result<Option<Object>, just_storage::application::ports::RepositoryError> {
             let objects = self.objects.lock().unwrap();
-            Ok(objects.values().find(|obj|
-                obj.namespace() == namespace &&
-                obj.tenant_id() == tenant_id &&
-                obj.key().as_ref().map(|s| *s == key) == Some(true)
-            ).cloned())
+            Ok(objects
+                .values()
+                .find(|obj| {
+                    obj.namespace() == namespace
+                        && obj.tenant_id() == tenant_id
+                        && obj.key().as_ref().map(|s| *s == key) == Some(true)
+                })
+                .cloned())
         }
 
         async fn list(
@@ -325,7 +340,8 @@ pub mod mocks {
             offset: i64,
         ) -> Result<Vec<Object>, just_storage::application::ports::RepositoryError> {
             let objects = self.objects.lock().unwrap();
-            let mut filtered: Vec<_> = objects.values()
+            let mut filtered: Vec<_> = objects
+                .values()
                 .filter(|obj| obj.namespace() == namespace && obj.tenant_id() == tenant_id)
                 .cloned()
                 .collect();
@@ -336,17 +352,26 @@ pub mod mocks {
             Ok(filtered.into_iter().skip(start).take(end - start).collect())
         }
 
-        async fn search(&self, _request: &just_storage::application::dto::SearchRequest) -> Result<Vec<Object>, just_storage::application::ports::RepositoryError> {
+        async fn search(
+            &self,
+            _request: &just_storage::application::dto::SearchRequest,
+        ) -> Result<Vec<Object>, just_storage::application::ports::RepositoryError> {
             // Simplified implementation for testing
             Ok(vec![])
         }
 
-        async fn text_search(&self, _request: &just_storage::application::dto::TextSearchRequest) -> Result<Vec<Object>, just_storage::application::ports::RepositoryError> {
+        async fn text_search(
+            &self,
+            _request: &just_storage::application::dto::TextSearchRequest,
+        ) -> Result<Vec<Object>, just_storage::application::ports::RepositoryError> {
             // Simplified implementation for testing
             Ok(vec![])
         }
 
-        async fn delete(&self, id: &ObjectId) -> Result<(), just_storage::application::ports::RepositoryError> {
+        async fn delete(
+            &self,
+            id: &ObjectId,
+        ) -> Result<(), just_storage::application::ports::RepositoryError> {
             let mut objects = self.objects.lock().unwrap();
             objects.remove(id);
             Ok(())
@@ -361,7 +386,10 @@ pub mod mocks {
             Ok(vec![])
         }
 
-        async fn cleanup_stuck_uploads(&self, _age_hours: i64) -> Result<usize, just_storage::application::ports::RepositoryError> {
+        async fn cleanup_stuck_uploads(
+            &self,
+            _age_hours: i64,
+        ) -> Result<usize, just_storage::application::ports::RepositoryError> {
             Ok(0)
         }
     }
@@ -369,14 +397,19 @@ pub mod mocks {
 
 /// Test assertions and helpers
 pub mod assertions {
-    use axum::http::StatusCode;
     use axum::body::to_bytes;
+    use axum::http::StatusCode;
     use serde_json::Value;
 
     /// Assert that a response has the expected status code
     pub async fn assert_status(response: axum::response::Response, expected: StatusCode) {
-        assert_eq!(response.status(), expected,
-            "Expected status {}, got {}", expected, response.status());
+        assert_eq!(
+            response.status(),
+            expected,
+            "Expected status {}, got {}",
+            expected,
+            response.status()
+        );
     }
 
     /// Assert that a response contains JSON with expected structure
@@ -385,13 +418,19 @@ pub mod assertions {
         let json: Value = serde_json::from_slice(&body_bytes).unwrap();
 
         for key in expected_keys {
-            assert!(json.get(key).is_some(),
-                "Expected JSON response to contain key '{}'", key);
+            assert!(
+                json.get(key).is_some(),
+                "Expected JSON response to contain key '{}'",
+                key
+            );
         }
     }
 
     /// Assert that a response contains an error message
-    pub async fn assert_error_response(response: axum::response::Response, expected_status: StatusCode) {
+    pub async fn assert_error_response(
+        response: axum::response::Response,
+        expected_status: StatusCode,
+    ) {
         assert_eq!(response.status(), expected_status);
         let body_bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let json: Value = serde_json::from_slice(&body_bytes).unwrap();
