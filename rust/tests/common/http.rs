@@ -75,3 +75,11 @@ pub fn authenticated_json_request(
         .body(json_body(data))
         .unwrap()
 }
+
+/// Extract JSON body from a Response
+pub async fn extract_json_response(response: axum::response::Response) -> serde_json::Value {
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    serde_json::from_slice(&body_bytes).unwrap()
+}
