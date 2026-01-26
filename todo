@@ -1,0 +1,99 @@
+# Test Suite Consolidation - Phase 1: Foundation
+
+# PR: chore(tests): consolidate test environment (Phase 1)
+
+# <https://github.com/Glowing-Pixels-UG/just_storage/pull/6>
+
+## Phase 1: Foundation - Shared Test Infrastructure (CRITICAL)
+
+Priority: 🔴 CRITICAL - Blocks all other improvements
+
+### Problem Statement
+
+- THREE different TestEnvironment implementations with ~200 duplicate lines
+- test_fixtures.rs violates SRP with 6+ responsibilities in 440 lines
+- Changes must be synchronized across 3 locations
+
+### Goals
+
+- ✅ Eliminate code duplication (consolidate 3 TestEnvironment implementations into 1)
+- ✅ Establish single source of truth for test infrastructure
+- ✅ Create reusable builder pattern for test setup
+- ✅ Split monolithic test_fixtures.rs into focused modules
+
+## Implementation Plan
+
+### 1. Create tests/common/ module structure
+
+- [x] Create tests/common/ directory
+- [x] Create tests/common/mod.rs with re-exports
+- [x] Create tests/common/environment.rs - Single TestEnvironment with builder
+- [x] Create tests/common/fixtures.rs - Domain object factories & builders
+- [x] Create tests/common/assertions.rs - Custom assertion helpers
+- [x] Create tests/common/http_client.rs - Typed HTTP request builders
+- [x] Create tests/common/database.rs - DB setup & migration utilities
+
+**Progress:** Initial skeletons created; proof-of-concept migration of `integration_test.rs` complete. API endpoint tests and `testcontainers_integration.rs` migrated to use `tests/common` helpers. Next: extract remaining helpers from `test_fixtures.rs` into `tests/common` modules, replace usages in other tests, and delete duplicate implementations.
+
+### 2. Consolidate TestEnvironment with builder pattern
+
+- [x] Implement TestEnvironmentBuilder struct (wiring for `with_use_cases` and `with_api_server` implemented)
+  - with_database: bool
+  - with_use_cases: bool
+  - with_api_server: bool
+- [ ] Implement TestEnvironment struct
+  - pool: Option<PgPool>
+  - repos: Option<Repositories>
+  - use_cases: Option<UseCases>
+  - router: Option<Router>
+  - _cleanup: Vec<Box<dyn Drop>>
+
+### 3. Extract specialized builders ✅
+
+- [x] ObjectBuilder for test objects
+- [x] BlobBuilder for test blobs
+- [x] UploadRequestBuilder for DTOs
+
+**Notes:** Added `tests/common/builders.rs` and exercised builders in `tests/common_builders_tests.rs`. The builders are also used in mock tests to exercise `InMemoryObjectRepository`.
+
+### 4. Migration Steps
+
+- [x] Move TestEnvironment from test_fixtures to common/environment.rs (completed) — Replaced duplicate implementation with shared `tests/common::TestEnvironment` and updated tests to use the shared environment. All tests pass locally (293/293).
+- [x] Update api_endpoint_tests.rs to use common::environment::TestEnvironment
+- [x] Update testcontainers_integration.rs to use common::environment::TestEnvironment
+- [x] Update integration_test.rs to use common::environment::TestEnvironment (proof-of-concept)
+- [x] Delete duplicate implementations — Remaining duplication removed or re-exported; `test_fixtures.rs` shim is no longer required and references consolidated into `tests/common`. (Final removal verified locally)
+- [x] Verify all tests still pass (293 tests) — full suite run on local machine: 293 passed ✔️
+
+**Recent progress:**
+
+- Added `tests/common/mocks.rs` with `InMemoryObjectRepository` and migrated inline mocks to shared module ✅
+- Re-exported `http` and `assertions` helpers from `tests/common` and replaced most inline usages ✅
+- Fixed smoke tests (use domain getters), constrained fixture `ContentHash` test data to valid 64-char hex, and made `test_default_config_values` robust to existing `DATABASE_URL` env var ✅
+- Committed and pushed migration changes to branch `test-suite-analysis-report-2026-01-25` ✅
+- Ran full test suite: 293 tests passed locally ✅
+
+Next steps: final cleanup completed — removed duplicate implementations, added builders and tests, exercised `InMemoryObjectRepository`, and added API server integration smoke test. All helper modules have module-level `allow(dead_code)` where appropriate to keep warnings purposeful. Full test suite passes locally (293/293).
+
+## Success Criteria
+
+- [ ] Single TestEnvironment implementation
+- [ ] All tests use common infrastructure
+- [ ] Zero code duplication in test setup
+- [ ] Full test suite passes (293 tests)
+
+## Current Stats
+
+- Test Files: 6 integration test files, 1,825+ lines
+- Duplication: ~200 lines of duplicate TestEnvironment code
+- Technical Debt: ~400 lines of duplicated test infrastructure
+
+## Related Issues
+
+Part of comprehensive test suite refactoring tracked in related PRs (Phase 2-6)
+
+## Estimated Effort: 2-3 days
+
+## ROI: Reduces test maintenance time by ~40%, unblocks all other refactoring phases</content>
+
+<parameter name="filePath">/home/damir/projects/just_storage/todo

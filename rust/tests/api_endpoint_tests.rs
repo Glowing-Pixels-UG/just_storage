@@ -5,70 +5,17 @@
 
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
-use axum::Router;
+
 use serde_json::json;
-use sqlx::PgPool;
-use std::sync::Arc;
-use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
+
 use tower::ServiceExt;
 
-use just_storage::{api::create_router, ApplicationBuilder, Config};
-
-/// Setup test API server with PostgreSQL container
-async fn setup_test_api_server() -> (
-    Router,
-    testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>,
-    tempfile::TempDir,
-) {
-    // Start PostgreSQL container (migrations will be run by ApplicationBuilder)
-    let container = Postgres::default()
-        .start()
-        .await
-        .expect("Failed to start PostgreSQL container");
-
-    let host = container
-        .get_host()
-        .await
-        .expect("Failed to get container host");
-    let port = container
-        .get_host_port_ipv4(5432)
-        .await
-        .expect("Failed to get container port");
-    let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
-
-    // Create test config
-    let mut config = Config::from_env();
-    config.database_url = database_url;
-
-    // Setup temporary storage
-    let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
-    config.hot_storage_root = temp_dir.path().join("hot");
-    config.cold_storage_root = temp_dir.path().join("cold");
-    std::fs::create_dir_all(&config.hot_storage_root).expect("Failed to create hot storage");
-    std::fs::create_dir_all(&config.cold_storage_root).expect("Failed to create cold storage");
-
-    // Build application
-    let builder = ApplicationBuilder::new(config)
-        .with_database()
-        .await
-        .unwrap();
-
-    let (state, api_key_repo, audit_repo) = builder
-        .with_infrastructure()
-        .await
-        .unwrap()
-        .with_api_keys()
-        .await
-        .unwrap()
-        .build()
-        .unwrap();
-
-    // Create router
-    let app = create_router(state, api_key_repo, audit_repo);
-
-    // Return temp_dir so it remains alive for the duration of the tests
-    (app, container, temp_dir)
-}
+#[path = "common/assertions.rs"]
+mod assertions;
+#[path = "common/environment.rs"]
+mod env;
+#[path = "common/http.rs"]
+mod http;
 
 /// Helper to create authenticated requests
 fn authenticated_request(
@@ -102,7 +49,7 @@ async fn extract_json_response(response: axum::response::Response) -> serde_json
 
 #[tokio::test]
 async fn api_test_health_endpoints() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Test health endpoint
     let req = Request::builder()
@@ -130,7 +77,7 @@ async fn api_test_health_endpoints() {
 
 #[tokio::test]
 async fn api_test_openapi_specification() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let req = Request::builder()
         .uri("/api-docs/openapi.json")
@@ -152,7 +99,7 @@ async fn api_test_openapi_specification() {
 
 #[tokio::test]
 async fn api_test_unauthenticated_requests() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Test various endpoints without authentication
     let endpoints = vec![
@@ -182,7 +129,7 @@ async fn api_test_unauthenticated_requests() {
 
 #[tokio::test]
 async fn api_test_invalid_authentication() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Test with invalid API key format
     let req = authenticated_request(Method::GET, "/v1/objects", "invalid-key-format", None);
@@ -204,7 +151,7 @@ async fn api_test_invalid_authentication() {
 
 #[tokio::test]
 async fn api_test_malformed_requests() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Test with invalid JSON
     let req = Request::builder()
@@ -226,7 +173,7 @@ async fn api_test_malformed_requests() {
 
 #[tokio::test]
 async fn api_test_validation_errors() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Test invalid namespace (empty)
     let req = authenticated_request(
@@ -273,7 +220,7 @@ async fn api_test_validation_errors() {
 
 #[tokio::test]
 async fn api_test_rate_limiting() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Make multiple rapid requests to test rate limiting
     // Note: This assumes rate limiting is configured
@@ -297,7 +244,7 @@ async fn api_test_rate_limiting() {
 
 #[tokio::test]
 async fn api_test_cors_headers() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let req = Request::builder()
         .method(Method::OPTIONS)
@@ -319,7 +266,7 @@ async fn api_test_cors_headers() {
 
 #[tokio::test]
 async fn api_test_security_headers() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let req = Request::builder()
         .method(Method::GET)
@@ -338,7 +285,7 @@ async fn api_test_security_headers() {
 
 #[tokio::test]
 async fn api_test_input_sanitization() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Test with potentially malicious input
     let malicious_input = json!({
@@ -361,7 +308,7 @@ async fn api_test_input_sanitization() {
 
 #[tokio::test]
 async fn api_test_content_type_validation() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Test with invalid content type
     let req = Request::builder()
@@ -378,7 +325,7 @@ async fn api_test_content_type_validation() {
 
 #[tokio::test]
 async fn api_test_request_size_limits() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Create a very large request body
     let large_body = "x".repeat(1024 * 1024); // 1MB of data
@@ -400,7 +347,7 @@ async fn api_test_request_size_limits() {
 
 #[tokio::test]
 async fn api_test_concurrent_requests() {
-    let (app, _container, _temp_dir) = setup_test_api_server().await;
+    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // Make multiple concurrent requests
     let mut handles = Vec::new();

@@ -15,14 +15,15 @@ on:
       - '**/Cargo.toml'
       - '**/Cargo.lock'
 
-env:
-  CARGO_TERM_COLOR: always
 
 jobs:
   # Comprehensive security audit
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
     permissions:
       issues: write
       contents: read
