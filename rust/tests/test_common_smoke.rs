@@ -4,7 +4,6 @@ use axum::http::{Request, StatusCode};
 use axum::response::Response;
 use serde_json::json;
 
-#[path = "common/mod.rs"]
 mod common;
 use common::{assertions, http, TestEnvironment};
 
