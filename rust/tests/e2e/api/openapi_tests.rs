@@ -1,6 +1,7 @@
 use axum::http::StatusCode;
 
 use crate::common::{environment as env, http};
+use tower::ServiceExt;
 
 #[tokio::test]
 async fn openapi_spec_contains_objects_path() {

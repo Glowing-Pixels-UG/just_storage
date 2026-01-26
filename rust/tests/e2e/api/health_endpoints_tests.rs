@@ -1,6 +1,7 @@
 use axum::http::StatusCode;
 
 use crate::common::{environment as env, http};
+use tower::ServiceExt;
 
 #[tokio::test]
 async fn health_endpoint_returns_ok_with_healthy_status() {
