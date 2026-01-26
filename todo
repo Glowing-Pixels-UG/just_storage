@@ -174,7 +174,7 @@ cargo test --test 'e2e_*'
 - [ ] All 6 new files created
 - [ ] All tests passing in new locations
 - [ ] No test duplication
-- [ ] Helper functions (`authenticated_request`, `extract_json_response`) moved to `common/http.rs` or duplicated in each file as needed
+- [x] Helper functions (`authenticated_request`, `extract_json_response`) moved to `common/http.rs` (see commit fe595cc)
 - [ ] Old file deleted
 
 ---
@@ -218,10 +218,12 @@ cargo test --test 'integration_*'
 
 **Acceptance Criteria:**
 
-- [ ] All 4 new integration test files created
-- [ ] Tests use `common::TestEnvironment` (not local duplicate)
-- [ ] All tests passing
-- [ ] Old file deleted
+- [x] All 4 new integration test files created
+- [x] Tests use `common::TestEnvironment` (not local duplicate)
+- [x] All tests passing (4 passed)
+- [x] Old file deleted
+
+**Status:** ✅ Done — migration and verification completed (commits 3086db4, 4f2e28c).
 
 ---
 
@@ -264,11 +266,13 @@ cargo test --test '*'
 
 **Acceptance Criteria:**
 
-- [ ] No more circular test dependencies
-- [ ] Use case test extracted to integration/use_cases/
-- [ ] Nested API tests either moved or deleted (no duplication)
-- [ ] Old file deleted
-- [ ] All tests still passing
+- [x] No more circular test dependencies
+- [x] Use case test extracted to `integration/use_cases/`
+- [x] Nested API tests moved to `e2e/` or deleted (no duplication)
+- [x] Old file deleted
+- [x] All tests still passing
+
+**Status:** ✅ Done — `integration_test.rs` removed and responsibilities migrated to `integration/use_cases/*` and `e2e/*` (commit 5ab6b8b). Full test suite passes locally.
 
 ---
 
@@ -562,12 +566,12 @@ cargo test test_name
 
 **Phase 2 Complete When:**
 
-- [ ] 1. Directory structure created
-- [ ] 2. Property tests moved
-- [ ] 3. Performance tests moved
-- [ ] 4. API endpoint tests split into e2e/
-- [ ] 5. TestContainers tests migrated to integration/
-- [ ] 6. integration_test.rs refactored (circular deps removed)
+- [x] 1. Directory structure created
+- [x] 2. Property tests moved
+- [x] 3. Performance tests moved
+- [x] 4. API endpoint tests split into e2e/ (partial — main files created)
+- [x] 5. TestContainers tests migrated to integration/
+- [x] 6. integration_test.rs refactored (circular deps removed)
 - [ ] 7. Common module tests migrated
 - [ ] 8. Cargo.toml updated for test discovery
 - [ ] 9. mod.rs files created for each category
