@@ -28,7 +28,6 @@ pub struct MiddlewareConfig {
     pub size_limits: SizeLimitConfig,
 }
 
-
 impl MiddlewareConfig {
     /// Create a new middleware config with default values
     pub fn new() -> Self {

@@ -153,8 +153,7 @@ impl ApiKey {
 
     // Business logic
     pub fn is_expired(&self) -> bool {
-        self.expires_at
-            .is_some_and(|expires| Utc::now() > expires)
+        self.expires_at.is_some_and(|expires| Utc::now() > expires)
     }
 
     pub fn can_read(&self) -> bool {

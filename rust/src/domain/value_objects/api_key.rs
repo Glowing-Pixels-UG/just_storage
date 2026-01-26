@@ -150,7 +150,10 @@ mod tests {
             let uuid = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
             let api_key_id = ApiKeyId::from_uuid(uuid);
 
-            assert_eq!(api_key_id.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+            assert_eq!(
+                api_key_id.to_string(),
+                "550e8400-e29b-41d4-a716-446655440000"
+            );
         }
 
         #[test]
@@ -170,10 +173,12 @@ mod tests {
                 "550e8400-e29b-41d4-a716", // too short
             ];
 
-        for invalid in invalid_uuids {
-            assert!(invalid.parse::<ApiKeyId>().is_err(),
-                "Should fail to parse invalid UUID: {}", invalid);
-        }
+            for invalid in invalid_uuids {
+                assert!(
+                    invalid.parse::<ApiKeyId>().is_err(),
+                    "Should fail to parse invalid UUID"
+                );
+            }
         }
 
         #[test]
@@ -208,9 +213,15 @@ mod tests {
         fn test_api_key_value_generate_creates_64_char_key() {
             let key = ApiKeyValue::generate();
 
-            assert_eq!(key.as_str().len(), 64, "Generated key should be 64 characters");
-            assert!(key.as_str().chars().all(|c| c.is_ascii_alphanumeric()),
-                "Generated key should contain only alphanumeric characters");
+            assert_eq!(
+                key.as_str().len(),
+                64,
+                "Generated key should be 64 characters"
+            );
+            assert!(
+                key.as_str().chars().all(|c| c.is_ascii_alphanumeric()),
+                "Generated key should contain only alphanumeric characters"
+            );
         }
 
         #[test]
@@ -218,7 +229,11 @@ mod tests {
             let key1 = ApiKeyValue::generate();
             let key2 = ApiKeyValue::generate();
 
-            assert_ne!(key1.as_str(), key2.as_str(), "Generated keys should be unique");
+            assert_ne!(
+                key1.as_str(),
+                key2.as_str(),
+                "Generated keys should be unique"
+            );
         }
 
         #[test]

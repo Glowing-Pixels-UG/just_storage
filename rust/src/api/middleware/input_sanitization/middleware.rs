@@ -30,8 +30,6 @@ impl IntoResponse for InputSanitizationError {
     }
 }
 
-
-
 /// Create input sanitization middleware with cached config
 use tower::Layer;
 

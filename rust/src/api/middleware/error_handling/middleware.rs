@@ -4,7 +4,6 @@ use super::config::ErrorHandlingConfig;
 use super::sanitizers::ErrorSanitizer;
 use super::utils::ErrorUtils;
 
-
 /// Error handling middleware layer
 #[derive(Clone)]
 pub struct ErrorHandlingLayer;
