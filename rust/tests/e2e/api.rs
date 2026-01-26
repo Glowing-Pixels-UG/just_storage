@@ -1,8 +1,6 @@
 //! E2E API tests (health & openapi)
 
-use axum::body::Body;
-use axum::http::{Method, Request, StatusCode};
-use serde_json::json;
+use axum::http::StatusCode;
 use tower::ServiceExt;
 
 #[path = "../common/assertions.rs"]
@@ -44,5 +42,8 @@ async fn api_test_openapi_specification() {
     let json = http::extract_json_response(response).await;
     assert!(json["openapi"].is_string());
     assert!(json["paths"].is_object());
-    assert!(json["paths"].as_object().unwrap().contains_key("/v1/objects"));
+    assert!(json["paths"]
+        .as_object()
+        .unwrap()
+        .contains_key("/v1/objects"));
 }

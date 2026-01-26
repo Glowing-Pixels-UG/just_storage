@@ -59,7 +59,7 @@ async fn api_test_invalid_authentication() {
         "00000000-0000-0000-0000-000000000000",
     );
 
-    let response = app.oneshot(req).await.unwrap();
+    let response = app.clone().oneshot(req).await.unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
@@ -81,7 +81,7 @@ async fn api_test_malformed_requests() {
     // Test with missing required fields
     let req = http::authenticated_json_request(Method::POST, "/v1/objects", "test-key", json!({}));
 
-    let response = app.oneshot(req).await.unwrap();
+    let response = app.clone().oneshot(req).await.unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
@@ -114,7 +114,7 @@ async fn api_test_validation_errors() {
         }),
     );
 
-    let response = app.oneshot(req).await.unwrap();
+    let response = app.clone().oneshot(req).await.unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
     // Test namespace with invalid characters
@@ -162,7 +162,7 @@ async fn api_test_cors_headers() {
         .body(Body::empty())
         .unwrap();
 
-    let response = app.oneshot(req).await.unwrap();
+    let response = app.clone().oneshot(req).await.unwrap();
 
     // Check CORS headers
     let headers = response.headers();
@@ -178,7 +178,7 @@ async fn api_test_security_headers() {
 
     let req = http::get_request("/health");
 
-    let response = app.oneshot(req).await.unwrap();
+    let response = app.clone().oneshot(req).await.unwrap();
 
     // Check security headers
     let headers = response.headers();
@@ -198,14 +198,10 @@ async fn api_test_input_sanitization() {
         "key": "<script>alert('xss')</script>"
     });
 
-    let req = http::authenticated_json_request(
-        Method::POST,
-        "/v1/objects",
-        "test-key",
-        malicious_input,
-    );
+    let req =
+        http::authenticated_json_request(Method::POST, "/v1/objects", "test-key", malicious_input);
 
-    let response = app.oneshot(req).await.unwrap();
+    let response = app.clone().oneshot(req).await.unwrap();
     // Should either reject or sanitize the input
     assert!(response.status().is_client_error() || response.status().is_success());
 }
@@ -222,7 +218,7 @@ async fn api_test_content_type_validation() {
         .body(Body::from("malicious html content"))
         .unwrap();
 
-    let response = app.oneshot(req).await.unwrap();
+    let response = app.clone().oneshot(req).await.unwrap();
     // Should reject non-JSON content for JSON endpoints
     assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
 }
@@ -244,7 +240,7 @@ async fn api_test_request_size_limits() {
         }),
     );
 
-    let response = app.oneshot(req).await.unwrap();
+    let response = app.clone().oneshot(req).await.unwrap();
     // Should either succeed or return a size limit error
     assert!(response.status().is_success() || response.status() == StatusCode::PAYLOAD_TOO_LARGE);
 }
