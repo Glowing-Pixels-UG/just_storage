@@ -82,11 +82,11 @@ Notes: Perform changes incrementally — move code, update `use` paths, run `car
 
 ## Implementation Tasks (Phase 3)
 
-- [ ] Create `e2e/api/health_endpoints_tests.rs` (move health tests)
+- [x] Create `e2e/api/health_endpoints_tests.rs` (moved)
 - [ ] Create `e2e/api/object_lifecycle_tests.rs` (move POST/GET/DELETE tests)
 - [ ] Create `e2e/api/api_key_management_tests.rs` (move API key tests)
 - [ ] Create `e2e/api/search_endpoints_tests.rs` (move search tests)
-- [ ] Create `e2e/api/security_tests.rs` (auth, validation, headers)
+- [x] Split `e2e/security.rs` into `e2e/security/*` feature tests (auth, validation, headers, rate-limiting)
 - [ ] Split `testcontainers_integration.rs` into `integration/use_cases/*` files
 - [ ] Split `property_tests.rs` into domain-specific property files
 - [ ] Add per-feature `mod.rs` entries where needed to preserve test discovery
