@@ -13,8 +13,7 @@ mod common;
 use common::{assertions, TestEnvironment};
 
 // Import enhanced test environments
-mod api_endpoint_tests;
-mod testcontainers_integration;
+// (migrated to `integration/use_cases/*`)
 
 #[tokio::test]
 async fn test_full_lifecycle() {
