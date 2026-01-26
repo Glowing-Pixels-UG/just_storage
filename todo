@@ -1,82 +1,116 @@
-# Test Suite TODO — Phase 3 Priorities
+# Phase 3: Feature-Based Test Organization (HIGH PRIORITY)
 
-**Status:** ✅ Phase 2 complete — directory restructure and core migrations finished.  
-**Branch:** `phase-2-reorganize-tests`  
-**Last Updated:** January 26, 2026  
-**Tests Passing:** 338/338
-
----
-
-## Summary (current)
-- Phase 2 accomplished: directories created, property and performance tests moved, TestContainers tests migrated, `integration_test.rs` refactored, core E2E files split and helper functions consolidated in `tests/common/`.
-- Remaining Phase 2 items (low effort): migrate remaining common module tests, add `mod.rs` roots and Cargo test entries, CI updates.
+**Status:** 🟠 In planning — branch: `phase-3-feature-organization`
+**Last Updated:** January 26, 2026
+**Context:** Phase 2 (test type reorganization) is complete — this document focuses only on Phase 3: migrating tests to feature/use-case files and implementing naming conventions and discovery improvements.
 
 ---
 
-## Immediate Next Actions (Phase 3 - High Priority) ⚡
-1. Split `e2e/api.rs` (293 tests) into per-feature files (upload/download/list/delete/search) — reduces test file size and improves parallelism. ✅ (planning)
-2. Add contract tests (`tests/contract/`) for API schema/response contracts. ✅ (planned)
-3. Configure `nextest` for faster, parallel test runs and better reporting.
-4. Add snapshot testing for response shapes (`insta` or similar).
-5. Finalize `mod.rs` roots and add `[[test]]` entries in `rust/Cargo.toml` to enable `cargo test --test <category>`. 
+## Problem Statement
+
+- Monolithic test files (e.g., `e2e/api.rs`, `testcontainers_integration.rs`) mix unrelated features and grow too large.
+- Poor test naming and ambiguous scopes (e.g., `test_full_lifecycle()`, `api_test_health_endpoints()`).
+- Hard to discover tests by feature or reason about ownership.
 
 ---
 
-## Phase 3 (detailed tasks)
-- [ ] Create `e2e/api/upload_endpoints.rs`, `e2e/api/download_endpoints.rs`, `e2e/api/list_endpoints.rs`, `e2e/api/delete_endpoints.rs`, `e2e/api/search_endpoints.rs` (move tests from `e2e/api.rs`).
-- [ ] Add `tests/contract/` with a lightweight contract validation harness.
-- [ ] Add `nextest` configuration: `nextest.toml` and GitHub Action steps.
-- [ ] Add snapshot-based tests for critical endpoints.
-- [ ] Improve test discovery: add `tests/*/mod.rs` files and `[[test]]` entries in `rust/Cargo.toml`.
+## Goals
+
+- One test file per feature/use-case (module-per-feature organization).
+- Consistent naming convention: `feature_scenario_expected()`.
+- Test file names clearly indicate the feature (e.g., `object_upload_tests.rs`).
+- Keep files focused (<150 lines) and high test density.
 
 ---
 
-## Remaining Phase 2 Items (carryover)
-- [x] 1. Directory structure created
-- [x] 2. Property tests moved
-- [x] 3. Performance tests moved
-- [x] 4. API endpoint tests split into e2e/ (partial)
-- [x] 5. TestContainers tests migrated to integration/
-- [x] 6. `integration_test.rs` refactored
-- [~] 7. Common module tests migration (some files moved; follow-up required)
-- [ ] 8. `Cargo.toml` test configuration updated
-- [ ] 9. `mod.rs` files created for each category
-- [ ] 10. CI updated to run tests by category
-- [ ] 11. Old files cleaned up
-- [ ] 12. Documentation updated (`rust/tests/README.md`)
+## Naming Conventions
 
-Notes: Several common-module test files have been renamed/moved (e.g. `test_common_*`), check consolidated locations and remove any duplicates.
+- Test functions: `feature_scenario_expected()`
+  Examples: `object_upload_succeeds_when_valid_payload()`, `health_endpoint_returns_ok()`
+- File names: `{scope}_{feature}_tests.rs` or `feature_{scope}_tests.rs`
+  Examples: `e2e/api/object_lifecycle_tests.rs`, `integration/use_cases/upload_object_tests.rs`
+
+---
+
+## Target File Layout (migration goal)
+
+integration/use_cases/
+
+- `upload_object_tests.rs`      # Upload use case only
+- `download_object_tests.rs`    # Download use case only
+- `delete_object_tests.rs`      # Delete use case only
+- `search_object_tests.rs`      # Search behavior tests
+- `list_objects_tests.rs`       # Listing behavior tests
+
+e2e/api/
+
+- `health_endpoints_tests.rs`   # /health, /health/ready
+- `object_lifecycle_tests.rs`   # POST/GET/DELETE /v1/objects
+- `api_key_management_tests.rs` # /v1/api-keys
+- `search_endpoints_tests.rs`   # /v1/search, /v1/text-search
+- `security_tests.rs`           # Auth, CORS, headers, validation
+
+property/
+
+- `value_object_properties.rs`
+- `entity_properties.rs`
+- `validation_properties.rs`
+- `encoding_properties.rs`
+
+---
+
+## Migration Plan (file-by-file)
+
+1. Split `e2e/api.rs` into focused files (health, object lifecycle, api keys, search, security).
+2. Split `testcontainers_integration.rs` into integration/use_cases/* (upload/download/delete/search/list).
+3. Split `property_tests.rs` into domain property files.
+4. Move shared helpers into `tests/common/` (if not already).
+5. Delete monolithic source files after verification and ensure git history is preserved.
+
+Notes: Perform changes incrementally — move code, update `use` paths, run `cargo test --workspace` after each move.
+
+---
+
+## Success Criteria
+
+- Each test file <150 lines and focused on a single feature. ✅
+- Test names follow `feature_scenario_expected()` convention. ✅
+- Easy to find tests for a given endpoint or use case. ✅
+- Full test suite passes locally and in CI after each migration step.
+
+---
+
+## Implementation Tasks (Phase 3)
+
+- [ ] Create `e2e/api/health_endpoints_tests.rs` (move health tests)
+- [ ] Create `e2e/api/object_lifecycle_tests.rs` (move POST/GET/DELETE tests)
+- [ ] Create `e2e/api/api_key_management_tests.rs` (move API key tests)
+- [ ] Create `e2e/api/search_endpoints_tests.rs` (move search tests)
+- [ ] Create `e2e/api/security_tests.rs` (auth, validation, headers)
+- [ ] Split `testcontainers_integration.rs` into `integration/use_cases/*` files
+- [ ] Split `property_tests.rs` into domain-specific property files
+- [ ] Add per-feature `mod.rs` entries where needed to preserve test discovery
+- [ ] Run full test suite and fix any path/visibility issues
+- [ ] Delete old monolithic files when coverage is preserved
 
 ---
 
 ## Quick Commands
-- Run full test suite: `cargo test --workspace`
-- Run a category (after adding `[[test]]` entries): `cargo test --test e2e_tests`
-- Run single test: `cargo test test_name -- --exact --nocapture`
+
+- Run test suite: `cargo test --workspace`
+- Run a single file: `cargo test --test name_of_test_binary` (after `[[test]]` entries)
+- Run a single test: `cargo test <test_name> -- --exact --nocapture`
 
 ---
 
-## Acceptance & Validation
-- Run `cargo test --workspace` and ensure 338 tests pass.
-- Add `nextest` to CI; verify jobs for unit, integration, e2e, property, performance.
-- Create a short PR to merge `phase-2-reorganize-tests` into `main` once Phase 3 starter tasks (split E2E + mod.rs + CI adjustments) are in place.
+## Owner & Timeline
 
----
-
-## Phase 4 (Ideas)
-- Mutation testing to validate test effectiveness
-- Additional property tests for critical invariants
-- Performance benchmarking and regression tracking in CI
-
----
-
-## Owner / Notes
-- Owner: @damir — primary implementer for Phase 3
-- Keep commits small and verifiable; run tests after each move.
+- Owner: @damir
+- Estimated effort: 2-3 days (incremental, file-by-file)
 
 ---
 
 ```text
 Changelog:
-- Jan 26, 2026: Marked Phase 2 complete, added Phase 3 task list and next actions.
+- Jan 26, 2026: Created focused Phase 3 plan and migration checklist.
 ```
