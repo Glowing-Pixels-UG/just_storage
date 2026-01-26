@@ -5,7 +5,7 @@
 // Import common test utilities for child modules
 mod common;
 
-#[path = "e2e/api.rs"]
+#[path = "e2e/api/mod.rs"]
 mod api;
-#[path = "e2e/security.rs"]
+#[path = "e2e/security/mod.rs"]
 mod security;
