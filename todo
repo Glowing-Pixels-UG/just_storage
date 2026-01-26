@@ -1,614 +1,82 @@
-# Phase 2: Test Reorganization TODO
+# Test Suite TODO — Phase 3 Priorities
 
-**Goal:** Reorganize tests by type (unit/integration/e2e/property/performance) for clear separation and parallel development
-
-**Current State After Phase 1:**
-
-- ✅ Consolidated common test utilities in `tests/common/`
-- ✅ Eliminated duplicate TestEnvironment implementations
-- ❌ Tests still scattered across flat structure (api_endpoint_tests.rs, integration_test.rs, etc.)
-- ❌ Mixing unit/integration/e2e tests in same files
-- ❌ integration_test.rs has circular dependency (imports other test modules)
+**Status:** ✅ Phase 2 complete — directory restructure and core migrations finished.  
+**Branch:** `phase-2-reorganize-tests`  
+**Last Updated:** January 26, 2026  
+**Tests Passing:** 338/338
 
 ---
 
-## Task Breakdown
-
-### 1. Create Directory Structure
-
-**Priority:** HIGH - Required foundation
-**Estimate:** 15 minutes
-
-Create the new test directory hierarchy:
-
-```
-tests/
-├── common/              # ✅ Already exists from Phase 1
-├── unit/               # NEW - Fast tests, no I/O
-│   ├── domain/
-│   ├── application/
-│   └── infrastructure/
-├── integration/        # NEW - DB + storage tests
-│   ├── use_cases/
-│   ├── repositories/
-│   └── storage/
-├── e2e/               # NEW - Full API tests
-│   ├── api/
-│   └── security/
-├── property/          # NEW - Property-based tests
-│   └── domain/
-└── performance/       # NEW - Performance regression guards
-```
-
-**Commands:**
-
-```bash
-cd rust/tests
-mkdir -p unit/{domain,application,infrastructure}
-mkdir -p integration/{use_cases,repositories,storage}
-mkdir -p e2e/{api,security}
-mkdir -p property/domain
-mkdir -p performance
-```
-
-**Acceptance Criteria:**
-
-- [x] All directories created
-- [x] Directory structure matches plan
-- [x] `mod.rs` files for `property` and `performance` created
-- [ ] No files created yet (just directories)
-
-**Status:** ✅ Done — directories & base `mod.rs` added (commit c43ba9d). Top-level wrappers added and committed (commit db5373a).
+## Summary (current)
+- Phase 2 accomplished: directories created, property and performance tests moved, TestContainers tests migrated, `integration_test.rs` refactored, core E2E files split and helper functions consolidated in `tests/common/`.
+- Remaining Phase 2 items (low effort): migrate remaining common module tests, add `mod.rs` roots and Cargo test entries, CI updates.
 
 ---
 
-### 2. Move Property Tests
-
-**Priority:** HIGH - Simplest migration, good starting point
-**Estimate:** 20 minutes
-
-**Actions:**
-
-1. Move `property_tests.rs` → `property/domain/value_objects_and_entities.rs`
-2. Update module paths if needed
-3. Run tests to verify
-
-**Commands:**
-
-```bash
-git mv rust/tests/property_tests.rs rust/tests/property/domain/value_objects_and_entities.rs
-cargo test --test 'property_*'
-```
-
-**Files Affected:**
-
-- `property_tests.rs` (311 lines) → `property/domain/value_objects_and_entities.rs`
-
-**Acceptance Criteria:**
-
-- [x] File moved successfully (to `rust/tests/property/domain/value_objects_and_entities.rs`)
-- [x] All property tests pass (15 passed)
-- [x] No compilation errors
-- [x] Git history preserved
-
-**Status:** ✅ Done — moved and verified (commit c43ba9d). Wrapper added for discovery (commit db5373a).
+## Immediate Next Actions (Phase 3 - High Priority) ⚡
+1. Split `e2e/api.rs` (293 tests) into per-feature files (upload/download/list/delete/search) — reduces test file size and improves parallelism. ✅ (planning)
+2. Add contract tests (`tests/contract/`) for API schema/response contracts. ✅ (planned)
+3. Configure `nextest` for faster, parallel test runs and better reporting.
+4. Add snapshot testing for response shapes (`insta` or similar).
+5. Finalize `mod.rs` roots and add `[[test]]` entries in `rust/Cargo.toml` to enable `cargo test --test <category>`. 
 
 ---
 
-### 3. Move Performance Tests
-
-**Priority:** HIGH - Independent file, easy migration
-**Estimate:** 15 minutes
-
-**Actions:**
-
-1. Move `performance_validation.rs` → `performance/regression_guards.rs`
-2. Verify tests still run
-
-**Commands:**
-
-```bash
-git mv rust/tests/performance_validation.rs rust/tests/performance/regression_guards.rs
-cargo test --test 'performance_*'
-```
-
-**Files Affected:**
-
-- `performance_validation.rs` (105 lines) → `performance/regression_guards.rs`
-
-**Acceptance Criteria:**
-
-- [x] File moved successfully (to `rust/tests/performance/regression_guards.rs`)
-- [x] Performance tests pass (2 passed)
-- [ ] Benchmarks unaffected
-
-**Status:** ✅ Done — moved and verified (commit c43ba9d). Wrapper added for discovery (commit db5373a).
+## Phase 3 (detailed tasks)
+- [ ] Create `e2e/api/upload_endpoints.rs`, `e2e/api/download_endpoints.rs`, `e2e/api/list_endpoints.rs`, `e2e/api/delete_endpoints.rs`, `e2e/api/search_endpoints.rs` (move tests from `e2e/api.rs`).
+- [ ] Add `tests/contract/` with a lightweight contract validation harness.
+- [ ] Add `nextest` configuration: `nextest.toml` and GitHub Action steps.
+- [ ] Add snapshot-based tests for critical endpoints.
+- [ ] Improve test discovery: add `tests/*/mod.rs` files and `[[test]]` entries in `rust/Cargo.toml`.
 
 ---
 
-### 4. Split API Endpoint Tests into E2E Tests
-
-**Priority:** HIGH - Critical for organization
-**Estimate:** 45 minutes
-
-**Current File:** `api_endpoint_tests.rs` (375 lines, 15+ tests)
-
-**Actions:**
-Split into separate E2E test files by feature:
-
-1. **Health & Monitoring** → `e2e/api/health_endpoints.rs`
-   - Tests: `api_test_health_endpoints()`, `api_test_ready_endpoint()`
-   - Lines: ~50
-
-2. **OpenAPI** → `e2e/api/openapi_spec.rs`
-   - Tests: `api_test_openapi_endpoint()`
-   - Lines: ~30
-
-3. **Authentication** → `e2e/security/authentication.rs`
-   - Tests: `api_test_auth_required()`, `api_test_api_key_auth()`
-   - Lines: ~60
-
-4. **Input Validation** → `e2e/security/input_validation.rs`
-   - Tests: `api_test_input_validation()`, `api_test_sanitization()`, `api_test_content_type_validation()`, `api_test_request_size_limits()`
-   - Lines: ~120
-
-5. **Security Headers** → `e2e/security/headers_and_cors.rs`
-   - Tests: `api_test_security_headers()`, `api_test_cors_headers()`
-   - Lines: ~70
-
-6. **Rate Limiting & Performance** → `e2e/security/rate_limiting.rs`
-   - Tests: `api_test_rate_limiting()`, `api_test_concurrent_requests()`
-   - Lines: ~80
-
-**Commands:**
-
-```bash
-# Create new files with appropriate content
-# Delete old file
-git rm rust/tests/api_endpoint_tests.rs
-cargo test --test 'e2e_*'
-```
-
-**Acceptance Criteria:**
-
-- [ ] All 6 new files created
-- [ ] All tests passing in new locations
-- [ ] No test duplication
-- [x] Helper functions (`authenticated_request`, `extract_json_response`) moved to `common/http.rs` (see commit fe595cc)
-- [ ] Old file deleted
-
----
-
-### 5. Migrate TestContainers Integration Tests
-
-**Priority:** HIGH - Core integration tests
-**Estimate:** 40 minutes
-
-**Current File:** `testcontainers_integration.rs` (272 lines, 4 tests)
-
-**Actions:**
-Move tests to appropriate integration directories:
-
-1. **Full Lifecycle Test** → `integration/use_cases/object_lifecycle.rs`
-   - Test: `test_full_object_lifecycle_with_testcontainers()`
-   - Tests upload → download → delete flow
-   - Lines: ~100
-
-2. **Namespace Validation** → `integration/use_cases/namespace_validation.rs`
-   - Test: `test_namespace_validation_with_testcontainers()`
-   - Lines: ~70
-
-3. **Multiple Objects** → `integration/use_cases/multi_object_operations.rs`
-   - Test: `test_multiple_objects_in_namespace()`
-   - Lines: ~50
-
-4. **Storage Class** → `integration/use_cases/storage_class_behavior.rs`
-   - Test: `test_storage_class_behavior()`
-   - Lines: ~50
-
-**Note:** The `env::TestEnvironment` usage should be updated to use `crate::common::TestEnvironment`
-
-**Commands:**
-
-```bash
-# Create new files
-git rm rust/tests/testcontainers_integration.rs
-cargo test --test 'integration_*'
-```
-
-**Acceptance Criteria:**
-
-- [x] All 4 new integration test files created
-- [x] Tests use `common::TestEnvironment` (not local duplicate)
-- [x] All tests passing (4 passed)
-- [x] Old file deleted
-
-**Status:** ✅ Done — migration and verification completed (commits 3086db4, 4f2e28c).
-
----
-
-### 6. Refactor integration_test.rs
-
-**Priority:** CRITICAL - Has circular dependencies
-**Estimate:** 30 minutes
-
-**Current Issues:**
-
-- Imports other test modules (`mod api_endpoint_tests; mod testcontainers_integration;`) ❌
-- Mixes use case tests with nested API tests
-- Creates circular dependency hell
-
-**Current File:** `integration_test.rs` (191 lines)
-
-**Actions:**
-
-1. **Extract Use Case Test** → `integration/use_cases/upload_download_delete_lifecycle.rs`
-   - Test: `test_full_lifecycle()`
-   - Lines: ~90
-
-2. **Delete Nested Module Imports**
-   - Remove: `mod api_endpoint_tests;`
-   - Remove: `mod testcontainers_integration;`
-   - These tests are now in their own files from tasks 4 & 5
-
-3. **Handle Nested API Tests** (the `mod tests` section)
-   - If they duplicate e2e tests from task 4, DELETE them
-   - If they're unique, move to appropriate `e2e/` location
-
-**Commands:**
-
-```bash
-# After moving test, delete old file
-git rm rust/tests/integration_test.rs
-cargo test --lib
-cargo test --test '*'
-```
-
-**Acceptance Criteria:**
-
-- [x] No more circular test dependencies
-- [x] Use case test extracted to `integration/use_cases/`
-- [x] Nested API tests moved to `e2e/` or deleted (no duplication)
-- [x] Old file deleted
-- [x] All tests still passing
-
-**Status:** ✅ Done — `integration_test.rs` removed and responsibilities migrated to `integration/use_cases/*` and `e2e/*` (commit 5ab6b8b). Full test suite passes locally.
-
----
-
-### 7. Migrate Common Module Tests
-
-**Priority:** MEDIUM - Tests for test utilities
-**Estimate:** 30 minutes
-
-**Current Files:**
-
-- `common_api_server_tests.rs` → `integration/common/api_server_setup.rs`
-- `common_assertions_tests.rs` → `unit/common/assertions.rs`
-- `common_builders_tests.rs` → `unit/common/builders.rs`
-- `common_database_tests.rs` → `integration/common/database_setup.rs`
-- `common_http_tests.rs` → `unit/common/http_helpers.rs`
-- `common_mocks_tests.rs` → `unit/common/mocks.rs`
-- `common_smoke_tests.rs` → `integration/common/smoke_tests.rs`
-
-**Commands:**
-
-```bash
-mkdir -p rust/tests/unit/common
-mkdir -p rust/tests/integration/common
-# Move each file appropriately
-cargo test
-```
-
-**Acceptance Criteria:**
-
-- [ ] All common test files moved to appropriate unit/integration directories
-- [ ] Tests still pass
-- [ ] Old files deleted
-
----
-
-### 8. Update Cargo.toml Test Configuration
-
-**Priority:** HIGH - Enable test filtering
-**Estimate:** 15 minutes
-
-**Actions:**
-Add test configuration to support running tests by type:
-
-```toml
-# In rust/Cargo.toml
-
-# Enable test discovery in subdirectories
-[[test]]
-name = "unit_tests"
-path = "tests/unit/mod.rs"
-test = true
-
-[[test]]
-name = "integration_tests"
-path = "tests/integration/mod.rs"
-test = true
-
-[[test]]
-name = "e2e_tests"
-path = "tests/e2e/mod.rs"
-test = true
-
-[[test]]
-name = "property_tests"
-path = "tests/property/mod.rs"
-test = true
-
-[[test]]
-name = "performance_tests"
-path = "tests/performance/mod.rs"
-test = true
-```
-
-**Note:** Each directory will need a `mod.rs` file to act as the test root.
-
-**Acceptance Criteria:**
-
-- [ ] Can run `cargo test --test unit_tests`
-- [ ] Can run `cargo test --test integration_tests`
-- [ ] Can run `cargo test --test e2e_tests`
-- [ ] Can run `cargo test --test property_tests`
-- [ ] Can run `cargo test --test performance_tests`
-
----
-
-### 9. Create mod.rs Files for Each Test Category
-
-**Priority:** HIGH - Required for Cargo test discovery
-**Estimate:** 20 minutes
-
-Create `mod.rs` in each test category directory to enable Cargo's test discovery:
-
-**Files to Create:**
-
-1. `tests/unit/mod.rs`
-
-```rust
-// Unit tests - fast, no I/O
-
-pub mod common;
-pub mod domain;
-pub mod application;
-pub mod infrastructure;
-```
-
-1. `tests/integration/mod.rs`
-
-```rust
-// Integration tests - DB + storage
-
-#[path = "../common/mod.rs"]
-mod common;
-
-pub mod use_cases;
-pub mod repositories;
-pub mod storage;
-```
-
-1. `tests/e2e/mod.rs`
-
-```rust
-// End-to-end tests - full API
-
-#[path = "../common/mod.rs"]
-mod common;
-
-pub mod api;
-pub mod security;
-```
-
-1. `tests/property/mod.rs`
-
-```rust
-// Property-based tests
-
-#[path = "../common/mod.rs"]
-mod common;
-
-pub mod domain;
-```
-
-1. `tests/performance/mod.rs`
-
-```rust
-// Performance regression guards
-
-#[path = "../common/mod.rs"]
-mod common;
-
-mod regression_guards;
-```
-
-**Acceptance Criteria:**
-
-- [ ] All mod.rs files created
-- [ ] Each references common utilities appropriately
-- [ ] Modules compile without errors
-
----
-
-### 10. Update GitHub Actions CI
-
-**Priority:** MEDIUM - Ensure CI runs all test types
-**Estimate:** 15 minutes
-
-**Current CI:** Likely runs `cargo test` (all tests together)
-
-**Proposed Changes:**
-Run tests by category for better visibility and parallelization:
-
-```yaml
-- name: Run unit tests
-  run: cargo test --test unit_tests
-
-- name: Run integration tests
-  run: cargo test --test integration_tests
-
-- name: Run E2E tests
-  run: cargo test --test e2e_tests
-
-- name: Run property tests
-  run: cargo test --test property_tests
-
-- name: Run performance tests
-  run: cargo test --test performance_tests
-```
-
-**File to Update:** `.github/workflows/rust.yml` (or similar)
-
-**Acceptance Criteria:**
-
-- [ ] CI runs each test category separately
-- [ ] CI shows which test category failed (if any)
-- [ ] Total CI time comparable or faster (due to parallelization)
-
----
-
-### 11. Cleanup & Validation
-
-**Priority:** HIGH - Ensure nothing broken
-**Estimate:** 20 minutes
-
-**Actions:**
-
-1. Delete old flat test files (if not already deleted in prior tasks):
-   - `api_endpoint_tests.rs`
-   - `testcontainers_integration.rs`
-   - `integration_test.rs`
-   - `common_*_tests.rs` files
-
-2. Remove `test_fixtures.rs` if it's now redundant (check if anything still uses it)
-
-3. Run full test suite:
-
-```bash
-cargo test --workspace
-cargo test --all-features
-cargo clippy --tests
-```
-
-1. Check for orphaned files:
-
-```bash
-find rust/tests -maxdepth 1 -name "*.rs" -type f
-# Should only show files that are intentionally at root level
-```
-
-**Acceptance Criteria:**
-
-- [ ] No old test files remain
-- [ ] All tests pass
-- [ ] No clippy warnings in test code
-- [ ] Test directory structure is clean
-
----
-
-### 12. Update Documentation
-
-**Priority:** MEDIUM - Help developers understand new structure
-**Estimate:** 20 minutes
-
-**Actions:**
-
-1. Update `rust/tests/README.md` (or create it) to document:
-   - New directory structure
-   - How to run tests by category
-   - Guidelines for where to put new tests
-   - Common utilities location
-
-2. Update root `README.md` testing section
-
-**Example Content:**
-
-```markdown
-# Test Organization
-
-## Structure
-
-- `tests/unit/` - Fast unit tests, no I/O (domain logic, validation)
-- `tests/integration/` - Integration tests with DB/storage (use cases, repositories)
-- `tests/e2e/` - End-to-end API tests (full stack)
-- `tests/property/` - Property-based tests (proptest)
-- `tests/performance/` - Performance regression guards
-- `tests/common/` - Shared test utilities
-
-## Running Tests
-
-# All tests
-cargo test
-
-# By category
-cargo test --test unit_tests
-cargo test --test integration_tests
-cargo test --test e2e_tests
-cargo test --test property_tests
-cargo test --test performance_tests
-
-# Specific test
-cargo test test_name
-```
-
-**Acceptance Criteria:**
-
-- [ ] README created/updated in tests directory
-- [ ] Root README updated
-- [ ] Examples accurate and working
-
----
-
-## Summary Checklist
-
-**Phase 2 Complete When:**
-
+## Remaining Phase 2 Items (carryover)
 - [x] 1. Directory structure created
 - [x] 2. Property tests moved
 - [x] 3. Performance tests moved
-- [x] 4. API endpoint tests split into e2e/ (partial — main files created)
+- [x] 4. API endpoint tests split into e2e/ (partial)
 - [x] 5. TestContainers tests migrated to integration/
-- [x] 6. integration_test.rs refactored (circular deps removed)
-- [ ] 7. Common module tests migrated
-- [ ] 8. Cargo.toml updated for test discovery
-- [ ] 9. mod.rs files created for each category
+- [x] 6. `integration_test.rs` refactored
+- [~] 7. Common module tests migration (some files moved; follow-up required)
+- [ ] 8. `Cargo.toml` test configuration updated
+- [ ] 9. `mod.rs` files created for each category
 - [ ] 10. CI updated to run tests by category
 - [ ] 11. Old files cleaned up
-- [ ] 12. Documentation updated
+- [ ] 12. Documentation updated (`rust/tests/README.md`)
 
-**Success Criteria:**
-
-- ✅ Can run `cargo test --test unit_tests` (unit only)
-- ✅ Can run `cargo test --test integration_tests` (integration only)
-- ✅ Can run `cargo test --test e2e_tests` (E2E only)
-- ✅ No circular test dependencies
-- ✅ Clear separation of test types by directory
-- ✅ All tests passing
-- ✅ CI pipeline validates all test categories
+Notes: Several common-module test files have been renamed/moved (e.g. `test_common_*`), check consolidated locations and remove any duplicates.
 
 ---
 
-## Next Steps (Future Phases)
-
-**Phase 3:** Improve test organization by feature (one file per use case/API endpoint)
-**Phase 4:** Enhance test quality (naming, parameterization, builders, assertions)
-**Phase 5:** Add missing coverage (repository contracts, middleware, error paths)
-**Phase 6:** Modern testing features (snapshot tests, mutation testing, nextest)
+## Quick Commands
+- Run full test suite: `cargo test --workspace`
+- Run a category (after adding `[[test]]` entries): `cargo test --test e2e_tests`
+- Run single test: `cargo test test_name -- --exact --nocapture`
 
 ---
 
-## Estimated Total Time
+## Acceptance & Validation
+- Run `cargo test --workspace` and ensure 338 tests pass.
+- Add `nextest` to CI; verify jobs for unit, integration, e2e, property, performance.
+- Create a short PR to merge `phase-2-reorganize-tests` into `main` once Phase 3 starter tasks (split E2E + mod.rs + CI adjustments) are in place.
 
-- **Optimistic:** 4 hours (all tasks go smoothly)
-- **Realistic:** 6 hours (some refactoring/debugging needed)
-- **Pessimistic:** 8 hours (unexpected issues, test failures)
+---
 
-## Risk Mitigation
+## Phase 4 (Ideas)
+- Mutation testing to validate test effectiveness
+- Additional property tests for critical invariants
+- Performance benchmarking and regression tracking in CI
 
-- Work incrementally (one task at a time)
-- Run tests after each move
-- Use git to track changes and enable rollback
-- Keep Phase 1 common utilities untouched (already working)
+---
+
+## Owner / Notes
+- Owner: @damir — primary implementer for Phase 3
+- Keep commits small and verifiable; run tests after each move.
+
+---
+
+```text
+Changelog:
+- Jan 26, 2026: Marked Phase 2 complete, added Phase 3 task list and next actions.
+```

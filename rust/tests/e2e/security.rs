@@ -5,12 +5,7 @@ use axum::http::{Method, Request, StatusCode};
 use serde_json::json;
 use tower::ServiceExt;
 
-#[path = "../common/assertions.rs"]
-mod assertions;
-#[path = "../common/environment.rs"]
-mod env;
-#[path = "../common/http.rs"]
-mod http;
+use crate::common::{environment as env, http};
 
 #[tokio::test]
 async fn api_test_unauthenticated_requests() {

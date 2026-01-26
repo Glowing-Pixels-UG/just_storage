@@ -1,9 +1,7 @@
 //! Multiple objects in same namespace integration tests
 
+use crate::common::environment as env;
 use std::sync::Arc;
-
-#[path = "../../common/environment.rs"]
-mod env;
 
 use just_storage::application::{
     dto::UploadRequest,
