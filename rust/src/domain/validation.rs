@@ -444,7 +444,8 @@ mod tests {
         for uuid in invalid_uuids {
             assert!(
                 Validation::validate_uuid(uuid, "id").is_err(),
-                "UUID validation should fail for invalid format"
+                "UUID should be invalid: {}",
+                uuid
             );
         }
     }

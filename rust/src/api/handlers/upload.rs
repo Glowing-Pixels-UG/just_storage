@@ -5,27 +5,13 @@ use axum::{
     response::Json,
 };
 
-use serde::Deserialize;
 use std::sync::Arc;
-use utoipa::ToSchema;
 
 use crate::api::errors::ApiError;
 use crate::application::dto::{ObjectDto, UploadRequest};
 use crate::application::use_cases::UploadObjectUseCase;
 use crate::domain::authorization::UserContext;
 use crate::domain::value_objects::StorageClass;
-
-#[derive(Deserialize, ToSchema)]
-pub struct UploadQuery {
-    /// Object namespace (e.g., 'models', 'kb', 'uploads')
-    namespace: String,
-    /// Tenant identifier
-    tenant_id: String,
-    /// Human-readable key for retrieval
-    key: Option<String>,
-    /// Storage class ('hot' or 'cold', default: 'hot')
-    storage_class: Option<String>,
-}
 
 /// POST /v1/objects
 /// Upload object with streaming body
