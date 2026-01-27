@@ -86,7 +86,7 @@ impl RateLimiter {
                 &self.user_limits,
             ),
             LimitType::Tenant => (
-                self.config.authenticated_requests_per_minute * 5,
+                self.config.authenticated_requests_per_minute,
                 &self.tenant_limits,
             ),
         };
@@ -399,8 +399,8 @@ mod tests {
             Err(RateLimitError::LimitExceeded(_))
         ));
 
-        // Test tenant limiting - use same key, tenant limit is auth_limit * 5 = 25
-        for _ in 0..25 {
+        // Test tenant limiting: use same tenant id
+        for _ in 0..5 {
             assert!(limiter
                 .check_limit("tenant_test", LimitType::Tenant)
                 .is_ok());
