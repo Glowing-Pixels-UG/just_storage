@@ -8,7 +8,6 @@ use axum::http::{Method, Request, StatusCode};
 use axum::Router;
 use serde_json::json;
 use sqlx::PgPool;
-use std::sync::Arc;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
 use tower::ServiceExt;
 
@@ -104,7 +103,7 @@ async fn extract_json_response(response: axum::response::Response) -> serde_json
 }
 
 #[sqlx::test]
-async fn api_test_health_endpoints(pool: PgPool) {
+async fn api_test_health_endpoints(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Test health endpoint
@@ -132,7 +131,7 @@ async fn api_test_health_endpoints(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_openapi_specification(pool: PgPool) {
+async fn api_test_openapi_specification(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     let req = Request::builder()
@@ -154,7 +153,7 @@ async fn api_test_openapi_specification(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_unauthenticated_requests(pool: PgPool) {
+async fn api_test_unauthenticated_requests(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Test various endpoints without authentication
@@ -184,7 +183,7 @@ async fn api_test_unauthenticated_requests(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_invalid_authentication(pool: PgPool) {
+async fn api_test_invalid_authentication(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Test with invalid API key format
@@ -206,7 +205,7 @@ async fn api_test_invalid_authentication(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_malformed_requests(pool: PgPool) {
+async fn api_test_malformed_requests(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Test with invalid JSON
@@ -228,7 +227,7 @@ async fn api_test_malformed_requests(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_validation_errors(pool: PgPool) {
+async fn api_test_validation_errors(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Test invalid namespace (empty)
@@ -275,7 +274,7 @@ async fn api_test_validation_errors(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_rate_limiting(pool: PgPool) {
+async fn api_test_rate_limiting(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Make multiple rapid requests to test rate limiting
@@ -299,7 +298,7 @@ async fn api_test_rate_limiting(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_cors_headers(pool: PgPool) {
+async fn api_test_cors_headers(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     let req = Request::builder()
@@ -321,7 +320,7 @@ async fn api_test_cors_headers(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_security_headers(pool: PgPool) {
+async fn api_test_security_headers(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     let req = Request::builder()
@@ -340,7 +339,7 @@ async fn api_test_security_headers(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_input_sanitization(pool: PgPool) {
+async fn api_test_input_sanitization(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Test with potentially malicious input
@@ -363,7 +362,7 @@ async fn api_test_input_sanitization(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_content_type_validation(pool: PgPool) {
+async fn api_test_content_type_validation(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Test with invalid content type
@@ -380,7 +379,7 @@ async fn api_test_content_type_validation(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_request_size_limits(pool: PgPool) {
+async fn api_test_request_size_limits(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Create a very large request body
@@ -402,7 +401,7 @@ async fn api_test_request_size_limits(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn api_test_concurrent_requests(pool: PgPool) {
+async fn api_test_concurrent_requests(_pool: PgPool) {
     let (app, _container) = setup_test_api_server().await;
 
     // Make multiple concurrent requests

@@ -197,26 +197,16 @@ mod tests {
         assert!(checks.get("error_sanitization").is_some());
         assert!(checks.get("size_limits").is_some());
 
-        // Values can be strings or booleans indicating status
-        for (key, value) in checks.as_object().unwrap() {
-            if key == "auth_enabled" {
-                assert!(value.is_boolean(), "auth_enabled should be boolean");
-            } else {
-                assert!(
-                    value.is_string(),
-                    "{} should be string, got {:?}",
-                    key,
-                    value
-                );
-                let status = value.as_str().unwrap();
-                assert!(
-                    status == "enabled"
-                        || status == "development"
-                        || status == "production"
-                        || status == "configured"
-                        || status == "enforced"
-                );
-            }
+        // All values should be strings indicating status
+        for (_, value) in checks.as_object().unwrap() {
+            assert!(value.is_string());
+            let status = value.as_str().unwrap();
+            assert!(
+                status == "enabled"
+                    || status == "disabled"
+                    || status == "development"
+                    || status == "production"
+            );
         }
     }
 
@@ -272,7 +262,7 @@ mod tests {
         // Unknown errors
         let unknown_err = sqlx::Error::ColumnDecode {
             index: "0".to_string(),
-            source: Box::new(std::io::Error::new(std::io::ErrorKind::Other, "unknown")),
+            source: Box::new(std::io::Error::other("unknown")),
         };
         let sanitized = sanitize_db_error(&unknown_err);
         assert!(sanitized.contains("Database") || sanitized.contains("decode"));

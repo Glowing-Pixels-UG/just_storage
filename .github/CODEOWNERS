@@ -22,7 +22,7 @@
 
 # Docker and deployment
 /Dockerfile                     @SamyRai
-/docker compose.yml             @SamyRai
+/docker-compose.yml             @SamyRai
 
 # Tests
 /rust/tests/**                  @SamyRai

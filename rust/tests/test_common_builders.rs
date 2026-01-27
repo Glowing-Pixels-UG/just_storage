@@ -1,8 +1,4 @@
 use std::io::Cursor;
-use std::sync::Arc;
-
-use just_storage::application::use_cases::UploadObjectUseCase;
-use just_storage::domain::value_objects::StorageClass;
 
 mod common;
 use common::builders::{BlobBuilder, ObjectBuilder, UploadRequestBuilder};

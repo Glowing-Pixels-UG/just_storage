@@ -90,10 +90,10 @@ See [Architecture Overview](https://github.com/Glowing-Pixels-UG/just_storage/wi
 
 ```bash
 # Start all services
-docker compose up -d
+docker-compose up -d
 
 # View logs
-docker compose logs -f just_storage
+docker-compose logs -f just_storage
 
 # Test API
 curl http://localhost:8080/health
@@ -113,7 +113,7 @@ curl http://localhost:8080/health
 cp .env.example .env
 
 # 2. Start PostgreSQL
-docker compose up -d postgres
+docker-compose up -d postgres
 # OR use local PostgreSQL
 
 # 3. Create database and run migrations
@@ -397,6 +397,16 @@ cargo tarpaulin --out Html
 
 This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
 
+---
+
+## Related projects
+
+- Main repository: [Glowing-Pixels-UG/just-storage](https://github.com/Glowing-Pixels-UG/just-storage)
+- SDKs:
+  - Node: [just-storage-node-sdk](https://github.com/Glowing-Pixels-UG/just-storage-node-sdk)
+  - Python: [just-storage-python-sdk](https://github.com/Glowing-Pixels-UG/just-storage-python-sdk)
+  - Go: [just-storage-go-sdk](https://github.com/Glowing-Pixels-UG/just-storage-go-sdk)
+
 ## Status & Roadmap
 
 ### Implementation Status (v0.1.0)
@@ -419,7 +429,7 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 
 **Deployment Ready:**
 
-- Docker and docker compose configurations
+- Docker and docker-compose configurations
 - Kubernetes StatefulSet manifests
 - Environment variable configuration
 - Migration scripts

@@ -54,7 +54,7 @@ async fn test_multiple_objects_same_namespace() {
         let object = upload_use_case
             .execute(request, reader)
             .await
-            .expect(&format!("Upload failed for {}", filename));
+            .unwrap_or_else(|_| panic!("Upload failed for {}", filename));
 
         let object_id = object.id.parse().expect("Invalid object ID");
         object_ids.push(object_id);
@@ -65,8 +65,7 @@ async fn test_multiple_objects_same_namespace() {
         let (metadata, _) = download_use_case
             .execute_by_id(object_id)
             .await
-            .expect(&format!("Download failed for object {}", object_id));
-
+            .unwrap_or_else(|_| panic!("Download failed for object {}", object_id));
         // Verify the object exists and has the expected size/content_hash
         assert!(metadata.size_bytes > 0);
         assert!(!metadata.content_hash.is_empty());

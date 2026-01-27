@@ -130,9 +130,6 @@ impl SecurityHeadersMiddleware {
             headers.insert("x-content-type-options", xcto.parse().unwrap());
         }
 
-        // Add X-XSS-Protection header for legacy browsers
-        headers.insert("x-xss-protection", "1; mode=block".parse().unwrap());
-
         if let Some(rp) = &config.referrer_policy {
             headers.insert("referrer-policy", rp.parse().unwrap());
         }
