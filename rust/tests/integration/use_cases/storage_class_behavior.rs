@@ -1,7 +1,7 @@
 //! Storage class behavior integration tests
 
-use std::sync::Arc;
 use crate::common::environment as env;
+use std::sync::Arc;
 
 use just_storage::application::{
     dto::UploadRequest,

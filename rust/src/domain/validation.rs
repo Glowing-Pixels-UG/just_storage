@@ -44,7 +44,7 @@ impl Validation {
             if value.len() < min {
                 return Err(DomainError::ValidationError {
                     field: field_name.to_string(),
-                    message: format!("Field must be at least {} characters long", min),
+                    message: format!("Field length must be at least {} characters", min),
                 });
             }
         }
@@ -53,7 +53,7 @@ impl Validation {
             if value.len() > max {
                 return Err(DomainError::ValidationError {
                     field: field_name.to_string(),
-                    message: format!("Field must be at most {} characters long", max),
+                    message: format!("Field length must be at most {} characters", max),
                 });
             }
         }
@@ -91,7 +91,7 @@ impl Validation {
 
     /// Validate email format (basic)
     pub fn validate_email(email: &str, field_name: &str) -> ValidationResult<()> {
-        if !EMAIL_REGEX.is_match(email) {
+        if !EMAIL_REGEX.is_match(email) || email.contains("..") {
             return Err(DomainError::ValidationError {
                 field: field_name.to_string(),
                 message: "Invalid email format".to_string(),
@@ -156,6 +156,14 @@ impl Validation {
 
     /// Validate UUID format
     pub fn validate_uuid(value: &str, field_name: &str) -> ValidationResult<()> {
+        // Require canonical UUID representation with hyphens to avoid accepting compact hex
+        if !value.contains('-') {
+            return Err(DomainError::ValidationError {
+                field: field_name.to_string(),
+                message: "Invalid UUID format".to_string(),
+            });
+        }
+
         uuid::Uuid::parse_str(value).map_err(|_| DomainError::ValidationError {
             field: field_name.to_string(),
             message: "Invalid UUID format".to_string(),
