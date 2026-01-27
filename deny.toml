@@ -1,12 +1,12 @@
 # cargo-deny configuration for just_storage
-# Security and dependency management
+# Seeecurity and dependency management
 # Based on 2025 best practices
 
 # Target Rust versions to check
 targets = [
-  {triple = "x86_64-unknown-linux-gnu"},
-  {triple = "x86_64-apple-darwin"},
-  {triple = "aarch64-apple-darwin"},
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "x86_64-apple-darwin" },
+    { triple = "aarch64-apple-darwin" },
 ]
 
 # Advisories database configuration
@@ -21,12 +21,12 @@ unsound = "deny"
 yanked = "deny"
 # Ignore specific advisories (add IDs here if needed)
 ignore = [
-  # Example: "RUSTSEC-2024-0001",
+    # Example: "RUSTSEC-2024-0001",
 ]
 # Update frequency for advisory database
 db-path = "~/.cargo/advisory-db"
 db-urls = [
-  "https://github.com/rustsec/advisory-db",
+    "https://github.com/rustsec/advisory-db",
 ]
 
 # Allowed licenses
@@ -37,29 +37,29 @@ default = "deny"
 copyleft = "warn"
 # Allow specific licenses
 allow = [
-  "MIT",
-  "Apache-2.0",
-  "BSD-2-Clause",
-  "BSD-3-Clause",
-  "ISC",
-  "Zlib",
-  "0BSD",
-  "CC0-1.0",
-  "Unlicense",
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "CC0-1.0",
+    "Unlicense",
 ]
 # Deny specific licenses
 deny = [
-  "GPL-2.0",
-  "GPL-3.0",
-  "AGPL-1.0",
-  "AGPL-3.0",
-  "LGPL-2.0",
-  "LGPL-2.1",
-  "LGPL-3.0",
+    "GPL-2.0",
+    "GPL-3.0",
+    "AGPL-1.0",
+    "AGPL-3.0",
+    "LGPL-2.0",
+    "LGPL-2.1",
+    "LGPL-3.0",
 ]
 # Exception list for specific crates
 exceptions = [
-  # Example: { name = "some-crate", allow = ["GPL-3.0"] },
+    # Example: { name = "some-crate", allow = ["GPL-3.0"] },
 ]
 
 # Banned dependencies
@@ -70,12 +70,12 @@ multiple-versions = "warn"
 wildcards = "deny"
 # Specific crate bans
 deny = [
-  # Add banned crates here
-  # { name = "insecure-crate", reason = "Security vulnerability" },
+    # Add banned crates here
+    # { name = "insecure-crate", reason = "Security vulnerability" },
 ]
 # Allow specific versions
 allow = [
-  # Example: { name = "some-crate", version = "=1.0.0" },
+    # Example: { name = "some-crate", version = "=1.0.0" },
 ]
 
 # Sources configuration
@@ -88,5 +88,5 @@ unknown-git = "deny"
 allow-registry = ["crates-io"]
 # Allow specific git sources
 allow-git = [
-  # Example: "https://github.com/user/repo",
+    # Example: "https://github.com/user/repo",
 ]
