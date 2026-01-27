@@ -18,13 +18,13 @@ pub struct ReadinessCheckResult {
 pub fn perform_security_health_checks() -> Value {
     json!({
         "environment": if cfg!(debug_assertions) { "development" } else { "production" },
-        "auth_enabled": std::env::var("DISABLE_AUTH").unwrap_or_default().is_empty(),
+        "auth_enabled": if std::env::var("DISABLE_AUTH").unwrap_or_default().is_empty() { "enabled" } else { "disabled" },
         "rate_limiting": "enabled",
         "security_headers": "enabled",
         "audit_logging": "enabled",
-        "cors_policy": "configured",
+        "cors_policy": "enabled",
         "error_sanitization": "enabled",
-        "size_limits": "enforced"
+        "size_limits": "enabled"
     })
 }
 

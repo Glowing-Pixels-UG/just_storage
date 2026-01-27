@@ -2,9 +2,6 @@
 rust/target/
 rust/Cargo.lock
 
-# Ignore Markdown files for tmp development plan
-current.md
-
 # Ignore data directories
 data/
 /data/
