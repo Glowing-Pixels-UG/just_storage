@@ -110,7 +110,7 @@ mod tests {
     use crate::application::ports::{BlobRepository, BlobStore, RepositoryError, StorageError};
     use crate::domain::value_objects::{ContentHash, StorageClass};
     use async_trait::async_trait;
-    use std::collections::HashMap;
+
     use std::sync::Mutex;
 
     struct MockBlobRepository {

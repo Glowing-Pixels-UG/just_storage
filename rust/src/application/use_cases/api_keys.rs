@@ -212,7 +212,7 @@ pub enum ApiKeyUseCaseError {
 mod tests {
     use super::*;
     use crate::domain::entities::ApiKey;
-    use crate::domain::value_objects::{ApiKeyId, ApiKeyPermissions, ApiKeyValue};
+    use crate::domain::value_objects::{ApiKeyId, ApiKeyPermissions};
     use async_trait::async_trait;
     use mockall::mock;
     use mockall::predicate::*;

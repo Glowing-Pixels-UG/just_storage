@@ -110,15 +110,12 @@ mod tests {
     use super::*;
     use axum::{
         body::Body,
-        http::{Method, Request, StatusCode},
-        middleware::Next,
-        response::Response,
+        http::{Method, Request},
     };
-    use tower::Service;
 
     #[tokio::test]
     async fn test_request_id_generation() {
-        let mut headers = axum::http::HeaderMap::new();
+        let headers = axum::http::HeaderMap::new();
         let request_id = get_request_id(&headers);
         assert!(!request_id.is_empty());
         // Should be a valid UUID
@@ -183,7 +180,7 @@ mod tests {
     #[tokio::test]
     async fn test_metrics_middleware_handles_invalid_request_id_header() {
         // Test that get_request_id generates new UUID for invalid headers
-        let mut headers = axum::http::HeaderMap::new();
+        let headers = axum::http::HeaderMap::new();
         // Invalid header values can't be inserted, so just test missing header case
         // which is effectively what happens when a header is invalid
 

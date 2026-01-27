@@ -149,7 +149,6 @@ pub fn create_error_handling_middleware() -> ErrorHandlingLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::Json;
 
     #[test]
     fn test_error_handling_config() {

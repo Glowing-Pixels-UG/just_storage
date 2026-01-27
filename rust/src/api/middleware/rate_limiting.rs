@@ -351,7 +351,7 @@ mod tests {
         let limiter = RateLimiter::new(config);
 
         // Fill up the limit
-        for i in 0..3 {
+        for _i in 0..3 {
             assert!(limiter.check_limit("test_ip", LimitType::IP).is_ok());
         }
 
