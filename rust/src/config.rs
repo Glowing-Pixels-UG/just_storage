@@ -111,23 +111,13 @@ impl Config {
             return Err("LISTEN_ADDR cannot be empty".to_string());
         }
 
-        // Validate storage paths exist or can be created
-        if let Some(parent) = self.hot_storage_root.parent() {
-            if !parent.exists() {
-                return Err(format!(
-                    "HOT_STORAGE_ROOT parent directory does not exist: {}",
-                    parent.display()
-                ));
-            }
+        // Validate storage paths are set
+        if self.hot_storage_root.as_os_str().is_empty() {
+            return Err("HOT_STORAGE_ROOT cannot be empty".to_string());
         }
 
-        if let Some(parent) = self.cold_storage_root.parent() {
-            if !parent.exists() {
-                return Err(format!(
-                    "COLD_STORAGE_ROOT parent directory does not exist: {}",
-                    parent.display()
-                ));
-            }
+        if self.cold_storage_root.as_os_str().is_empty() {
+            return Err("COLD_STORAGE_ROOT cannot be empty".to_string());
         }
 
         // Validate GC settings
@@ -151,6 +141,10 @@ impl Config {
 
         if self.db_max_connections == 0 {
             return Err("DB_MAX_CONNECTIONS must be > 0".to_string());
+        }
+
+        if self.db_min_connections == 0 {
+            return Err("DB_MIN_CONNECTIONS must be > 0".to_string());
         }
 
         if self.db_acquire_timeout_secs == 0 {
@@ -326,16 +320,14 @@ mod tests {
     #[test]
     fn test_config_validation_storage_roots_required() {
         let mut config = Config::from_env();
-        config.hot_storage_root = PathBuf::from("");
-        let result = config.validate();
-        // Empty path doesn't necessarily fail validation because parent() returns None
-        // so we just ensure the config can be created
-        assert!(result.is_ok() || result.is_err());
+        config.hot_storage_root = PathBuf::new();
+        assert!(config.validate().is_err());
+        assert!(config.validate().unwrap_err().contains("HOT_STORAGE_ROOT"));
 
         let mut config = Config::from_env();
-        config.cold_storage_root = PathBuf::from("");
-        let result = config.validate();
-        assert!(result.is_ok() || result.is_err());
+        config.cold_storage_root = PathBuf::new();
+        assert!(config.validate().is_err());
+        assert!(config.validate().unwrap_err().contains("COLD_STORAGE_ROOT"));
     }
 
     #[test]
