@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::domain::value_objects::{ContentHash, StorageClass};
 
 /// Blob entity - represents physical storage with ref counting
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Blob {
     content_hash: ContentHash,
     storage_class: StorageClass,
@@ -80,6 +80,17 @@ impl Blob {
         self.created_at
     }
 }
+
+// Custom equality focuses on identifying a blob by its content hash, storage class and size
+impl PartialEq for Blob {
+    fn eq(&self, other: &Self) -> bool {
+        self.content_hash == other.content_hash
+            && self.storage_class == other.storage_class
+            && self.size_bytes == other.size_bytes
+    }
+}
+
+impl Eq for Blob {}
 
 #[cfg(test)]
 mod tests {
@@ -215,12 +226,10 @@ mod tests {
         let blob1b = Blob::new(content_hash1.clone(), StorageClass::Hot, 100);
         let blob2 = Blob::new(content_hash2, StorageClass::Hot, 100);
 
-        // Blobs with same content hash should be equal (equality ignores timestamps)
-        assert_eq!(blob1a.content_hash(), blob1b.content_hash());
-        assert_eq!(blob1a.storage_class(), blob1b.storage_class());
-        assert_eq!(blob1a.size_bytes(), blob1b.size_bytes());
+        // Blobs with same content hash should be equal
+        assert_eq!(blob1a, blob1b);
         // Blobs with different content hashes should not be equal
-        assert_ne!(blob1a.content_hash(), blob2.content_hash());
+        assert_ne!(blob1a, blob2);
     }
 
     #[test]

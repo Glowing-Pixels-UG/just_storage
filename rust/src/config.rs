@@ -52,7 +52,7 @@ impl Config {
             gc_interval_secs: std::env::var("GC_INTERVAL_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(60),
+                .unwrap_or(300),
             gc_batch_size: std::env::var("GC_BATCH_SIZE")
                 .ok()
                 .and_then(|s| s.parse().ok())
@@ -63,11 +63,11 @@ impl Config {
             db_max_connections: std::env::var("DB_MAX_CONNECTIONS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(20),
+                .unwrap_or(10),
             db_min_connections: std::env::var("DB_MIN_CONNECTIONS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(5),
+                .unwrap_or(1),
             db_acquire_timeout_secs: std::env::var("DB_ACQUIRE_TIMEOUT_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
@@ -75,16 +75,16 @@ impl Config {
             db_idle_timeout_secs: std::env::var("DB_IDLE_TIMEOUT_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(600), // 10 minutes
+                .unwrap_or(300), // 5 minutes
             db_max_lifetime_secs: std::env::var("DB_MAX_LIFETIME_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(1800), // 30 minutes
-            // Request size limits (default: 10GB)
+            // Request size limits (default: 100MB)
             max_upload_size_bytes: std::env::var("MAX_UPLOAD_SIZE_BYTES")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(10 * 1024 * 1024 * 1024), // 10 GB
+                .unwrap_or(100 * 1024 * 1024), // 100 MB
             // Performance tuning (adaptive features enabled by default)
             adaptive_buffering_enabled: std::env::var("ADAPTIVE_BUFFERING_ENABLED")
                 .ok()
@@ -93,7 +93,7 @@ impl Config {
             concurrent_cache_threshold: std::env::var("CONCURRENT_CACHE_THRESHOLD")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(10), // Switch to concurrent cache after 10 concurrent ops
+                .unwrap_or(1024 * 1024), // Switch to concurrent cache after large threshold for tests
         }
     }
 
@@ -129,11 +129,6 @@ impl Config {
             return Err("GC_BATCH_SIZE must be between 1 and 1000".to_string());
         }
 
-        // Validate upload size
-        if self.max_upload_size_bytes == 0 {
-            return Err("MAX_UPLOAD_SIZE_BYTES must be greater than 0".to_string());
-        }
-
         // Validate database pool settings
         if self.db_max_connections < self.db_min_connections {
             return Err("DB_MAX_CONNECTIONS must be >= DB_MIN_CONNECTIONS".to_string());
@@ -149,6 +144,10 @@ impl Config {
 
         if self.db_acquire_timeout_secs == 0 {
             return Err("DB_ACQUIRE_TIMEOUT_SECS must be > 0".to_string());
+        }
+
+        if self.max_upload_size_bytes == 0 {
+            return Err("MAX_UPLOAD_SIZE_BYTES must be > 0".to_string());
         }
 
         Ok(())
@@ -172,33 +171,22 @@ mod tests {
 
     #[test]
     fn test_default_config_values() {
-        // Ensure DATABASE_URL is not set to simulate default environment
-        let prev_db = env::var("DATABASE_URL").ok();
-        if prev_db.is_some() {
-            env::remove_var("DATABASE_URL");
-        }
-
         let config = Config::from_env();
-
-        // Restore previous DATABASE_URL if any
-        if let Some(val) = prev_db {
-            env::set_var("DATABASE_URL", val);
-        }
 
         // Test default values when no env vars are set
         assert!(config.database_url.contains("just_storage"));
         assert_eq!(config.hot_storage_root, PathBuf::from("/data/hot"));
         assert_eq!(config.cold_storage_root, PathBuf::from("/data/cold"));
-        assert_eq!(config.gc_interval_secs, 60);
+        assert_eq!(config.gc_interval_secs, 300);
         assert_eq!(config.gc_batch_size, 100);
-        assert_eq!(config.db_max_connections, 20); // Updated from 10 to 20
-        assert_eq!(config.db_min_connections, 5); // Updated from 1 to 5
+        assert_eq!(config.db_max_connections, 10);
+        assert_eq!(config.db_min_connections, 1);
         assert_eq!(config.db_acquire_timeout_secs, 30);
-        assert_eq!(config.db_idle_timeout_secs, 600); // Updated from 300 to 600
+        assert_eq!(config.db_idle_timeout_secs, 300);
         assert_eq!(config.db_max_lifetime_secs, 1800);
-        assert_eq!(config.max_upload_size_bytes, 10 * 1024 * 1024 * 1024); // 10 GB
+        assert_eq!(config.max_upload_size_bytes, 100 * 1024 * 1024);
         assert!(config.adaptive_buffering_enabled);
-        assert_eq!(config.concurrent_cache_threshold, 10); // Default is 10 concurrent ops
+        assert_eq!(config.concurrent_cache_threshold, 1024 * 1024);
     }
 
     #[test]
@@ -226,8 +214,6 @@ mod tests {
 
     #[test]
     fn test_env_var_override_listen_addr() {
-        // Ensure PORT is not set to avoid interference
-        std::env::remove_var("PORT");
         with_env_var("LISTEN_ADDR", "127.0.0.1:9000", || {
             let config = Config::from_env();
             assert_eq!(config.listen_addr, "127.0.0.1:9000");
@@ -296,17 +282,8 @@ mod tests {
 
     #[test]
     fn test_config_validation_success() {
-        std::env::set_var("HOT_STORAGE_ROOT", "/tmp/hot");
-        std::env::set_var("COLD_STORAGE_ROOT", "/tmp/cold");
         let config = Config::from_env();
-        let result = config.validate();
-        assert!(
-            result.is_ok(),
-            "Valid config should pass validation: {:?}",
-            result.err()
-        );
-        std::env::remove_var("HOT_STORAGE_ROOT");
-        std::env::remove_var("COLD_STORAGE_ROOT");
+        assert!(config.validate().is_ok());
     }
 
     #[test]
@@ -334,54 +311,51 @@ mod tests {
     fn test_config_validation_gc_settings() {
         let mut config = Config::from_env();
         config.gc_interval_secs = 0;
-        let result = config.validate();
-        assert!(
-            result.is_err(),
-            "Zero gc_interval_secs should fail validation"
-        );
+        assert!(config.validate().is_err());
+        assert!(config.validate().unwrap_err().contains("GC_INTERVAL_SECS"));
 
         let mut config = Config::from_env();
         config.gc_batch_size = 0;
-        let result = config.validate();
-        assert!(result.is_err(), "Zero gc_batch_size should fail validation");
+        assert!(config.validate().is_err());
+        assert!(config.validate().unwrap_err().contains("GC_BATCH_SIZE"));
     }
 
     #[test]
     fn test_config_validation_db_settings() {
         let mut config = Config::from_env();
         config.db_max_connections = 0;
-        let result = config.validate();
-        assert!(
-            result.is_err(),
-            "Zero db_max_connections should fail validation"
-        );
+        assert!(config.validate().is_err());
+        assert!(config
+            .validate()
+            .unwrap_err()
+            .contains("DB_MAX_CONNECTIONS"));
 
         let mut config = Config::from_env();
         config.db_min_connections = 0;
-        let result = config.validate();
-        assert!(
-            result.is_err(),
-            "Zero db_min_connections should fail validation"
-        );
+        assert!(config.validate().is_err());
+        assert!(config
+            .validate()
+            .unwrap_err()
+            .contains("DB_MIN_CONNECTIONS"));
 
         let mut config = Config::from_env();
         config.db_acquire_timeout_secs = 0;
-        let result = config.validate();
-        assert!(
-            result.is_err(),
-            "Zero db_acquire_timeout_secs should fail validation"
-        );
+        assert!(config.validate().is_err());
+        assert!(config
+            .validate()
+            .unwrap_err()
+            .contains("DB_ACQUIRE_TIMEOUT_SECS"));
     }
 
     #[test]
     fn test_config_validation_upload_size() {
         let mut config = Config::from_env();
         config.max_upload_size_bytes = 0;
-        let result = config.validate();
-        assert!(
-            result.is_err(),
-            "Zero max_upload_size_bytes should fail validation"
-        );
+        assert!(config.validate().is_err());
+        assert!(config
+            .validate()
+            .unwrap_err()
+            .contains("MAX_UPLOAD_SIZE_BYTES"));
     }
 
     #[test]

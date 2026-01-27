@@ -49,16 +49,16 @@ check: ## Check compilation
 	cd binary-container-poc && cargo check
 
 docker-build: ## Build Docker image
-	docker compose build
+	docker-compose build
 
 docker-up: ## Start services with Docker Compose
-	docker compose up -d
+	docker-compose up -d
 
 docker-down: ## Stop Docker Compose services
-	docker compose down
+	docker-compose down
 
 docker-logs: ## Show Docker Compose logs
-	docker compose logs -f just_storage
+	docker-compose logs -f just_storage
 
 db-setup: ## Create database and run migrations
 	createdb just_storage || true
@@ -70,7 +70,7 @@ db-reset: ## Drop and recreate database
 
 dev: ## Start development environment
 	@echo "Starting PostgreSQL..."
-	docker compose up -d postgres
+	docker-compose up -d postgres
 	@echo "Waiting for database..."
 	@sleep 3
 	@echo "Starting service..."

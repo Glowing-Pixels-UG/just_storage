@@ -152,7 +152,7 @@ async fn sqlx_test_object_listing(pool: PgPool) {
         let (metadata, _) = download_use_case
             .execute_by_id(object_id)
             .await
-            .expect(&format!("Object {} should exist", object_id));
+            .unwrap_or_else(|_| panic!("Object {} should exist", object_id));
 
         // Verify the object exists and has the expected size/content_hash
         assert!(metadata.size_bytes > 0);
@@ -167,7 +167,7 @@ async fn sqlx_test_object_listing(pool: PgPool) {
 
 #[sqlx::test]
 async fn sqlx_test_storage_classes(pool: PgPool) {
-    let (upload_use_case, download_use_case, delete_use_case, _temp_dir) =
+    let (upload_use_case, _download_use_case, delete_use_case, _temp_dir) =
         setup_test_environment(&pool).await;
 
     let tenant_id = uuid::Uuid::new_v4();
@@ -307,7 +307,7 @@ async fn sqlx_test_concurrent_operations(pool: PgPool) {
         let (metadata, _) = download_use_case
             .execute_by_id(&object_id)
             .await
-            .expect(&format!("Object {} should exist", object_id));
+            .unwrap_or_else(|_| panic!("Object {} should exist", object_id));
 
         // Verify the object exists and has the expected size/content_hash
         assert!(metadata.size_bytes > 0);

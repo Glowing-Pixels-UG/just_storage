@@ -132,7 +132,7 @@ mod tests {
 
         let processor = {
             let counter = Arc::clone(&counter);
-            move |item: i32| {
+            move |_item: i32| {
                 let counter = Arc::clone(&counter);
                 async move {
                     counter.fetch_add(1, Ordering::SeqCst);
@@ -181,7 +181,7 @@ mod tests {
     async fn test_process_concurrent_empty_batch() {
         let items: Vec<i32> = vec![];
 
-        let processor = |item: i32| async move {
+        let processor = |_item: i32| async move {
             false // never called
         };
 

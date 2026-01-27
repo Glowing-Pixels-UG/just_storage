@@ -221,11 +221,11 @@ proptest! {
     /// Test object status transitions
     #[test]
     fn object_status_transitions(
-        initial_status in object_status_strategy(),
-        hash in content_hash_strategy(),
-        size in 1..1000000u64,
+        _initial_status in object_status_strategy(),
+        _hash in content_hash_strategy(),
+        _size in 1..1000000u64,
     ) {
-        let mut object = Object::new(
+        let _object = Object::new(
             Namespace::new("test".to_string()).unwrap(),
             TenantId::new(Uuid::new_v4()),
             Some("test_key".to_string()),
@@ -296,6 +296,7 @@ proptest! {
 mod config {
     use proptest::test_runner::Config;
 
+    #[allow(dead_code)]
     fn proptest_config() -> Config {
         Config {
             cases: 1000, // Run 1000 test cases per property

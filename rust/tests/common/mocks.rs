@@ -26,7 +26,7 @@ impl InMemoryObjectRepository {
     pub fn with_objects(objects: Vec<Object>) -> Self {
         let mut map = HashMap::new();
         for obj in objects {
-            map.insert(obj.id().clone(), obj);
+            map.insert(*obj.id(), obj);
         }
         Self {
             objects: Mutex::new(map),
@@ -38,7 +38,7 @@ impl InMemoryObjectRepository {
 impl ObjectRepository for InMemoryObjectRepository {
     async fn save(&self, object: &Object) -> Result<(), RepositoryError> {
         let mut objects = self.objects.lock().unwrap();
-        objects.insert(object.id().clone(), object.clone());
+        objects.insert(*object.id(), object.clone());
         Ok(())
     }
 
@@ -78,7 +78,7 @@ impl ObjectRepository for InMemoryObjectRepository {
             .cloned()
             .collect();
 
-        filtered.sort_by(|a, b| a.created_at().cmp(&b.created_at()));
+        filtered.sort_by_key(|a| a.created_at());
         let start = offset as usize;
         let end = (offset + limit) as usize;
         Ok(filtered.into_iter().skip(start).take(end - start).collect())

@@ -24,7 +24,7 @@ async fn test_namespace_validation_with_testcontainers() {
         Arc::clone(&common_env.blob_store),
     ));
 
-    let download_use_case = Arc::new(DownloadObjectUseCase::new(
+    let _download_use_case = Arc::new(DownloadObjectUseCase::new(
         Arc::clone(&common_env.object_repo),
         Arc::clone(&common_env.blob_store),
     ));

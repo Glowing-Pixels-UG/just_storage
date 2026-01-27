@@ -14,7 +14,7 @@ pub enum ObjectKind {
 }
 
 /// Model-specific metadata
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ModelMetadata {
     pub model_name: String,
     pub version: String,
@@ -40,7 +40,7 @@ pub enum ModelFormat {
 }
 
 /// Knowledge base document metadata
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct KbDocMetadata {
     pub title: String,
     pub source: String, // confluence, pdf, email, zendesk
@@ -57,7 +57,7 @@ pub struct KbDocMetadata {
 }
 
 /// Extended metadata container with domain-specific fields
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ObjectMetadata {
     /// Object kind/category
     pub kind: ObjectKind,
@@ -88,7 +88,7 @@ pub struct ObjectMetadata {
 }
 
 /// Origin/provenance information
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct OriginInfo {
     pub source_system: Option<String>,
     pub s3_bucket: Option<String>,
