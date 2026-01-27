@@ -474,7 +474,7 @@ mod tests {
             create_test_blob, MockBlobRepository, MockBlobStore,
         };
 
-        let blob = create_test_blob("d", 0); // ref_count = 0 (orphaned)
+        let blob = create_test_blob(&"d".repeat(64), 0); // ref_count = 0 (orphaned)
 
         let repo = Arc::new(MockBlobRepository::new(vec![blob]));
         let store = Arc::new(MockBlobStore::new());
