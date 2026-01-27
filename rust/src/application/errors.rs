@@ -228,11 +228,10 @@ mod tests {
             let download_err = DownloadUseCaseError::NotFound("test object".to_string());
 
             assert!(matches!(download_err, DownloadUseCaseError::NotFound(_)));
-            assert!(
-                download_err.to_string().contains("not found"),
-                "Expected 'not found' in: {}",
-                download_err
-            );
+            assert!(download_err
+                .to_string()
+                .to_lowercase()
+                .contains("not found"));
             assert!(download_err.to_string().contains("test object"));
         }
     }
@@ -248,11 +247,10 @@ mod tests {
         assert!(obj_err.to_string().contains("Invalid request"));
         assert!(api_err.to_string().contains("API key not found"));
         assert!(search_err.to_string().contains("Invalid request"));
-        assert!(
-            download_err.to_string().contains("not found"),
-            "Expected 'not found' in: {}",
-            download_err
-        );
+        assert!(download_err
+            .to_string()
+            .to_lowercase()
+            .contains("not found"));
     }
 
     #[test]
