@@ -14,5 +14,5 @@ Please provide:
 We will acknowledge receipt within 72 hours and work with you on coordinated
 disclosure.
 
-For non-security questions, please use the project's Discussions forum or 
+For non-security questions, please use the project's Discussions forum or
 open a regular issue.

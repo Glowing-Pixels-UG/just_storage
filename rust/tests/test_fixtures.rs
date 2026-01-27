@@ -1,10 +1,11 @@
+#![allow(dead_code)]
+
 //! Shared test fixtures and utilities for all test types
 //!
 //! This module provides common test setup patterns to reduce duplication
 //! and make tests more maintainable.
 
 use sqlx::{Executor, PgPool};
-use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -133,7 +134,7 @@ pub fn setup_test_storage() -> (TempDir, TempDir) {
 pub mod factories {
     use super::*;
     use just_storage::domain::entities::Object;
-    use just_storage::domain::value_objects::{Namespace, ObjectId, ObjectStatus, TenantId};
+    use just_storage::domain::value_objects::{Namespace, TenantId};
 
     /// Create a test object with default values
     pub fn create_test_object() -> Object {
@@ -195,7 +196,7 @@ pub mod factories {
 /// HTTP testing utilities
 pub mod http {
     use axum::body::Body;
-    use axum::http::{Method, Request, Uri};
+    use axum::http::{Method, Request};
     use serde_json::Value;
 
     /// Create a JSON request body
@@ -290,11 +291,17 @@ pub mod mocks {
         pub fn with_objects(objects: Vec<Object>) -> Self {
             let mut map = HashMap::new();
             for obj in objects {
-                map.insert(obj.id().clone(), obj);
+                map.insert(*obj.id(), obj);
             }
             Self {
                 objects: Mutex::new(map),
             }
+        }
+    }
+
+    impl Default for InMemoryObjectRepository {
+        fn default() -> Self {
+            Self::new()
         }
     }
 
@@ -305,7 +312,7 @@ pub mod mocks {
             object: &Object,
         ) -> Result<(), just_storage::application::ports::RepositoryError> {
             let mut objects = self.objects.lock().unwrap();
-            objects.insert(object.id().clone(), object.clone());
+            objects.insert(*object.id(), object.clone());
             Ok(())
         }
 
@@ -348,7 +355,7 @@ pub mod mocks {
                 .cloned()
                 .collect();
 
-            filtered.sort_by(|a, b| a.created_at().cmp(&b.created_at()));
+            filtered.sort_by_key(|a| a.created_at());
             let start = offset as usize;
             let end = (offset + limit) as usize;
             Ok(filtered.into_iter().skip(start).take(end - start).collect())

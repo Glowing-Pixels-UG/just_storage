@@ -124,9 +124,6 @@ fn add_object_routes(router: Router, state: &AppState) -> Router {
             post(upload_handler)
                 .layer(axum_middleware::from_fn(
                     authorization::require_object_write,
-                )) // Validate content-type and JSON body before handlers (so malformed or wrong types return 4xx without requiring auth)
-                .layer(axum_middleware::from_fn(
-                    crate::api::middleware::content_type::validate_json_for_objects,
                 ))
                 .with_state(upload_state),
         )
@@ -223,6 +220,7 @@ fn add_api_key_routes(router: Router, state: &AppState) -> Router {
         )
 }
 
+/// Apply the complete middleware stack to the router
 fn apply_middleware_stack(
     router: Router,
     middleware_factory: &MiddlewareFactory,
@@ -232,15 +230,5 @@ fn apply_middleware_stack(
     router
         .layer(middleware_factory.create_metrics_layer())
         .layer(middleware_factory.create_auth_layer(api_key_repo))
-        // Add request sanitization early to reject malformed requests (use from_fn to avoid layer type mismatches)
-        .layer(axum_middleware::from_fn(
-            crate::api::middleware::security_headers::RequestSanitizationMiddleware::layer,
-        ))
-        // Add security headers to responses
-        .layer(axum_middleware::from_fn(|req, next| async move {
-            crate::api::middleware::security_headers::SecurityHeadersMiddleware::default()
-                .layer(req, next)
-                .await
-        }))
         .layer(middleware_factory.create_cors_layer())
 }

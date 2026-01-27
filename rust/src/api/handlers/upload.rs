@@ -4,14 +4,28 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
-
+use futures_util::StreamExt;
+use serde::Deserialize;
 use std::sync::Arc;
+use utoipa::ToSchema;
 
 use crate::api::errors::ApiError;
 use crate::application::dto::{ObjectDto, UploadRequest};
 use crate::application::use_cases::UploadObjectUseCase;
 use crate::domain::authorization::UserContext;
 use crate::domain::value_objects::StorageClass;
+
+#[derive(Deserialize, ToSchema)]
+pub struct UploadQuery {
+    /// Object namespace (e.g., 'models', 'kb', 'uploads')
+    namespace: String,
+    /// Tenant identifier
+    tenant_id: String,
+    /// Human-readable key for retrieval
+    key: Option<String>,
+    /// Storage class ('hot' or 'cold', default: 'hot')
+    storage_class: Option<String>,
+}
 
 /// POST /v1/objects
 /// Upload object with streaming body
@@ -36,102 +50,36 @@ use crate::domain::value_objects::StorageClass;
 pub async fn upload_handler(
     State(use_case): State<Arc<UploadObjectUseCase>>,
     axum::extract::Extension(user_context): axum::extract::Extension<UserContext>,
-    query_params: Query<std::collections::HashMap<String, String>>,
+    Query(query): Query<UploadQuery>,
     body: Body,
 ) -> Result<(StatusCode, Json<ObjectDto>), ApiError> {
-    // Buffer the body (for tests we accept JSON-based uploads as well as streaming uploads)
-    let bytes = axum::body::to_bytes(body, 10 * 1024 * 1024)
-        .await
-        .map_err(|_| ApiError::bad_request("Failed to read request body"))?;
-
-    // Try to parse JSON body that may contain metadata and data
-    let mut namespace = query_params.get("namespace").cloned().unwrap_or_default();
-    let mut tenant_id = query_params.get("tenant_id").cloned().unwrap_or_default();
-    let mut key = query_params.get("key").cloned();
-    let mut storage_class = None;
-
-    if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-        if let Some(ns) = json.get("namespace").and_then(|v| v.as_str()) {
-            namespace = ns.to_string();
-        }
-        if let Some(tid) = json.get("tenant_id").and_then(|v| v.as_str()) {
-            tenant_id = tid.to_string();
-        }
-        if let Some(k) = json.get("key").and_then(|v| v.as_str()) {
-            key = Some(k.to_string());
-        }
-        if let Some(sc) = json.get("storage_class").and_then(|v| v.as_str()) {
-            storage_class = Some(sc.parse::<StorageClass>().map_err(ApiError::bad_request)?);
-        }
-
-        // If the JSON contains a "data" field, use it as the body
-        if let Some(data) = json.get("data").and_then(|v| v.as_str()) {
-            // Use the provided data as the upload body
-            let reader = Box::pin(std::io::Cursor::new(data.as_bytes().to_vec()));
-
-            // If required metadata is missing, return bad request
-            if namespace.is_empty() || tenant_id.is_empty() {
-                return Err(ApiError::bad_request(
-                    "Missing required fields: namespace and tenant_id",
-                ));
-            }
-
-            // Validate tenant_id format first (should be a UUID)
-            if uuid::Uuid::parse_str(&tenant_id).is_err() {
-                return Err(ApiError::bad_request("Invalid tenant_id format"));
-            }
-
-            // Validate tenant ownership - users can only upload to their own tenant
-            if tenant_id != user_context.tenant_id {
-                return Err(ApiError::new(
-                    axum::http::StatusCode::FORBIDDEN,
-                    "Cannot upload objects to other tenants".to_string(),
-                ));
-            }
-
-            let request = UploadRequest {
-                namespace,
-                tenant_id,
-                key,
-                storage_class,
-            };
-
-            let object = use_case.execute(request, reader).await?;
-            return Ok((StatusCode::CREATED, Json(object)));
-        }
-    }
-
-    // Fallback: treat buffered bytes as raw body stream (was a streaming upload)
-    // If required metadata is missing, return bad request
-    if namespace.is_empty() || tenant_id.is_empty() {
-        return Err(ApiError::bad_request(
-            "Missing required fields: namespace and tenant_id",
-        ));
-    }
-
-    // Validate tenant_id format first (should be a UUID)
-    if uuid::Uuid::parse_str(&tenant_id).is_err() {
-        return Err(ApiError::bad_request("Invalid tenant_id format"));
-    }
-
     // Validate tenant ownership - users can only upload to their own tenant
-    if tenant_id != user_context.tenant_id {
+    if query.tenant_id != user_context.tenant_id {
         return Err(ApiError::new(
             axum::http::StatusCode::FORBIDDEN,
             "Cannot upload objects to other tenants".to_string(),
         ));
     }
 
-    // Use a Cursor over the buffered bytes to provide an AsyncRead implementation
-    let reader = Box::pin(std::io::Cursor::new(bytes.to_vec()));
+    // Parse storage class
+    let storage_class = match query.storage_class {
+        Some(s) => Some(s.parse::<StorageClass>().map_err(ApiError::bad_request)?),
+        None => None,
+    };
 
     // Create request DTO
     let request = UploadRequest {
-        namespace,
-        tenant_id,
-        key,
+        namespace: query.namespace,
+        tenant_id: query.tenant_id,
+        key: query.key,
         storage_class,
     };
+
+    // Convert body to async reader
+    let stream = body.into_data_stream();
+    let reader = Box::pin(tokio_util::io::StreamReader::new(
+        stream.map(|result| result.map_err(std::io::Error::other)),
+    ));
 
     // Execute use case
     let object = use_case.execute(request, reader).await?;

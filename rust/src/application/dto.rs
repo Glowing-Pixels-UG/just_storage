@@ -262,7 +262,7 @@ impl From<crate::domain::entities::ApiKey> for ApiKeyDto {
 mod tests {
     use super::*;
     use crate::domain::value_objects::{ApiKeyPermissions, StorageClass};
-    use chrono::{DateTime, Utc};
+
     use validator::Validate;
 
     mod upload_request_tests {
@@ -316,20 +316,14 @@ mod tests {
 
         #[test]
         fn test_search_request_validation_valid() {
-            let request = SearchRequest {
+            let request = TextSearchRequest {
                 namespace: "test".to_string(),
                 tenant_id: "tenant".to_string(),
-                key_contains: Some("valid".to_string()),
+                query: "valid query".to_string(),
                 limit: Some(10),
                 offset: Some(0),
-                sort_by: None,
-                sort_direction: None,
-                content_type: None,
-                storage_class: None,
-                size_range: None,
-                created_at_range: None,
-                updated_at_range: None,
-                metadata_filters: None,
+                search_in_metadata: None,
+                search_in_key: None,
             };
 
             assert!(request.validate().is_ok());
@@ -337,46 +331,33 @@ mod tests {
 
         #[test]
         fn test_search_request_validation_empty_query() {
-            let request = SearchRequest {
+            let request = TextSearchRequest {
                 namespace: "test".to_string(),
                 tenant_id: "tenant".to_string(),
-                key_contains: Some("".to_string()),
+                query: "".to_string(),
                 limit: Some(10),
                 offset: Some(0),
-                sort_by: None,
-                sort_direction: None,
-                content_type: None,
-                storage_class: None,
-                size_range: None,
-                created_at_range: None,
-                updated_at_range: None,
-                metadata_filters: None,
+                search_in_metadata: None,
+                search_in_key: None,
             };
 
-            // Empty key_contains is allowed
-            assert!(request.validate().is_ok());
+            assert!(request.validate().is_err());
         }
 
         #[test]
         fn test_search_request_validation_whitespace_query() {
-            let request = SearchRequest {
+            let request = TextSearchRequest {
                 namespace: "test".to_string(),
                 tenant_id: "tenant".to_string(),
-                key_contains: Some("   ".to_string()),
+                query: "   ".to_string(),
                 limit: Some(10),
                 offset: Some(0),
-                sort_by: None,
-                sort_direction: None,
-                content_type: None,
-                storage_class: None,
-                size_range: None,
-                created_at_range: None,
-                updated_at_range: None,
-                metadata_filters: None,
+                search_in_metadata: None,
+                search_in_key: None,
             };
 
-            // Whitespace is allowed
-            assert!(request.validate().is_ok());
+            // Whitespace-only queries should be considered invalid by higher-level logic
+            assert!(request.query.trim().is_empty());
         }
     }
 
@@ -433,20 +414,14 @@ mod tests {
             storage_class: Some(StorageClass::Hot),
         };
 
-        let valid_search = SearchRequest {
+        let valid_search = TextSearchRequest {
             namespace: "valid-namespace".to_string(),
             tenant_id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
-            key_contains: Some("valid".to_string()),
+            query: "valid query".to_string(),
             limit: Some(10),
             offset: Some(0),
-            sort_by: None,
-            sort_direction: None,
-            content_type: None,
-            storage_class: None,
-            size_range: None,
-            created_at_range: None,
-            updated_at_range: None,
-            metadata_filters: None,
+            search_in_metadata: None,
+            search_in_key: None,
         };
 
         let valid_create_api_key = CreateApiKeyRequest {

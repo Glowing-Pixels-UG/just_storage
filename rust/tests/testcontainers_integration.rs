@@ -3,6 +3,8 @@
 //! This module provides comprehensive integration testing with real PostgreSQL
 //! containers, automatic schema setup, and proper test isolation.
 
+#![allow(dead_code)]
+
 use sqlx::{Executor, PgPool};
 use std::sync::Arc;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
@@ -105,6 +107,7 @@ impl TestEnvironment {
     }
 
     /// Setup database schema for testing
+    #[allow(dead_code)]
     async fn setup_schema(pool: &PgPool) {
         let schema = include_str!("../../schema.sql");
         let statements: Vec<&str> = schema
@@ -269,7 +272,7 @@ mod tests {
                 .upload_use_case
                 .execute(request, reader)
                 .await
-                .expect(&format!("Upload failed for {}", filename));
+                .unwrap_or_else(|_| panic!("Upload failed for {}", filename));
 
             let object_id = object.id.parse().expect("Invalid object ID");
             object_ids.push(object_id);
@@ -281,7 +284,7 @@ mod tests {
                 .download_use_case
                 .execute_by_id(object_id)
                 .await
-                .expect(&format!("Download failed for object {}", object_id));
+                .unwrap_or_else(|_| panic!("Download failed for object {}", object_id));
 
             // Verify the object exists and has the expected size/content_hash
             assert!(metadata.size_bytes > 0);

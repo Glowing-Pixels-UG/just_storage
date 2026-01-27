@@ -10,33 +10,29 @@ This directory contains a Docker Compose configuration for running JustStorage l
    - At least 5GB free disk space
 
 2. **Start the services:**
-
    ```bash
-   cd deployments/docker compose
-   docker compose up -d
+   cd deployments/docker-compose
+   docker-compose up -d
    ```
 
 3. **Check the status:**
-
    ```bash
-   docker compose ps
+   docker-compose ps
    ```
 
 4. **View logs:**
-
    ```bash
-   docker compose logs -f just-storage
+   docker-compose logs -f just-storage
    ```
 
 5. **Access the application:**
-   - JustStorage API: <http://localhost:8080>
-   - Health check: <http://localhost:8080/health>
-   - pgAdmin (optional): <http://localhost:8081>
+   - JustStorage API: http://localhost:8080
+   - Health check: http://localhost:8080/health
+   - pgAdmin (optional): http://localhost:8081
 
 ## Services
 
 ### just-storage
-
 - **Port:** 8080
 - **Health Check:** `/health`
 - **Persistent Volumes:**
@@ -44,7 +40,6 @@ This directory contains a Docker Compose configuration for running JustStorage l
   - `cold_storage`: Infrequently accessed data
 
 ### db (PostgreSQL)
-
 - **Port:** 5432
 - **Database:** just_storage
 - **User:** postgres
@@ -52,9 +47,8 @@ This directory contains a Docker Compose configuration for running JustStorage l
 - **Persistent Volume:** `postgres_data`
 
 ### pgadmin (Optional)
-
 - **Port:** 8081
-- **Email:** <admin@juststorage.com>
+- **Email:** admin@juststorage.com
 - **Password:** password
 - **Purpose:** Database administration interface
 
@@ -62,14 +56,13 @@ This directory contains a Docker Compose configuration for running JustStorage l
 
 ### Environment Variables
 
-Copy `docker compose.env` to `.env` and modify as needed:
+Copy `docker-compose.env` to `.env` and modify as needed:
 
 ```bash
-cp docker compose.env .env
+cp docker-compose.env .env
 ```
 
 Key configuration options:
-
 - `JWT_SECRET`: Change for production use
 - `API_KEYS`: Configure API keys for authentication
 - `DISABLE_AUTH`: Set to `false` for production
@@ -80,7 +73,7 @@ Key configuration options:
 To run multiple instances of JustStorage:
 
 ```bash
-docker compose up -d --scale just-storage=3
+docker-compose up -d --scale just-storage=3
 ```
 
 Note: Load balancing is not included in this setup. Use a reverse proxy like nginx or traefik for production scaling.
@@ -89,8 +82,8 @@ Note: Load balancing is not included in this setup. Use a reverse proxy like ngi
 
 ### Using pgAdmin
 
-1. Open <http://localhost:8081>
-2. Login with <admin@juststorage.com> / password
+1. Open http://localhost:8081
+2. Login with admin@juststorage.com / password
 3. Add server:
    - Host: db
    - Port: 5432
@@ -101,7 +94,7 @@ Note: Load balancing is not included in this setup. Use a reverse proxy like ngi
 ### Direct PostgreSQL Access
 
 ```bash
-docker compose exec db psql -U postgres -d just_storage
+docker-compose exec db psql -U postgres -d just_storage
 ```
 
 ## Development Workflow
@@ -112,7 +105,7 @@ To build with local changes:
 
 ```bash
 # From the project root
-docker compose -f deployments/docker compose/docker compose.yml build
+docker-compose -f deployments/docker-compose/docker-compose.yml build
 ```
 
 ### Database Migrations
@@ -123,13 +116,13 @@ The application automatically runs database migrations on startup.
 
 ```bash
 # All services
-docker compose logs -f
+docker-compose logs -f
 
 # Specific service
-docker compose logs -f just-storage
+docker-compose logs -f just-storage
 
 # Database logs
-docker compose logs -f db
+docker-compose logs -f db
 ```
 
 ## Production Considerations
@@ -160,7 +153,7 @@ This Docker Compose setup is intended for development and testing. For productio
 ### Common Issues
 
 1. **Port conflicts:**
-   - Change ports in docker compose.yml if 8080/5432/8081 are in use
+   - Change ports in docker-compose.yml if 8080/5432/8081 are in use
 
 2. **Permission issues:**
    - Ensure Docker has access to project files
@@ -179,8 +172,8 @@ This Docker Compose setup is intended for development and testing. For productio
 To completely reset the environment:
 
 ```bash
-docker compose down -v
-docker compose up -d
+docker-compose down -v
+docker-compose up -d
 ```
 
 This will remove all data and restart fresh.

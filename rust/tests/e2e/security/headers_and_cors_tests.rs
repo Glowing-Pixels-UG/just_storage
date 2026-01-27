@@ -1,5 +1,5 @@
 use axum::body::Body;
-use axum::http::{Method, Request, StatusCode};
+use axum::http::{Method, Request};
 use tower::ServiceExt;
 
 use crate::common::{environment as env, http};

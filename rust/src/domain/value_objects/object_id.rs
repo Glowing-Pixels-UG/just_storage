@@ -96,7 +96,8 @@ mod tests {
         for invalid in invalid_uuids {
             assert!(
                 invalid.parse::<ObjectId>().is_err(),
-                "Should fail to parse invalid UUID"
+                "Should fail to parse invalid UUID: {}",
+                invalid
             );
         }
     }
@@ -136,7 +137,7 @@ mod tests {
     #[test]
     fn test_object_id_clone() {
         let id1 = ObjectId::new();
-        let id2 = id1.clone();
+        let id2 = id1;
 
         assert_eq!(id1, id2);
     }

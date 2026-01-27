@@ -1,9 +1,10 @@
+#![allow(dead_code)]
+
 use std::sync::Arc;
 
 use just_storage::{
     application::{
         dto::UploadRequest,
-        ports::{BlobRepository, BlobStore, ObjectRepository},
         use_cases::{DeleteObjectUseCase, DownloadObjectUseCase, UploadObjectUseCase},
     },
     domain::value_objects::StorageClass,
@@ -11,7 +12,7 @@ use just_storage::{
 
 // Import shared test fixtures
 mod test_fixtures;
-use test_fixtures::{assertions, TestEnvironment};
+use test_fixtures::TestEnvironment;
 
 // Import enhanced test environments
 mod api_endpoint_tests;
@@ -100,7 +101,7 @@ mod api_tests {
     use axum::http::{Request, StatusCode};
     use just_storage::api::create_router;
     use just_storage::ApplicationBuilder;
-    use std::net::SocketAddr;
+
     use tower::ServiceExt;
 
     async fn setup_test_server() -> axum::Router {
