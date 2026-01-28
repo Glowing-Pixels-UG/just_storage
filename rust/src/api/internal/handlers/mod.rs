@@ -1,2 +1,2 @@
-pub mod health;
 pub mod actions;
+pub mod health;

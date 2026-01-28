@@ -1,7 +1,7 @@
 use askama::Template;
 use axum::{
-    response::{Html, IntoResponse, Response},
     http::StatusCode,
+    response::{Html, IntoResponse, Response},
 };
 
 #[derive(Template)]
@@ -22,11 +22,7 @@ impl IntoResponse for HealthTemplate {
             Ok(html) => Html(html).into_response(),
             Err(err) => {
                 tracing::error!("Template rendering error: {}", err);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Internal Server Error",
-                )
-                    .into_response()
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response()
             }
         }
     }
@@ -45,11 +41,7 @@ impl<T: std::fmt::Display> IntoResponse for BaseTemplate<T> {
             Ok(html) => Html(html).into_response(),
             Err(err) => {
                 tracing::error!("Template rendering error: {}", err);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Internal Server Error",
-                )
-                    .into_response()
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response()
             }
         }
     }

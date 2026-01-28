@@ -155,6 +155,10 @@ impl BlobStore for MockBlobStore {
         let blobs = self.blobs.lock().await;
         Ok(blobs.contains_key(content_hash.as_hex()))
     }
+
+    async fn get_total_size(&self, _storage_class: StorageClass) -> Result<u64, StorageError> {
+        Ok(0)
+    }
 }
 
 fn gc_worker_benchmarks(c: &mut Criterion) {

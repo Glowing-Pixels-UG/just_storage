@@ -6,7 +6,6 @@
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
-use super::audit_config::AuditConfig;
 use super::audit_loggers::DatabaseAuditLogger;
 use super::audit_middleware::AuditMiddleware;
 use super::config::MiddlewareConfig;

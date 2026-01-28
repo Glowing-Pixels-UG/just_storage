@@ -158,6 +158,10 @@ impl BlobStore for MockBlobStore {
     ) -> Result<bool, StorageError> {
         unimplemented!("Not needed for GC collector tests")
     }
+
+    async fn get_total_size(&self, _storage_class: StorageClass) -> Result<u64, StorageError> {
+        Ok(0)
+    }
 }
 
 /// Mock object repository for testing
@@ -255,8 +259,17 @@ impl ObjectRepository for MockObjectRepository {
 
 /// Helper function to create a test blob
 pub fn create_test_blob(content_hash_str: &str, ref_count: i32) -> Blob {
-    let content_hash = ContentHash::from_hex(content_hash_str.to_string()).unwrap();
-    // Use reconstruct to set ref_count explicitly for tests
+    let hash = if content_hash_str.len() == 64 {
+        content_hash_str.to_string()
+    } else {
+        content_hash_str
+            .repeat(64 / content_hash_str.len().max(1))
+            .chars()
+            .take(64)
+            .collect()
+    };
+    let content_hash = ContentHash::from_hex(hash).unwrap();
+    // Use reconstruct to set custom ref_count instead of new() which always sets ref_count=1
     Blob::reconstruct(
         content_hash,
         StorageClass::Hot,

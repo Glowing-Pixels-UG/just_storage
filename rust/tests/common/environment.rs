@@ -20,9 +20,7 @@ use just_storage::application::use_cases::{
 
 // Inline minimal DB & storage helpers to avoid fragile module resolution during phased migration
 async fn start_postgres_with_schema() -> (PgPool, testcontainers::ContainerAsync<Postgres>) {
-    let init_sql = include_str!("../../../schema.sql");
     let container = Postgres::default()
-        .with_init_sql(init_sql.as_bytes().to_vec())
         .start()
         .await
         .expect("Failed to start PostgreSQL container");
@@ -40,6 +38,12 @@ async fn start_postgres_with_schema() -> (PgPool, testcontainers::ContainerAsync
     let pool = PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to test database");
+
+    // Run migrations
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run migrations");
 
     // Clean up any existing test data
     sqlx::query("DELETE FROM audit_logs")

@@ -24,7 +24,7 @@ regex = "1.11"
 tower = { version = "0.5.2", features = ["util"] }
 
 # Security & Rate Limiting
-tower-http = { version = "0.5", features = ["cors", "limit", "sensitive-headers", "compression-gzip", "fs"] }
+tower-http = { version = "0.5", features = ["cors", "limit", "sensitive-headers", "compression-gzip", "fs", "set-header"] }
 
 # Database
 sqlx = { version = "0.8", features = [

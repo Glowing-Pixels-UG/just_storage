@@ -319,9 +319,9 @@ mod tests {
             let request = TextSearchRequest {
                 namespace: "test".to_string(),
                 tenant_id: "tenant".to_string(),
-                query: "valid query".to_string(),
                 limit: Some(10),
                 offset: Some(0),
+                query: "valid".to_string(),
                 search_in_metadata: None,
                 search_in_key: None,
             };
@@ -334,13 +334,14 @@ mod tests {
             let request = TextSearchRequest {
                 namespace: "test".to_string(),
                 tenant_id: "tenant".to_string(),
-                query: "".to_string(),
                 limit: Some(10),
                 offset: Some(0),
+                query: "".to_string(),
                 search_in_metadata: None,
                 search_in_key: None,
             };
 
+            // Empty query should be considered invalid by validation
             assert!(request.validate().is_err());
         }
 
@@ -349,9 +350,9 @@ mod tests {
             let request = TextSearchRequest {
                 namespace: "test".to_string(),
                 tenant_id: "tenant".to_string(),
-                query: "   ".to_string(),
                 limit: Some(10),
                 offset: Some(0),
+                query: "   ".to_string(),
                 search_in_metadata: None,
                 search_in_key: None,
             };
@@ -417,7 +418,7 @@ mod tests {
         let valid_search = TextSearchRequest {
             namespace: "valid-namespace".to_string(),
             tenant_id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
-            query: "valid query".to_string(),
+            query: "valid".to_string(),
             limit: Some(10),
             offset: Some(0),
             search_in_metadata: None,

@@ -5,9 +5,10 @@
 //! This module provides common test setup patterns to reduce duplication
 //! and make tests more maintainable.
 
-use sqlx::{Executor, PgPool};
+use sqlx::PgPool;
 use std::sync::Arc;
 use tempfile::TempDir;
+use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
 use uuid::Uuid;
 
 use just_storage::application::ports::{
@@ -25,6 +26,7 @@ use just_storage::infrastructure::{
 /// Test environment container with all necessary components
 pub struct TestEnvironment {
     pub pool: PgPool,
+    pub database_url: String,
     pub object_repo: Arc<dyn ObjectRepository>,
     pub blob_repo: Arc<dyn BlobRepository>,
     pub blob_store: Arc<dyn BlobStore>,
@@ -32,12 +34,13 @@ pub struct TestEnvironment {
     pub cold_dir: TempDir,
     pub api_key_repo: Option<Arc<dyn ApiKeyRepository>>,
     pub audit_repo: Option<Arc<dyn AuditRepository>>,
+    _container: testcontainers::ContainerAsync<Postgres>,
 }
 
 impl TestEnvironment {
     /// Create a complete test environment with database and storage
     pub async fn new() -> Self {
-        let pool = setup_test_database().await;
+        let (pool, database_url, container) = setup_test_database().await;
         let (hot_dir, cold_dir) = setup_test_storage();
 
         let object_repo: Arc<dyn ObjectRepository> =
@@ -52,6 +55,7 @@ impl TestEnvironment {
 
         Self {
             pool,
+            database_url,
             object_repo,
             blob_repo,
             blob_store,
@@ -59,6 +63,7 @@ impl TestEnvironment {
             cold_dir,
             api_key_repo: None,
             audit_repo: None,
+            _container: container,
         }
     }
 
@@ -75,41 +80,40 @@ impl TestEnvironment {
     }
 }
 
-/// Database setup utilities
-pub async fn setup_test_database() -> PgPool {
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5432/test".to_string());
+/// Database setup utilities using testcontainers
+pub async fn setup_test_database() -> (PgPool, String, testcontainers::ContainerAsync<Postgres>) {
+    // Start PostgreSQL container
+    let container = Postgres::default()
+        .start()
+        .await
+        .expect("Failed to start PostgreSQL container");
 
+    let host = container
+        .get_host()
+        .await
+        .expect("Failed to get container host");
+    let port = container
+        .get_host_port_ipv4(5432)
+        .await
+        .expect("Failed to get container port");
+
+    let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
+
+    // Create connection pool
     let pool = PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to test database");
 
-    // Run migrations/schema setup
-    setup_schema(&pool).await;
+    // Run migrations instead of using schema.sql to avoid conflicts with ApplicationBuilder
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run migrations");
+
+    // Clean up any existing test data
     cleanup_test_data(&pool).await;
 
-    pool
-}
-
-/// Setup database schema from SQL file
-async fn setup_schema(pool: &PgPool) {
-    let schema = include_str!("../../schema.sql");
-    let statements: Vec<&str> = schema
-        .split(';')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty() && !s.starts_with("--"))
-        .collect();
-
-    for statement in statements {
-        if !statement.trim().is_empty() {
-            pool.execute(statement).await.unwrap_or_else(|e| {
-                panic!(
-                    "Failed to execute schema statement: {}\nStatement: {}",
-                    e, statement
-                )
-            });
-        }
-    }
+    (pool, database_url, container)
 }
 
 /// Clean up test data between tests

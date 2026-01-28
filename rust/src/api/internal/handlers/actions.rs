@@ -1,16 +1,10 @@
-use axum::{
-    extract::State,
-    response::IntoResponse,
-    http::StatusCode,
-};
+use crate::api::middleware::audit::{AuditEventType, AuditLogEntry};
 use crate::api::router::AppState;
-use crate::api::middleware::audit::{AuditLogEntry, AuditEventType};
+use axum::{extract::State, http::StatusCode, response::IntoResponse};
 use chrono::Utc;
 use serde_json::json;
 
-pub async fn clear_cache(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn clear_cache(State(state): State<AppState>) -> impl IntoResponse {
     // 1. Perform action (In this case, we don't have a global cache to clear yet, but we'll simulate it)
     tracing::info!("Internal action: Clear cache triggered");
 
@@ -39,15 +33,16 @@ pub async fn clear_cache(
     StatusCode::OK
 }
 
-pub async fn reindex(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn reindex(State(state): State<AppState>) -> impl IntoResponse {
     // 1. Perform action (Trigger GC as a surrogate for reindex for now)
     tracing::info!("Internal action: Reindex/GC triggered");
-    
+
     let result_msg = if let Some(gc) = &state.gc {
         match gc.collect_once().await {
-            Ok(result) => format!("GC run successful: {} objects deleted", result.total_deleted),
+            Ok(result) => format!(
+                "GC run successful: {} objects deleted",
+                result.total_deleted
+            ),
             Err(e) => format!("GC run failed: {}", e),
         }
     } else {
@@ -68,7 +63,11 @@ pub async fn reindex(
         query: None,
         status_code: Some(StatusCode::OK.as_u16()),
         response_time_ms: Some(0),
-        error_message: if result_msg.contains("failed") { Some(result_msg.clone()) } else { None },
+        error_message: if result_msg.contains("failed") {
+            Some(result_msg.clone())
+        } else {
+            None
+        },
         additional_data: Some(json!({ "action": "reindex", "result": result_msg })),
     };
 
