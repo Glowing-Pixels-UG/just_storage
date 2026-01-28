@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, master ]
 
+defaults:
+  run:
+    working-directory: rust
+
 jobs:
   test:
     name: Test
@@ -33,10 +37,10 @@ jobs:
           ${{ runner.os }}-cargo-
 
     - name: Check formatting
-      run: cd rust && cargo fmt -- --check
+      run: cargo fmt -- --check
 
     - name: Run clippy
-      run: cd rust && cargo clippy -- -D warnings
+      run: cargo clippy -- -D warnings
 
     - name: Run tests
-      run: cd rust && cargo test --workspace
+      run: cargo test --workspace

@@ -8,6 +8,10 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+defaults:
+  run:
+    working-directory: rust
+
 jobs:
   # Create release artifacts
   release:

@@ -14,9 +14,15 @@ use crate::api::handlers::{
     delete_handler, download_by_key_handler, download_handler, health_handler, list_handler,
     readiness_handler, search, text_search, upload_handler,
 };
-use crate::api::middleware::{authorization, config::MiddlewareConfig, factory::MiddlewareFactory};
+use crate::api::internal::create_internal_router;
+use crate::api::middleware::{
+    authorization, config::MiddlewareConfig, content_type, factory::MiddlewareFactory,
+    security_headers, size_limits,
+};
 use crate::api::openapi::ApiDoc;
-use crate::application::ports::{ApiKeyRepository, AuditRepository};
+use crate::application::gc::GarbageCollector;
+use crate::application::gc::GarbageCollector;
+use crate::application::ports::{ApiKeyRepository, AuditRepository, BlobStore};
 use crate::application::use_cases::{
     CreateApiKeyUseCase, DeleteApiKeyUseCase, DeleteObjectUseCase, DownloadObjectUseCase,
     GetApiKeyUseCase, ListApiKeysUseCase, ListObjectsUseCase, SearchObjectsUseCase,
@@ -28,6 +34,7 @@ use utoipa::OpenApi;
 use crate::config::Config;
 
 /// Application state container
+#[derive(Clone)]
 pub struct AppState {
     pub pool: Arc<PgPool>,
     pub upload_use_case: Arc<UploadObjectUseCase>,
@@ -41,6 +48,9 @@ pub struct AppState {
     pub get_api_key_use_case: Arc<GetApiKeyUseCase>,
     pub update_api_key_use_case: Arc<UpdateApiKeyUseCase>,
     pub delete_api_key_use_case: Arc<DeleteApiKeyUseCase>,
+    pub audit_repo: Arc<dyn AuditRepository>,
+    pub blob_store: Arc<dyn BlobStore>,
+    pub gc: Option<Arc<GarbageCollector>>,
     pub config: Config,
 }
 
@@ -67,27 +77,35 @@ pub fn create_router_with_middleware(
     middleware_config: MiddlewareConfig,
 ) -> Router {
     let middleware_factory = MiddlewareFactory::new(middleware_config);
-    let mut router = Router::new();
 
-    // Add health check routes (no auth required)
-    router = add_health_routes(router, &state);
+    // 1. Public routes (no auth, no main middleware)
+    let mut public_router = Router::new();
+    public_router = add_health_routes(public_router, &state);
+    public_router = add_openapi_routes(public_router);
 
-    // Add OpenAPI documentation (no auth required)
-    router = add_openapi_routes(router);
+    // 2. API routes (require main middleware stack including auth)
+    let mut api_router = Router::new();
+    api_router = add_object_routes(api_router, &state);
+    api_router = add_api_key_routes(api_router, &state);
 
-    // Add object management routes (with auth)
-    router = add_object_routes(router, &state);
-
-    // Add API key management routes (with auth)
-    router = add_api_key_routes(router, &state);
-
-    // Apply comprehensive middleware stack
-    router = apply_middleware_stack(
-        router,
+    // Apply middleware stack only to API routes
+    api_router = apply_middleware_stack(
+        api_router,
         &middleware_factory,
         Arc::clone(&api_key_repo),
         audit_repo,
     );
+
+    // 3. Internal routes (have their own middleware and auth)
+    let internal_router = create_internal_router(state.clone());
+
+    // Merge everything
+    let mut router = public_router.merge(api_router);
+
+    // Only nest internal routes if admin_port is not set (served on the same port)
+    if state.config.admin_port.is_none() {
+        router = router.nest("/internal", internal_router);
+    }
 
     router
 }
@@ -225,10 +243,31 @@ fn apply_middleware_stack(
     router: Router,
     middleware_factory: &MiddlewareFactory,
     api_key_repo: Arc<dyn crate::application::ports::ApiKeyRepository + Send + Sync>,
-    _audit_repo: Arc<dyn crate::application::ports::AuditRepository + Send + Sync>,
+    audit_repo: Arc<dyn crate::application::ports::AuditRepository + Send + Sync>,
 ) -> Router {
+    // Apply middleware in order (innermost/last = runs first):
+    // 1. Security headers (outermost - adds headers to response)
+    // 2. Metrics
+    // 3. Audit (runs after auth to have user context)
+    // 4. Auth (runs after validation to allow proper error codes)
+    // 5. Content-type validation (runs before auth)
+    // 6. Size limits (runs before auth)
+    // 7. CORS (innermost - runs first)
+    let audit_layer = middleware_factory.create_audit_layer(audit_repo);
+
     router
+        .layer(security_headers::create_security_headers_middleware())
         .layer(middleware_factory.create_metrics_layer())
+        .layer(axum::middleware::from_fn(move |req, next| {
+            let audit_layer = audit_layer.clone();
+            async move { audit_layer.layer(req, next).await }
+        }))
         .layer(middleware_factory.create_auth_layer(api_key_repo))
+        .layer(axum::middleware::from_fn(
+            content_type::validate_json_for_objects,
+        ))
+        .layer(axum::middleware::from_fn(
+            size_limits::RequestSizeLimitMiddleware::layer,
+        ))
         .layer(middleware_factory.create_cors_layer())
 }

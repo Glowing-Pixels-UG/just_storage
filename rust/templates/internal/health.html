@@ -1,0 +1,49 @@
+{% extends "internal/base.html" %}
+
+{% block title %}Health Summary{% endblock %}
+
+{% block content %}
+<div id="health-status" hx-get="/internal/health" hx-trigger="every 30s" hx-select="#health-status" hx-swap="outerHTML">
+<div class="grid">
+    <div class="card">
+        <div class="label">Service Info</div>
+        <div class="stat">{{ service_name }}</div>
+        <div>Version: {{ version }}</div>
+    </div>
+
+    <div class="card">
+        <div class="label">Database Status</div>
+        <div class="stat">
+            {% if db_status == "Connected" %}
+                <span class="badge badge-success">{{ db_status }}</span>
+            {% else %}
+                <span class="badge badge-danger">{{ db_status }}</span>
+            {% endif %}
+        </div>
+        <div>Latency: {{ db_latency }}</div>
+    </div>
+
+    <div class="card">
+        <div class="label">Storage Summary</div>
+        <div>Hot Usage: {{ hot_storage_usage }}</div>
+        <div>Cold Usage: {{ cold_storage_usage }}</div>
+        <div class="stat">{{ total_objects }} objects</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="label">Actions</div>
+    <div style="margin-top: 1rem;">
+        <button hx-post="/internal/actions/cache/clear" hx-swap="none">
+            Clear Cache
+            <span class="htmx-indicator">...</span>
+        </button>
+
+        <button hx-post="/internal/actions/reindex" hx-swap="none" style="margin-left: 1rem;">
+            Trigger Reindex
+            <span class="htmx-indicator">...</span>
+        </button>
+    </div>
+</div>
+</div>
+{% endblock %}
