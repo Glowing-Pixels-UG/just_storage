@@ -1,16 +1,16 @@
 use axum::{
+    http::header::{HeaderValue, CACHE_CONTROL, CONTENT_SECURITY_POLICY, X_FRAME_OPTIONS},
+    middleware as axum_middleware,
     routing::{get, post},
     Router,
-    middleware as axum_middleware,
-    http::header::{HeaderValue, CACHE_CONTROL, CONTENT_SECURITY_POLICY, X_FRAME_OPTIONS},
 };
-use tower_http::{services::ServeDir, set_header::SetResponseHeaderLayer};
 use tower::ServiceBuilder;
+use tower_http::{services::ServeDir, set_header::SetResponseHeaderLayer};
 
-use crate::api::router::AppState;
 use crate::api::internal::auth::internal_admin_auth;
-use crate::api::internal::handlers::health::health_page;
 use crate::api::internal::handlers::actions::{clear_cache, reindex};
+use crate::api::internal::handlers::health::health_page;
+use crate::api::router::AppState;
 
 pub mod auth;
 pub mod handlers;

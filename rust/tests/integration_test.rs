@@ -126,12 +126,8 @@ mod api_tests {
         let gc = builder.build_gc().unwrap();
         tokio::spawn(Arc::clone(&gc).run());
 
-        let (state, api_key_repo, audit_repo) = builder
-            .with_api_keys()
-            .await
-            .unwrap()
-            .build()
-            .unwrap();
+        let (state, api_key_repo, audit_repo) =
+            builder.with_api_keys().await.unwrap().build().unwrap();
 
         // Create router
         create_router(state, api_key_repo, audit_repo)

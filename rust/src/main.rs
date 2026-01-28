@@ -3,8 +3,8 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{error, info, Level};
 
-use just_storage::{api::create_router, ApplicationBuilder, Config};
 use just_storage::api::internal::create_internal_router;
+use just_storage::{api::create_router, ApplicationBuilder, Config};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -84,13 +84,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(&listen_addr).await?;
     let main_shutdown_rx = shutdown_rx;
     shutdown_rx = main_shutdown_rx.resubscribe();
-    
+
     let main_server = async move {
         if let Err(e) = axum::serve(listener, app)
             .with_graceful_shutdown(async move {
                 let _ = main_shutdown_rx.resubscribe().recv().await;
             })
-            .await {
+            .await
+        {
             error!("Main server error: {}", e);
         }
     };
@@ -108,7 +109,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_graceful_shutdown(async move {
                     let _ = admin_shutdown_rx.resubscribe().recv().await;
                 })
-                .await {
+                .await
+            {
                 error!("Admin server error: {}", e);
             }
         };

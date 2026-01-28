@@ -313,7 +313,9 @@ impl BlobStore for LocalFilesystemStore {
 
     async fn get_total_size(&self, storage_class: StorageClass) -> Result<u64, StorageError> {
         let root = self.path_builder.root(storage_class);
-        calculate_dir_size(root.to_path_buf()).await.map_err(StorageError::Io)
+        calculate_dir_size(root.to_path_buf())
+            .await
+            .map_err(StorageError::Io)
     }
 }
 
