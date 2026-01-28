@@ -18,6 +18,10 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+defaults:
+  run:
+    working-directory: rust
+
 jobs:
   # Comprehensive security audit
   audit:

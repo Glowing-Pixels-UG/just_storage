@@ -6,6 +6,9 @@
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
+use super::audit_config::AuditConfig;
+use super::audit_loggers::DatabaseAuditLogger;
+use super::audit_middleware::AuditMiddleware;
 use super::config::MiddlewareConfig;
 use super::{auth, cors::create_cors_layer_for_environment, metrics};
 
@@ -43,6 +46,15 @@ impl MiddlewareFactory {
     /// Create metrics layer for the application
     pub fn create_metrics_layer(&self) -> metrics::MetricsLayer {
         metrics::MetricsLayer::new()
+    }
+
+    /// Create audit layer for the application
+    pub fn create_audit_layer(
+        &self,
+        audit_repo: Arc<dyn crate::application::ports::AuditRepository + Send + Sync>,
+    ) -> AuditMiddleware {
+        let logger = Arc::new(DatabaseAuditLogger::new(audit_repo));
+        AuditMiddleware::new(logger)
     }
 
     /// Get the middleware configuration
@@ -92,8 +104,11 @@ mod tests {
     fn test_default_factory() {
         let factory = MiddlewareFactory::default();
 
-        // Verify default configuration
-        assert!(factory.config().error_handling.include_debug_info); // Debug assertions enabled in tests
+        // Verify default configuration matches build profile
+        assert_eq!(
+            factory.config().error_handling.include_debug_info,
+            cfg!(debug_assertions)
+        );
     }
 
     #[test]

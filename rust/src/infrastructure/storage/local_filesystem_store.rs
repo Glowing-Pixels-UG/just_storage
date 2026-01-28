@@ -310,6 +310,28 @@ impl BlobStore for LocalFilesystemStore {
         let path = self.path_builder.final_path(storage_class, content_hash);
         Ok(fs::metadata(&path).await.is_ok())
     }
+
+    async fn get_total_size(&self, storage_class: StorageClass) -> Result<u64, StorageError> {
+        let root = self.path_builder.root(storage_class);
+        calculate_dir_size(root).await.map_err(StorageError::Io)
+    }
+}
+
+async fn calculate_dir_size(path: PathBuf) -> std::io::Result<u64> {
+    let mut total_size = 0;
+    let mut entries = fs::read_dir(path).await?;
+
+    while let Some(entry) = entries.next_entry().await? {
+        let metadata = entry.metadata().await?;
+        if metadata.is_dir() {
+            // Box::pin for recursion in async
+            total_size += Box::pin(calculate_dir_size(entry.path())).await?;
+        } else {
+            total_size += metadata.len();
+        }
+    }
+
+    Ok(total_size)
 }
 
 #[cfg(test)]

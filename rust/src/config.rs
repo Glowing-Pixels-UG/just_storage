@@ -19,6 +19,9 @@ pub struct Config {
     // Performance tuning options
     pub adaptive_buffering_enabled: bool,
     pub concurrent_cache_threshold: usize,
+    // Internal admin options
+    pub admin_token: Option<String>,
+    pub admin_port: Option<u16>,
 }
 
 impl Config {
@@ -94,6 +97,11 @@ impl Config {
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(1024 * 1024), // Switch to concurrent cache after large threshold for tests
+            // Internal admin options
+            admin_token: std::env::var("INTERNAL_ADMIN_TOKEN").ok(),
+            admin_port: std::env::var("ADMIN_PORT")
+                .ok()
+                .and_then(|s| s.parse().ok()),
         }
     }
 
