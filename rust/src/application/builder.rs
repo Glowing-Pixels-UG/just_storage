@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use sqlx::postgres::PgPoolOptions;
 use tracing::info;
@@ -44,6 +44,7 @@ pub struct ApplicationBuilder {
     api_key_repo: Option<Arc<dyn ApiKeyRepository>>,
     audit_repo: Option<Arc<dyn AuditRepository>>,
     gc: Option<Arc<GarbageCollector>>,
+    expected_migration_count: usize,
 }
 
 impl ApplicationBuilder {
@@ -57,12 +58,24 @@ impl ApplicationBuilder {
             api_key_repo: None,
             audit_repo: None,
             gc: None,
+            expected_migration_count: 0,
         }
     }
 
     /// Initialize database connection pool with retry logic
     pub async fn with_database(mut self) -> Result<Self, Box<dyn std::error::Error>> {
         info!("Connecting to database: {}", self.config.database_url);
+
+        use sqlx::postgres::PgConnectOptions;
+        use std::str::FromStr;
+
+        // Parse connection options and disable statement cache for PgBouncer compatibility
+        let mut connect_options = PgConnectOptions::from_str(&self.config.database_url)
+            .map_err(|e| format!("Invalid database URL: {}", e))?;
+        
+        // Disable statement cache for PgBouncer compatibility
+        connect_options = connect_options
+            .statement_cache_capacity(0);
 
         // Retry connection with exponential backoff
         let mut retries = 3;
@@ -74,7 +87,7 @@ impl ApplicationBuilder {
                 .acquire_timeout(Duration::from_secs(self.config.db_acquire_timeout_secs))
                 .idle_timeout(Some(Duration::from_secs(self.config.db_idle_timeout_secs)))
                 .max_lifetime(Some(Duration::from_secs(self.config.db_max_lifetime_secs)))
-                .connect(&self.config.database_url)
+                .connect_with(connect_options.clone())
                 .await
             {
                 Ok(pool) => break pool,
@@ -107,7 +120,9 @@ impl ApplicationBuilder {
 
         // Run database migrations
         info!("Running database migrations");
-        sqlx::migrate!("./migrations")
+        let migrator = sqlx::migrate!("./migrations");
+        self.expected_migration_count = migrator.migrations.len();
+        migrator
             .run(&pool)
             .await
             .map_err(|e| {
@@ -232,6 +247,8 @@ impl ApplicationBuilder {
             blob_store: Arc::clone(&blob_store),
             gc: self.gc,
             config: self.config.clone(),
+            expected_migration_count: self.expected_migration_count,
+            start_time: Instant::now(),
         };
 
         Ok((app_state, api_key_repo, audit_repo))
