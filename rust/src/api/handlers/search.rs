@@ -38,7 +38,8 @@ pub async fn search_handler(
     }
 
     // Validate tenant ownership - users can only search objects from their own tenant
-    if request.tenant_id != user_context.tenant_id {
+    // Admins can search objects from any tenant
+    if !user_context.is_admin() && request.tenant_id != user_context.tenant_id {
         return Err(ApiError::new(
             axum::http::StatusCode::FORBIDDEN,
             "Cannot search objects from other tenants".to_string(),

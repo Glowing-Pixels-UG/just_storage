@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    audit_config::AuditConfig, error_handling::ErrorHandlingConfig,
+    audit_config::AuditConfig, auth_config::AuthMiddlewareConfig, oidc_config::OidcConfig, error_handling::ErrorHandlingConfig,
     input_sanitization::InputSanitizationConfig, rate_limiting::RateLimitConfig,
     security_headers::SecurityHeadersConfig, size_limits::SizeLimitConfig,
 };
@@ -16,6 +16,10 @@ use super::{
 pub struct MiddlewareConfig {
     /// Audit logging configuration
     pub audit: AuditConfig,
+    /// Auth configuration
+    pub auth: AuthMiddlewareConfig,
+    /// OIDC configuration
+    pub oidc: OidcConfig,
     /// Input sanitization configuration
     pub input_sanitization: InputSanitizationConfig,
     /// Error handling configuration
@@ -74,6 +78,8 @@ impl MiddlewareConfig {
     pub fn production() -> Self {
         Self {
             audit: AuditConfig::production(),
+            auth: AuthMiddlewareConfig::new(true, true, None),
+            oidc: OidcConfig::new(true, None, None),
             input_sanitization: InputSanitizationConfig::default(),
             error_handling: ErrorHandlingConfig::new().with_debug_info(false),
             rate_limiting: RateLimitConfig::default(),
@@ -86,6 +92,8 @@ impl MiddlewareConfig {
     pub fn development() -> Self {
         Self {
             audit: AuditConfig::development(),
+            auth: AuthMiddlewareConfig::new(true, true, None),
+            oidc: OidcConfig::new(true, None, None),
             input_sanitization: InputSanitizationConfig::default(),
             error_handling: ErrorHandlingConfig::new().with_debug_info(true),
             rate_limiting: RateLimitConfig {

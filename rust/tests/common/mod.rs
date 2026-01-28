@@ -11,6 +11,7 @@ pub use builders::*;
 
 pub mod http;
 pub mod mocks;
+pub mod oidc;
 
 pub use environment::setup_test_api_server;
 pub use environment::TestEnvironment;

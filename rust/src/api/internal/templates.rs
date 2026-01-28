@@ -7,6 +7,7 @@ use axum::{
 #[derive(Template)]
 #[template(path = "internal/health.html")]
 pub struct HealthTemplate {
+    pub csrf_token: String,
     pub service_name: String,
     pub version: String,
     pub uptime: String,
@@ -43,6 +44,7 @@ impl IntoResponse for HealthTemplate {
 pub struct BaseTemplate<T: std::fmt::Display> {
     pub title: String,
     pub content: T,
+    pub csrf_token: String,
 }
 
 impl<T: std::fmt::Display> IntoResponse for BaseTemplate<T> {
@@ -62,6 +64,7 @@ impl<T: std::fmt::Display> IntoResponse for BaseTemplate<T> {
 pub struct LoginTemplate {
     pub title: String,
     pub error: Option<String>,
+    pub csrf_token: String,
 }
 
 impl IntoResponse for LoginTemplate {

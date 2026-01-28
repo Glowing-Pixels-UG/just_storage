@@ -147,7 +147,7 @@ impl TestEnvironmentBuilder {
 
         // Start a lightweight API server for testing if requested (separate container)
         if self.with_api_server {
-            let (router, container, temp_dir) = setup_test_api_server().await;
+            let (router, _internal_router, container, temp_dir) = setup_test_api_server().await;
             env.api_router = Some(router);
             env.api_container = Some(container);
             env.api_temp_dir = Some(temp_dir);
@@ -158,13 +158,14 @@ impl TestEnvironmentBuilder {
 }
 
 /// Helper to create an API server (Router) wired with application state for tests
-/// Returns (Router, container, temp_dir) where `temp_dir` must be kept alive by caller
+/// Returns (Router, internal_router, container, temp_dir) where `temp_dir` must be kept alive by caller
 pub async fn setup_test_api_server() -> (
+    axum::Router,
     axum::Router,
     testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>,
     tempfile::TempDir,
 ) {
-    use just_storage::{api::create_router, ApplicationBuilder, Config};
+    use just_storage::{api::{create_router, create_router_with_middleware, internal::create_internal_router, middleware::config::MiddlewareConfig}, ApplicationBuilder, Config};
 
     // Start PostgreSQL container (migrations will be run by ApplicationBuilder)
     let container = setup_test_database().await.1;
@@ -182,6 +183,7 @@ pub async fn setup_test_api_server() -> (
     // Create test config
     let mut config = Config::from_env();
     config.database_url = database_url;
+    config.admin_token = Some("test-key".to_string()); // Ensure tests can use test-key
 
     // Setup temporary storage
     let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
@@ -194,19 +196,79 @@ pub async fn setup_test_api_server() -> (
     let builder = ApplicationBuilder::new(config)
         .with_database()
         .await
-        .unwrap();
-
-    let (state, api_key_repo, audit_repo) = builder
+        .unwrap()
         .with_infrastructure()
         .await
         .unwrap()
         .with_api_keys()
         .await
         .unwrap()
-        .build()
+        .with_oidc()
+        .await
         .unwrap();
 
-    let app = create_router(state, api_key_repo, audit_repo);
+    let (state, api_key_repo, audit_repo) = builder.build().unwrap();
 
-    (app, container, temp_dir)
+    let app = create_router(state.clone(), api_key_repo, audit_repo).await;
+    let internal_app = create_internal_router(state).await;
+
+    (app, internal_app, container, temp_dir)
+}
+
+/// Helper to create an API server with OIDC configuration
+pub async fn setup_test_api_server_with_oidc(
+    oidc_issuer_url: String,
+) -> (
+    axum::Router,
+    axum::Router,
+    testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>,
+    tempfile::TempDir,
+) {
+    use just_storage::{api::{create_router, create_router_with_middleware, internal::create_internal_router, middleware::config::MiddlewareConfig}, ApplicationBuilder, Config};
+
+    // Start PostgreSQL container
+    let container = setup_test_database().await.1;
+
+    let host = container.get_host().await.expect("Failed to get container host");
+    let port = container.get_host_port_ipv4(5432).await.expect("Failed to get container port");
+    let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
+
+    // Create test config
+    let mut config = Config::from_env();
+    config.database_url = database_url;
+    config.admin_token = Some("test-key".to_string());
+    config.oidc_issuer_url = Some(oidc_issuer_url);
+    config.oidc_client_id = Some("test-client".to_string());
+    config.oidc_client_secret = Some("test-secret".to_string());
+    config.oidc_audience = Some("test-client".to_string());
+    config.oidc_redirect_url = Some("http://localhost/dashboard/auth/callback".to_string());
+
+    // Setup temporary storage
+    let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+    config.hot_storage_root = temp_dir.path().join("hot");
+    config.cold_storage_root = temp_dir.path().join("cold");
+    std::fs::create_dir_all(&config.hot_storage_root).expect("Failed to create hot storage");
+    std::fs::create_dir_all(&config.cold_storage_root).expect("Failed to create cold storage");
+
+    // Build application
+    let builder = ApplicationBuilder::new(config)
+        .with_database()
+        .await
+        .unwrap()
+        .with_infrastructure()
+        .await
+        .unwrap()
+        .with_api_keys()
+        .await
+        .unwrap()
+        .with_oidc()
+        .await
+        .unwrap();
+
+    let (state, api_key_repo, audit_repo) = builder.build().unwrap();
+
+    let app = create_router(state.clone(), api_key_repo, audit_repo).await;
+    let internal_app = create_internal_router(state).await;
+
+    (app, internal_app, container, temp_dir)
 }

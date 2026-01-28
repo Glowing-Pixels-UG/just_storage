@@ -1,10 +1,14 @@
 use crate::api::internal::templates::HealthTemplate;
 use crate::api::router::AppState;
+use crate::api::middleware::csrf::CsrfToken;
 use crate::domain::value_objects::StorageClass;
-use axum::{extract::State, response::IntoResponse};
+use axum::{extract::{State, Extension}, response::IntoResponse};
 use std::time::{Duration, Instant};
 
-pub async fn health_page(State(state): State<AppState>) -> impl IntoResponse {
+pub async fn health_page(
+    State(state): State<AppState>,
+    Extension(csrf_token): Extension<CsrfToken>,
+) -> impl IntoResponse {
     let start = Instant::now();
     let db_ok = sqlx::query("SELECT 1")
         .fetch_one(&*state.pool)
@@ -76,6 +80,7 @@ pub async fn health_page(State(state): State<AppState>) -> impl IntoResponse {
     };
 
     HealthTemplate {
+        csrf_token: csrf_token.0,
         service_name: "just-storage".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         uptime: format_duration(state.start_time.elapsed()),

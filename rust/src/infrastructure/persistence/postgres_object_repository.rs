@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use sqlx::{PgPool, Row};
+use time::OffsetDateTime;
 
 use crate::application::dto::{SearchRequest, TextSearchRequest};
 use crate::application::ports::{ObjectRepository, RepositoryError};
@@ -328,8 +329,8 @@ struct ObjectRow {
     size_bytes: Option<i64>,
     content_type: Option<String>,
     metadata: serde_json::Value,
-    created_at: chrono::DateTime<chrono::Utc>,
-    updated_at: chrono::DateTime<chrono::Utc>,
+    created_at: OffsetDateTime,
+    updated_at: OffsetDateTime,
 }
 
 impl ObjectRow {

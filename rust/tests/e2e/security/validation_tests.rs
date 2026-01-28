@@ -7,7 +7,7 @@ use crate::common::{environment as env, http};
 
 #[tokio::test]
 async fn malformed_json_returns_bad_request() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let req = Request::builder()
         .method(Method::POST)
@@ -22,7 +22,7 @@ async fn malformed_json_returns_bad_request() {
 
 #[tokio::test]
 async fn validation_errors_return_bad_request() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let req = http::authenticated_json_request(
         Method::POST,
@@ -66,7 +66,7 @@ async fn validation_errors_return_bad_request() {
 
 #[tokio::test]
 async fn content_type_must_be_json_returns_unsupported() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let req = Request::builder()
         .method(Method::POST)
@@ -81,7 +81,7 @@ async fn content_type_must_be_json_returns_unsupported() {
 
 #[tokio::test]
 async fn request_size_may_be_limited_or_succeed() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let large_body = "x".repeat(1024 * 1024);
     let req = http::authenticated_json_request(
@@ -101,7 +101,7 @@ async fn request_size_may_be_limited_or_succeed() {
 
 #[tokio::test]
 async fn input_sanitization_handles_malicious_input() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let malicious_input = json!({
         "namespace": "../../../etc/passwd",

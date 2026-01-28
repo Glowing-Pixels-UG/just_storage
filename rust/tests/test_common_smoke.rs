@@ -75,7 +75,7 @@ async fn smoke_builder() {
 #[tokio::test]
 async fn smoke_setup_api_server_and_factories() {
     // Exercise setup_test_api_server (starts a container, returns router + temp dir).
-    let (_router, _container, _temp_dir) = common::setup_test_api_server().await;
+    let (_router, _internal_router, _container, _temp_dir) = common::setup_test_api_server().await;
 
     // Exercise factory helpers
     let obj = common::create_test_object();

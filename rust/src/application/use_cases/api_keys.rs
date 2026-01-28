@@ -37,7 +37,9 @@ impl CreateApiKeyUseCase {
         );
 
         self.repository.create(api_key.clone()).await?;
-        Ok(api_key.into())
+        let mut dto = ApiKeyDto::from(api_key.clone());
+        dto.key = Some(api_key.api_key().to_string());
+        Ok(dto)
     }
 }
 

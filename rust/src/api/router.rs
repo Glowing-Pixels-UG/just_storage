@@ -53,6 +53,8 @@ pub struct AppState {
     pub blob_store: Arc<dyn BlobStore>,
     pub gc: Option<Arc<GarbageCollector>>,
     pub config: Config,
+    pub oidc_metadata: Option<openidconnect::core::CoreProviderMetadata>,
+    pub jwks_cache: Arc<moka::future::Cache<String, jsonwebtoken::DecodingKey>>,
     pub expected_migration_count: usize,
     pub start_time: Instant,
 }
@@ -69,7 +71,14 @@ pub async fn create_router(
     api_key_repo: Arc<dyn ApiKeyRepository + Send + Sync>,
     audit_repo: Arc<dyn AuditRepository + Send + Sync>,
 ) -> Router {
-    create_router_with_middleware(state, api_key_repo, audit_repo, MiddlewareConfig::default()).await
+    let mut middleware_config = MiddlewareConfig::default();
+    middleware_config.auth.enabled = true;
+    middleware_config.auth.legacy_auth_enabled = std::env::var("LEGACY_AUTH_ENABLED").map(|v| v == "true").unwrap_or(true);
+    middleware_config.auth.admin_token = state.config.admin_token.clone();
+    middleware_config.oidc.enabled = std::env::var("OIDC_ENABLED").map(|v| v == "true").unwrap_or(true);
+    middleware_config.oidc.issuer_url = state.config.oidc_issuer_url.clone();
+    middleware_config.oidc.audience = state.config.oidc_audience.clone();
+    create_router_with_middleware(state, api_key_repo, audit_repo, middleware_config).await
 }
 
 /// Create router with custom middleware configuration
@@ -112,6 +121,7 @@ pub async fn create_router_with_middleware(
         &middleware_factory,
         Arc::clone(&api_key_repo),
         audit_repo,
+        state.jwks_cache.clone(),
     );
 
     // Merge API router into main router
@@ -271,24 +281,28 @@ fn apply_middleware_stack(
     middleware_factory: &MiddlewareFactory,
     api_key_repo: Arc<dyn crate::application::ports::ApiKeyRepository + Send + Sync>,
     audit_repo: Arc<dyn crate::application::ports::AuditRepository + Send + Sync>,
+    jwks_cache: Arc<moka::future::Cache<String, jsonwebtoken::DecodingKey>>,
 ) -> Router {
     // Apply middleware in order (innermost/last = runs first):
     // 1. Security headers (outermost - adds headers to response)
     // 2. Metrics
-    // 3. Audit (runs after auth to have user context)
-    // 4. Auth (runs after validation to allow proper error codes)
-    // 5. Content-type validation (runs before auth)
-    // 6. Size limits (runs before auth)
-    // 7. CORS (innermost - runs first)
+    // 3. Rate Limiting (before auth to catch brute force)
+    // 4. Audit (runs after auth to have user context)
+    // 5. Auth (runs after validation to allow proper error codes)
+    // 6. Content-type validation (runs before auth)
+    // 7. Size limits (runs before auth)
+    // 8. CORS (innermost - runs first)
     let audit_layer = middleware_factory.create_audit_layer(audit_repo);
+    let rate_limit_layer = middleware_factory.create_rate_limit_layer();
 
     router
         .layer(middleware_factory.create_metrics_layer())
+        .layer(rate_limit_layer)
         .layer(axum::middleware::from_fn(move |req, next| {
             let audit_layer = audit_layer.clone();
             async move { audit_layer.layer(req, next).await }
         }))
-        .layer(middleware_factory.create_auth_layer(api_key_repo))
+        .layer(middleware_factory.create_auth_layer(api_key_repo, jwks_cache))
         .layer(axum::middleware::from_fn(
             content_type::validate_json_for_objects,
         ))

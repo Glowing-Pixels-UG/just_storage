@@ -275,7 +275,7 @@ pub fn create_test_blob(content_hash_str: &str, ref_count: i32) -> Blob {
         StorageClass::Hot,
         100,
         ref_count,
-        chrono::Utc::now(),
+        time::OffsetDateTime::now_utc(),
     )
 }
 

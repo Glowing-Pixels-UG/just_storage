@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::value_objects::{ContentHash, StorageClass};
@@ -10,7 +10,7 @@ pub struct Blob {
     storage_class: StorageClass,
     size_bytes: u64,
     ref_count: i32,
-    created_at: DateTime<Utc>,
+    created_at: OffsetDateTime,
 }
 
 impl Blob {
@@ -21,7 +21,7 @@ impl Blob {
             storage_class,
             size_bytes,
             ref_count: 1,
-            created_at: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
         }
     }
 
@@ -31,7 +31,7 @@ impl Blob {
         storage_class: StorageClass,
         size_bytes: u64,
         ref_count: i32,
-        created_at: DateTime<Utc>,
+        created_at: OffsetDateTime,
     ) -> Self {
         Self {
             content_hash,
@@ -76,7 +76,7 @@ impl Blob {
         self.ref_count
     }
 
-    pub fn created_at(&self) -> DateTime<Utc> {
+    pub fn created_at(&self) -> OffsetDateTime {
         self.created_at
     }
 }
@@ -252,10 +252,10 @@ mod tests {
 
         // Created at should be set
         let created_at = blob.created_at();
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
 
         // Should be within the last minute
-        assert!(created_at > now - chrono::Duration::minutes(1));
+        assert!(created_at > now - time::Duration::minutes(1));
         assert!(created_at <= now);
     }
 

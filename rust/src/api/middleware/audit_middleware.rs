@@ -73,12 +73,12 @@ impl AuditMiddleware {
 
         // Create audit log entry
         let mut entry = AuditLogEntry {
-            timestamp: chrono::Utc::now(),
+            timestamp: time::OffsetDateTime::now_utc(),
             event_type,
             user_id: user_context.as_ref().map(|ctx| ctx.user_id.clone()),
             tenant_id: user_context.as_ref().map(|ctx| ctx.tenant_id.clone()),
             api_key_id: user_context.as_ref().and_then(|ctx| ctx.api_key_id.clone()),
-            ip_address: Some(ip_address),
+            ip_address,
             user_agent,
             method: method.to_string(),
             path: uri.path().to_string(),
@@ -107,13 +107,13 @@ impl AuditMiddleware {
 }
 
 /// Extract IP address from request headers
-fn extract_ip_address(headers: &axum::http::HeaderMap) -> String {
+fn extract_ip_address(headers: &axum::http::HeaderMap) -> Option<String> {
     // Try X-Forwarded-For first (for proxies/load balancers)
     if let Some(forwarded_for) = headers.get("x-forwarded-for") {
         if let Ok(forwarded_str) = forwarded_for.to_str() {
             // Take the first IP in case of multiple
             if let Some(first_ip) = forwarded_str.split(',').next() {
-                return first_ip.trim().to_string();
+                return Some(first_ip.trim().to_string());
             }
         }
     }
@@ -121,19 +121,19 @@ fn extract_ip_address(headers: &axum::http::HeaderMap) -> String {
     // Try X-Real-IP
     if let Some(real_ip) = headers.get("x-real-ip") {
         if let Ok(ip_str) = real_ip.to_str() {
-            return ip_str.to_string();
+            return Some(ip_str.to_string());
         }
     }
 
     // Try X-Forwarded
     if let Some(forwarded) = headers.get("x-forwarded") {
         if let Ok(ip_str) = forwarded.to_str() {
-            return ip_str.to_string();
+            return Some(ip_str.to_string());
         }
     }
 
-    // Fallback to "unknown"
-    "unknown".to_string()
+    // Fallback to None
+    None
 }
 
 /// Determine event type based on request/response

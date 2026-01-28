@@ -85,6 +85,19 @@ pub mod roles {
 
 use serde::{Deserialize, Serialize};
 
+/// Custom claims for OIDC tokens
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct CustomClaims {
+    #[serde(default)]
+    pub roles: Option<Vec<String>>,
+    #[serde(default)]
+    pub tenant_id: Option<String>,
+    #[serde(default)]
+    pub permissions: Option<Vec<String>>,
+}
+
+impl openidconnect::AdditionalClaims for CustomClaims {}
+
 /// User context extracted from authentication
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UserContext {

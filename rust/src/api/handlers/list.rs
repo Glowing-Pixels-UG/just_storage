@@ -49,7 +49,8 @@ pub async fn list_handler(
     Query(query): Query<ListQuery>,
 ) -> Result<Json<ListResponse>, ApiError> {
     // Validate tenant ownership - users can only list objects from their own tenant
-    if query.tenant_id != user_context.tenant_id {
+    // Admins can list objects from any tenant
+    if !user_context.is_admin() && query.tenant_id != user_context.tenant_id {
         return Err(ApiError::new(
             axum::http::StatusCode::FORBIDDEN,
             "Cannot list objects from other tenants".to_string(),

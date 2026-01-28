@@ -24,6 +24,8 @@ pub async fn internal_admin_auth(
     // Note: When nested under /dashboard, the path here might be relative or absolute 
     // depending on where the middleware is applied. 
     if path == "/login" || path == "/dashboard/login" || 
+       path == "/auth/login" || path == "/dashboard/auth/login" ||
+       path == "/auth/callback" || path == "/dashboard/auth/callback" ||
        path.starts_with("/static") || path.starts_with("/dashboard/static") {
         return Ok(next.run(req).await);
     }

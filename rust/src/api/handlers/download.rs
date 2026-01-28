@@ -46,7 +46,8 @@ pub async fn download_handler(
     Query(query): Query<DownloadQuery>,
 ) -> Result<Response, ApiError> {
     // Validate tenant ownership - users can only download from their own tenant
-    if query.tenant_id != user_context.tenant_id {
+    // Admins can download from any tenant
+    if !user_context.is_admin() && query.tenant_id != user_context.tenant_id {
         return Err(ApiError::new(
             axum::http::StatusCode::FORBIDDEN,
             "Cannot download objects from other tenants".to_string(),
@@ -102,7 +103,8 @@ pub async fn download_by_key_handler(
     Path((namespace, tenant_id, key)): Path<(String, String, String)>,
 ) -> Result<Response, ApiError> {
     // Validate tenant ownership - users can only download from their own tenant
-    if tenant_id != user_context.tenant_id {
+    // Admins can download from any tenant
+    if !user_context.is_admin() && tenant_id != user_context.tenant_id {
         return Err(ApiError::new(
             axum::http::StatusCode::FORBIDDEN,
             "Cannot download objects from other tenants".to_string(),

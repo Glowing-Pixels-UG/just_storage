@@ -51,7 +51,7 @@ pub async fn health_handler() -> (StatusCode, Json<serde_json::Value>) {
             "status": "healthy",
             "service": "just_storage",
             "version": env!("CARGO_PKG_VERSION"),
-            "timestamp": chrono::Utc::now().to_rfc3339(),
+            "timestamp": time::OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
             "uptime_seconds": std::process::id(), // Simplified uptime indicator
             "response_time_ms": response_time.as_millis(),
             "security": security_checks
@@ -99,7 +99,7 @@ pub async fn readiness_handler(
                         "status": "ready",
                         "service": "just_storage",
                         "database": "connected",
-                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                        "timestamp": time::OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
                         "response_time_ms": response_time.as_millis(),
                         "checks": readiness_checks.details,
                         "security": security_checks
@@ -112,7 +112,7 @@ pub async fn readiness_handler(
                         "status": "not_ready",
                         "service": "just_storage",
                         "database": "connected",
-                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                        "timestamp": time::OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
                         "response_time_ms": response_time.as_millis(),
                         "checks": readiness_checks.details,
                         "security": security_checks,
@@ -128,7 +128,7 @@ pub async fn readiness_handler(
                 "service": "just_storage",
                 "database": "disconnected",
                 "error": format!("Database error: {}", sanitize_db_error(&e)),
-                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "timestamp": time::OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
                 "response_time_ms": response_time.as_millis(),
                 "security": security_checks
             })),
@@ -140,7 +140,7 @@ pub async fn readiness_handler(
                 "service": "just_storage",
                 "database": "timeout",
                 "error": "Database query timed out after 2 seconds",
-                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "timestamp": time::OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
                 "response_time_ms": response_time.as_millis(),
                 "security": security_checks
             })),

@@ -5,7 +5,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn openapi_spec_contains_objects_path() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let req = http::get_request("/api-docs/openapi.json");
 

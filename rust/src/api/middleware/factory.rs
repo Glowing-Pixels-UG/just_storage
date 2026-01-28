@@ -38,13 +38,24 @@ impl MiddlewareFactory {
     pub fn create_auth_layer(
         &self,
         api_key_repo: Arc<dyn crate::application::ports::ApiKeyRepository + Send + Sync>,
+        jwks_cache: Arc<moka::future::Cache<String, jsonwebtoken::DecodingKey>>,
     ) -> auth::AuthLayer {
-        auth::create_auth_middleware(api_key_repo)
+        auth::create_auth_middleware(
+            api_key_repo, 
+            self.config.auth.clone(),
+            self.config.oidc.clone(),
+            jwks_cache,
+        )
     }
 
     /// Create metrics layer for the application
     pub fn create_metrics_layer(&self) -> metrics::MetricsLayer {
         metrics::MetricsLayer::new()
+    }
+
+    /// Create rate limit layer for the application
+    pub fn create_rate_limit_layer(&self) -> super::rate_limiting::RateLimitLayer {
+        super::rate_limiting::create_rate_limit_middleware(self.config.rate_limiting.clone())
     }
 
     /// Create audit layer for the application
