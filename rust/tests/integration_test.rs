@@ -103,14 +103,13 @@ mod api_tests {
 
     use tower::ServiceExt;
 
-    async fn setup_test_server() -> axum::Router {
+    async fn setup_test_server() -> (axum::Router, TestEnvironment) {
         // Setup test environment using shared fixtures
         let env = TestEnvironment::new().await;
 
         // Create test config
         let mut config = just_storage::Config::from_env();
-        config.database_url = std::env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5432/test".to_string());
+        config.database_url = env.database_url.clone();
         config.hot_storage_root = env.hot_dir.path().to_path_buf();
         config.cold_storage_root = env.cold_dir.path().to_path_buf();
 
@@ -130,7 +129,9 @@ mod api_tests {
             builder.with_api_keys().await.unwrap().build().unwrap();
 
         // Create router
-        create_router(state, api_key_repo, audit_repo)
+        let app = create_router(state, api_key_repo, audit_repo);
+
+        (app, env)
     }
 
     fn create_auth_header(api_key: &str) -> String {
@@ -139,7 +140,7 @@ mod api_tests {
 
     #[tokio::test]
     async fn test_health_endpoints() {
-        let app = setup_test_server().await;
+        let (app, _env) = setup_test_server().await;
 
         // Test health endpoint
         let req = Request::builder()
@@ -170,7 +171,7 @@ mod api_tests {
 
     #[tokio::test]
     async fn test_openapi_endpoint() {
-        let app = setup_test_server().await;
+        let (app, _env) = setup_test_server().await;
 
         let req = http::get_request("/api-docs/openapi.json");
         let response = app.oneshot(req).await.unwrap();
@@ -186,7 +187,7 @@ mod api_tests {
 
     #[tokio::test]
     async fn test_object_operations_without_auth() {
-        let app = setup_test_server().await;
+        let (app, _env) = setup_test_server().await;
 
         // Test upload without auth
         let req = http::post_request("/v1/objects", serde_json::json!({}));
@@ -196,7 +197,7 @@ mod api_tests {
 
     #[tokio::test]
     async fn test_api_key_management_without_auth() {
-        let app = setup_test_server().await;
+        let (app, _env) = setup_test_server().await;
 
         // Test list API keys without auth
         let req = http::get_request("/v1/api-keys");
