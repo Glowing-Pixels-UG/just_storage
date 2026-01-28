@@ -62,13 +62,13 @@ impl IntoResponse for ApiError {
 impl From<ObjectUseCaseError> for ApiError {
     fn from(err: ObjectUseCaseError) -> Self {
         match err {
-            ObjectUseCaseError::InvalidRequest(msg) => ApiError::bad_request(msg),
-            ObjectUseCaseError::Domain(e) => ApiError::bad_request(e.to_string()),
+            ObjectUseCaseError::InvalidRequest(msg) => Self::bad_request(msg),
+            ObjectUseCaseError::Domain(e) => Self::bad_request(e.to_string()),
             ObjectUseCaseError::Repository(e) => {
-                ApiError::internal_error(format!("Repository error: {}", e))
+                Self::internal_error(format!("Repository error: {e}"))
             }
             ObjectUseCaseError::Storage(e) => {
-                ApiError::internal_error(format!("Storage error: {}", e))
+                Self::internal_error(format!("Storage error: {e}"))
             }
         }
     }
@@ -77,15 +77,15 @@ impl From<ObjectUseCaseError> for ApiError {
 impl From<DownloadUseCaseError> for ApiError {
     fn from(err: DownloadUseCaseError) -> Self {
         match err {
-            DownloadUseCaseError::NotFound(msg) => ApiError::not_found(msg),
+            DownloadUseCaseError::NotFound(msg) => Self::not_found(msg),
             DownloadUseCaseError::NotReadable(msg) => {
-                ApiError::bad_request(format!("Not readable: {}", msg))
+                Self::bad_request(format!("Not readable: {msg}"))
             }
             DownloadUseCaseError::Repository(e) => {
-                ApiError::internal_error(format!("Repository error: {}", e))
+                Self::internal_error(format!("Repository error: {e}"))
             }
             DownloadUseCaseError::Storage(e) => {
-                ApiError::internal_error(format!("Storage error: {}", e))
+                Self::internal_error(format!("Storage error: {e}"))
             }
         }
     }
@@ -95,14 +95,14 @@ impl From<DeleteUseCaseError> for ApiError {
     fn from(err: DeleteUseCaseError) -> Self {
         match err {
             DeleteUseCaseError::Domain(e) => {
-                ApiError::internal_error(format!("Domain error: {}", e))
+                Self::internal_error(format!("Domain error: {e}"))
             }
-            DeleteUseCaseError::NotFound(msg) => ApiError::not_found(msg),
+            DeleteUseCaseError::NotFound(msg) => Self::not_found(msg),
             DeleteUseCaseError::Repository(e) => {
-                ApiError::internal_error(format!("Repository error: {}", e))
+                Self::internal_error(format!("Repository error: {e}"))
             }
             DeleteUseCaseError::Storage(e) => {
-                ApiError::internal_error(format!("Storage error: {}", e))
+                Self::internal_error(format!("Storage error: {e}"))
             }
         }
     }
@@ -113,10 +113,10 @@ impl From<DeleteUseCaseError> for ApiError {
 impl From<TextSearchUseCaseError> for ApiError {
     fn from(err: TextSearchUseCaseError) -> Self {
         match err {
-            TextSearchUseCaseError::InvalidRequest(msg) => ApiError::bad_request(msg),
-            TextSearchUseCaseError::Domain(e) => ApiError::bad_request(e.to_string()),
+            TextSearchUseCaseError::InvalidRequest(msg) => Self::bad_request(msg),
+            TextSearchUseCaseError::Domain(e) => Self::bad_request(e.to_string()),
             TextSearchUseCaseError::Repository(e) => {
-                ApiError::internal_error(format!("Repository error: {}", e))
+                Self::internal_error(format!("Repository error: {e}"))
             }
         }
     }
@@ -126,13 +126,13 @@ impl From<ApiKeyUseCaseError> for ApiError {
     fn from(err: ApiKeyUseCaseError) -> Self {
         match err {
             ApiKeyUseCaseError::NotFound(id) => {
-                ApiError::not_found(format!("API key not found: {}", id))
+                Self::not_found(format!("API key not found: {id}"))
             }
             ApiKeyUseCaseError::InvalidId(id) => {
-                ApiError::bad_request(format!("Invalid API key ID: {}", id))
+                Self::bad_request(format!("Invalid API key ID: {id}"))
             }
             ApiKeyUseCaseError::Repository(e) => {
-                ApiError::internal_error(format!("Repository error: {}", e))
+                Self::internal_error(format!("Repository error: {e}"))
             }
         }
     }

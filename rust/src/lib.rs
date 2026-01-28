@@ -1,4 +1,4 @@
-//! # JustStorage - Content-Addressable Object Storage
+//! # `JustStorage` - Content-Addressable Object Storage
 //!
 //! A focused, reliable object storage service with strong consistency guarantees,
 //! built on Clean Architecture principles.

@@ -40,7 +40,7 @@ impl Default for SecurityHeadersConfig {
     fn default() -> Self {
         Self {
             content_security_policy: Some("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'".to_string()),
-            hsts_max_age: Some(31536000), // 1 year
+            hsts_max_age: Some(31_536_000), // 1 year
             hsts_include_subdomains: true,
             x_frame_options: Some("DENY".to_string()),
             x_content_type_options: Some("nosniff".to_string()),
@@ -91,7 +91,7 @@ impl SecurityHeadersConfig {
             if max_age == 0 {
                 return Err("HSTS max-age must be greater than 0".to_string());
             }
-            if max_age > 2147483647 {
+            if max_age > 2_147_483_647 {
                 return Err("HSTS max-age is too large (maximum 2147483647)".to_string());
             }
         }

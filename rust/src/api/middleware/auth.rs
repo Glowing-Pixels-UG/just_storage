@@ -131,18 +131,16 @@ async fn authenticate_request(
     if auth_header.starts_with("ApiKey ") {
         if let Some(api_key_value) = auth_header.strip_prefix("ApiKey ") {
             return authenticate_api_key(api_key_value, api_key_repo).await;
-        } else {
-            return Err(StatusCode::UNAUTHORIZED);
         }
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
     // Try JWT authentication
     if auth_header.starts_with("Bearer ") {
         if let Some(token) = auth_header.strip_prefix("Bearer ") {
             return authenticate_jwt(token).await;
-        } else {
-            return Err(StatusCode::UNAUTHORIZED);
         }
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
     Err(StatusCode::UNAUTHORIZED)

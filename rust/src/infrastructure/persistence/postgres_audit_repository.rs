@@ -18,14 +18,14 @@ impl PostgresAuditRepository {
 impl AuditRepository for PostgresAuditRepository {
     async fn store(&self, entry: AuditLogEntry) -> Result<(), AuditRepositoryError> {
         sqlx::query(
-            r#"
+            r"
             INSERT INTO audit_logs (
                 timestamp, event_type, user_id, tenant_id, api_key_id,
                 ip_address, user_agent, method, path, query, status_code,
                 response_time_ms, error_message, additional_data
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-            "#,
+            ",
         )
         .bind(entry.timestamp)
         .bind(entry.event_type.to_string())
