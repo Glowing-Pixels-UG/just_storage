@@ -27,7 +27,7 @@ pub async fn setup_test_database() -> (PgPool, testcontainers::ContainerAsync<Po
         .await
         .expect("Failed to connect to test database");
 
-    // Run migrations instead of using schema.sql
+    // Run migrations instead of using schema.sql to avoid conflicts with ApplicationBuilder
     sqlx::migrate!("./migrations")
         .run(&pool)
         .await

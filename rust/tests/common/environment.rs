@@ -7,73 +7,32 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
 
-use just_storage::application::ports::{BlobRepository, BlobStore, ObjectRepository};
+use just_storage::application::ports::{
+    ApiKeyRepository, AuditRepository, BlobRepository, BlobStore, ObjectRepository,
+};
 use just_storage::infrastructure::{
     persistence::{PostgresBlobRepository, PostgresObjectRepository},
     storage::LocalFilesystemStore,
 };
+
+use crate::common::database::{cleanup_test_data, setup_test_database, setup_test_storage};
 
 // Use-case types for optional wiring by the TestEnvironmentBuilder
 use just_storage::application::use_cases::{
     DeleteObjectUseCase, DownloadObjectUseCase, UploadObjectUseCase,
 };
 
-// Inline minimal DB & storage helpers to avoid fragile module resolution during phased migration
-async fn start_postgres_with_schema() -> (PgPool, testcontainers::ContainerAsync<Postgres>) {
-    let container = Postgres::default()
-        .start()
-        .await
-        .expect("Failed to start PostgreSQL container");
-
-    let host = container
-        .get_host()
-        .await
-        .expect("Failed to get container host");
-    let port = container
-        .get_host_port_ipv4(5432)
-        .await
-        .expect("Failed to get container port");
-    let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
-
-    let pool = PgPool::connect(&database_url)
-        .await
-        .expect("Failed to connect to test database");
-
-    // Run migrations
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("Failed to run migrations");
-
-    // Clean up any existing test data
-    sqlx::query("DELETE FROM audit_logs")
-        .execute(&pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM api_keys")
-        .execute(&pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM objects").execute(&pool).await.ok();
-    sqlx::query("DELETE FROM blobs").execute(&pool).await.ok();
-
-    (pool, container)
-}
-
-fn create_temp_storage_dirs() -> (tempfile::TempDir, tempfile::TempDir) {
-    let hot_dir = tempfile::TempDir::new().expect("Failed to create temp hot storage dir");
-    let cold_dir = tempfile::TempDir::new().expect("Failed to create temp cold storage dir");
-    (hot_dir, cold_dir)
-}
-
 /// A single source of truth TestEnvironment used by tests
 pub struct TestEnvironment {
     pub pool: PgPool,
+    pub database_url: String,
     pub object_repo: Arc<dyn ObjectRepository>,
     pub blob_repo: Arc<dyn BlobRepository>,
     pub blob_store: Arc<dyn BlobStore>,
     pub hot_dir: TempDir,
     pub cold_dir: TempDir,
+    pub api_key_repo: Option<Arc<dyn ApiKeyRepository>>,
+    pub audit_repo: Option<Arc<dyn AuditRepository>>,
     _container: testcontainers::ContainerAsync<Postgres>,
 
     // Optional higher-level helpers created by the builder
@@ -89,8 +48,12 @@ pub struct TestEnvironment {
 impl TestEnvironment {
     /// Create a full environment using TestContainers and local storage
     pub async fn new() -> Self {
-        let (pool, container) = start_postgres_with_schema().await;
-        let (hot_dir, cold_dir) = create_temp_storage_dirs();
+        let (pool, container) = setup_test_database().await;
+        let (hot_dir, cold_dir) = setup_test_storage();
+
+        let host = container.get_host().await.unwrap();
+        let port = container.get_host_port_ipv4(5432).await.unwrap();
+        let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
 
         let object_repo: Arc<dyn ObjectRepository> =
             Arc::new(PostgresObjectRepository::new(pool.clone()));
@@ -104,11 +67,14 @@ impl TestEnvironment {
 
         Self {
             pool,
+            database_url,
             object_repo,
             blob_repo,
             blob_store,
             hot_dir,
             cold_dir,
+            api_key_repo: None,
+            audit_repo: None,
             _container: container,
 
             upload_use_case: None,
@@ -201,10 +167,7 @@ pub async fn setup_test_api_server() -> (
     use just_storage::{api::create_router, ApplicationBuilder, Config};
 
     // Start PostgreSQL container (migrations will be run by ApplicationBuilder)
-    let container = Postgres::default()
-        .start()
-        .await
-        .expect("Failed to start PostgreSQL container");
+    let container = setup_test_database().await.1;
 
     let host = container
         .get_host()

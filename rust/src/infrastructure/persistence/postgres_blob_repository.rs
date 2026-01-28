@@ -29,12 +29,12 @@ impl BlobRepository for PostgresBlobRepository {
 
         // Try insert, on conflict do nothing and select
         let row = sqlx::query_as::<_, BlobRow>(
-            r#"
+            r"
             INSERT INTO blobs (content_hash, storage_class, size_bytes, ref_count)
             VALUES ($1, $2, $3, 1)
             ON CONFLICT (content_hash) DO UPDATE SET ref_count = blobs.ref_count + 1, last_used_at = now()
             RETURNING content_hash, storage_class, size_bytes, ref_count, created_at
-            "#,
+            ",
         )
         .bind(hash)
         .bind(class)
@@ -47,11 +47,11 @@ impl BlobRepository for PostgresBlobRepository {
 
     async fn increment_ref(&self, content_hash: &ContentHash) -> Result<(), RepositoryError> {
         sqlx::query(
-            r#"
+            r"
             UPDATE blobs
             SET ref_count = ref_count + 1
             WHERE content_hash = $1
-            "#,
+            ",
         )
         .bind(content_hash.as_hex())
         .execute(&self.pool)
@@ -62,12 +62,12 @@ impl BlobRepository for PostgresBlobRepository {
 
     async fn decrement_ref(&self, content_hash: &ContentHash) -> Result<i32, RepositoryError> {
         let row = sqlx::query_as::<_, (i64,)>(
-            r#"
+            r"
             UPDATE blobs
             SET ref_count = GREATEST(ref_count - 1, 0)
             WHERE content_hash = $1
             RETURNING ref_count
-            "#,
+            ",
         )
         .bind(content_hash.as_hex())
         .fetch_one(&self.pool)
@@ -78,12 +78,12 @@ impl BlobRepository for PostgresBlobRepository {
 
     async fn find_orphaned(&self, limit: i64) -> Result<Vec<Blob>, RepositoryError> {
         let rows = sqlx::query_as::<_, BlobRow>(
-            r#"
+            r"
             SELECT content_hash, storage_class, size_bytes, ref_count, created_at
             FROM blobs
             WHERE ref_count = 0
             LIMIT $1
-            "#,
+            ",
         )
         .bind(limit)
         .fetch_all(&self.pool)

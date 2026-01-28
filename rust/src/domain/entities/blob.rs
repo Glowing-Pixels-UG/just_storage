@@ -222,16 +222,16 @@ mod tests {
         let content_hash1 = ContentHash::from_str(&"c".repeat(64)).unwrap();
         let content_hash2 = ContentHash::from_str(&"d".repeat(64)).unwrap();
 
-        let blob1a = Blob::new(content_hash1.clone(), StorageClass::Hot, 100);
-        let blob1b = Blob::new(content_hash1.clone(), StorageClass::Hot, 100);
-        let blob2 = Blob::new(content_hash2, StorageClass::Hot, 100);
+        let blob_original = Blob::new(content_hash1.clone(), StorageClass::Hot, 100);
+        let blob_duplicate = Blob::new(content_hash1.clone(), StorageClass::Hot, 100);
+        let blob_different = Blob::new(content_hash2, StorageClass::Hot, 100);
 
         // Blobs with same content hash should be equal (equality ignores timestamps)
-        assert_eq!(blob1a.content_hash(), blob1b.content_hash());
-        assert_eq!(blob1a.storage_class(), blob1b.storage_class());
-        assert_eq!(blob1a.size_bytes(), blob1b.size_bytes());
+        assert_eq!(blob_original.content_hash(), blob_duplicate.content_hash());
+        assert_eq!(blob_original.storage_class(), blob_duplicate.storage_class());
+        assert_eq!(blob_original.size_bytes(), blob_duplicate.size_bytes());
         // Blobs with different content hashes should not be equal
-        assert_ne!(blob1a.content_hash(), blob2.content_hash());
+        assert_ne!(blob_original.content_hash(), blob_different.content_hash());
     }
 
     #[test]

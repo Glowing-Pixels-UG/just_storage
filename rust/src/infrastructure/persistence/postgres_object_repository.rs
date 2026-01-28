@@ -39,7 +39,7 @@ impl ObjectRepository for PostgresObjectRepository {
         let updated_at = object.updated_at();
 
         sqlx::query(
-            r#"
+            r"
             INSERT INTO objects (
                 id, namespace, tenant_id, key, status, storage_class,
                 content_hash, size_bytes, content_type, metadata,
@@ -53,7 +53,7 @@ impl ObjectRepository for PostgresObjectRepository {
                 content_type = EXCLUDED.content_type,
                 metadata = EXCLUDED.metadata,
                 updated_at = EXCLUDED.updated_at
-            "#,
+            ",
         )
         .bind(id)
         .bind(namespace)
@@ -278,14 +278,14 @@ impl ObjectRepository for PostgresObjectRepository {
         }
 
         let rows = sqlx::query_as::<_, StuckObjectRow>(
-            r#"
+            r"
             SELECT id
             FROM objects
             WHERE status = 'WRITING'
               AND created_at < now() - ($1 || ' hours')::interval
             ORDER BY created_at ASC
             LIMIT $2
-            "#,
+            ",
         )
         .bind(age_hours)
         .bind(limit)
