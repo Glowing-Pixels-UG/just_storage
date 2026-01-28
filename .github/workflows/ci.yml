@@ -9,6 +9,10 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+defaults:
+  run:
+    working-directory: rust
+
 jobs:
   # Fast quality checks - runs on every push/PR
   quality:
@@ -32,13 +36,13 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Check formatting
-      run: cd rust && cargo fmt -- --check --color always
+      run: cargo fmt -- --check --color always
 
     - name: Run clippy
-      run: cd rust && cargo clippy -- -D warnings
+      run: cargo clippy -- -D warnings
 
     - name: Run tests
-      run: cd rust && cargo test --workspace
+      run: cargo test --workspace
 
     - name: Run Miri (library only)
       run: cargo +nightly miri test --lib
@@ -101,10 +105,10 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Build release
-      run: cd rust && cargo build --release --workspace
+      run: cargo build --release --workspace
 
     - name: Run tests
-      run: cd rust && cargo test --workspace --release
+      run: cargo test --workspace --release
 
   # Performance and binary analysis
   performance:
@@ -124,10 +128,10 @@ jobs:
       run: cargo install cargo-bloat --locked
 
     - name: Build for analysis
-      run: cd rust && cargo build --release
+      run: cargo build --release
 
     - name: Analyze binary size
-      run: cd rust && cargo bloat --release --crates
+      run: cargo bloat --release --crates
       continue-on-error: true
 
   # Integration tests (if any exist)
@@ -162,7 +166,7 @@ jobs:
 
     - name: Run integration tests
       run: |
-        cd rust && cargo test --workspace --test integration -- --nocapture
+        cargo test --workspace --test integration -- --nocapture
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
       continue-on-error: true

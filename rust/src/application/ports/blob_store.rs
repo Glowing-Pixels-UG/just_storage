@@ -60,4 +60,7 @@ pub trait BlobStore: Send + Sync {
         content_hash: &ContentHash,
         storage_class: StorageClass,
     ) -> Result<bool, StorageError>;
+
+    /// Get total size of storage for a given class
+    async fn get_total_size(&self, storage_class: StorageClass) -> Result<u64, StorageError>;
 }

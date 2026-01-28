@@ -43,6 +43,7 @@ pub struct ApplicationBuilder {
     blob_store: Option<Arc<dyn BlobStore>>,
     api_key_repo: Option<Arc<dyn ApiKeyRepository>>,
     audit_repo: Option<Arc<dyn AuditRepository>>,
+    gc: Option<Arc<GarbageCollector>>,
 }
 
 impl ApplicationBuilder {
@@ -55,6 +56,7 @@ impl ApplicationBuilder {
             blob_store: None,
             api_key_repo: None,
             audit_repo: None,
+            gc: None,
         }
     }
 
@@ -148,12 +150,20 @@ impl ApplicationBuilder {
         Ok(self)
     }
 
-    /// Set up API key repository
+    /// Initialize API key repository
     pub async fn with_api_keys(mut self) -> Result<Self, Box<dyn std::error::Error>> {
         let pool = self.pool.as_ref().ok_or("Database pool not initialized")?;
         let api_key_repo = Arc::new(PostgresApiKeyRepository::new(pool.clone()));
         self.api_key_repo = Some(api_key_repo);
         info!("API key repository initialized");
+        Ok(self)
+    }
+
+    /// Set up garbage collector
+    pub fn with_gc(mut self) -> Result<Self, Box<dyn std::error::Error>> {
+        let gc = self.build_gc()?;
+        self.gc = Some(gc);
+        info!("Garbage collector initialized");
         Ok(self)
     }
 
@@ -218,6 +228,9 @@ impl ApplicationBuilder {
             get_api_key_use_case,
             update_api_key_use_case,
             delete_api_key_use_case,
+            audit_repo: Arc::clone(&audit_repo),
+            blob_store: Arc::clone(&blob_store),
+            gc: self.gc,
             config: self.config.clone(),
         };
 
