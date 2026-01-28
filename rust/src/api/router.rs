@@ -1,4 +1,5 @@
 use axum::{
+    http::StatusCode,
     middleware as axum_middleware,
     routing::{delete, get, post},
     Router,
@@ -31,6 +32,8 @@ use utoipa::OpenApi;
 
 use crate::config::Config;
 
+use std::time::Instant;
+
 /// Application state container
 #[derive(Clone)]
 pub struct AppState {
@@ -50,6 +53,8 @@ pub struct AppState {
     pub blob_store: Arc<dyn BlobStore>,
     pub gc: Option<Arc<GarbageCollector>>,
     pub config: Config,
+    pub expected_migration_count: usize,
+    pub start_time: Instant,
 }
 
 impl AppState {
@@ -76,12 +81,27 @@ pub fn create_router_with_middleware(
 ) -> Router {
     let middleware_factory = MiddlewareFactory::new(middleware_config);
 
-    // 1. Public routes (no auth, no main middleware)
+    // 3. Internal routes (have their own middleware and auth)
+    let internal_router = create_internal_router(state.clone());
+
+    // Initialize the main router
+    let mut router = Router::new();
+    
+    // 1. Internal routes (nest under /dashboard if admin_port is not set)
+    if state.config.admin_port.is_none() {
+        println!("DEBUG: Registering dashboard routes under /dashboard");
+        router = router.nest("/dashboard", internal_router);
+    }
+
+    // 2. Public routes (no auth, no main middleware)
     let mut public_router = Router::new();
     public_router = add_health_routes(public_router, &state);
     public_router = add_openapi_routes(public_router);
+    
+    // Merge public routes into main router
+    router = router.merge(public_router);
 
-    // 2. API routes (require main middleware stack including auth)
+    // 3. API routes (require main middleware stack including auth)
     let mut api_router = Router::new();
     api_router = add_object_routes(api_router, &state);
     api_router = add_api_key_routes(api_router, &state);
@@ -94,16 +114,8 @@ pub fn create_router_with_middleware(
         audit_repo,
     );
 
-    // 3. Internal routes (have their own middleware and auth)
-    let internal_router = create_internal_router(state.clone());
-
-    // Merge everything
-    let mut router = public_router.merge(api_router);
-
-    // Only nest internal routes if admin_port is not set (served on the same port)
-    if state.config.admin_port.is_none() {
-        router = router.nest("/internal", internal_router);
-    }
+    // Merge API router into main router
+    router = router.merge(api_router);
 
     // Apply global middleware (security headers, etc.) to the entire application
     router = router
@@ -121,10 +133,13 @@ pub fn create_router_with_middleware(
 
 /// Add health check routes
 fn add_health_routes(router: Router, state: &AppState) -> Router {
-    router.route("/health", get(health_handler)).route(
-        "/health/ready",
-        get(readiness_handler).with_state(Arc::clone(&state.pool)),
-    )
+    router
+        .route("/health", get(health_handler))
+        .route(
+            "/health/ready",
+            get(readiness_handler).with_state(Arc::clone(&state.pool)),
+        )
+        .route("/favicon.ico", get(|| async { StatusCode::NO_CONTENT }))
 }
 
 /// Add OpenAPI documentation routes

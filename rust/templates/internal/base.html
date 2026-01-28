@@ -4,19 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ title }}{% endblock %} | JustStorage Internal</title>
-    <link rel="stylesheet" href="/internal/static/ops.css">
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <style>
-        .htmx-indicator { display: none; }
-        .htmx-request .htmx-indicator { display: inline; }
-        .htmx-request.htmx-indicator { display: inline; }
-    </style>
+    <link rel="stylesheet" href="/dashboard/static/ops.css">
+    <script src="/dashboard/static/htmx.min.js"></script>
+    <script src="/dashboard/static/ops.js" defer></script>
 </head>
 <body>
     <header>
         <h1>JustStorage Internal Ops</h1>
-        <nav>
-            <a href="/internal/health">Health Status</a>
+        <nav aria-label="Main Navigation">
+            <a href="/dashboard/health" aria-current="page">Health Status</a>
         </nav>
     </header>
 
@@ -25,22 +21,5 @@
     </main>
 
     <div id="toast"></div>
-
-    <script>
-        document.body.addEventListener('htmx:afterRequest', function(evt) {
-            const toast = document.getElementById('toast');
-            const responseText = evt.detail.xhr.responseText;
-            
-            if (evt.detail.successful) {
-                toast.innerText = responseText || 'Action successful';
-                toast.style.backgroundColor = '#28a745';
-            } else {
-                toast.innerText = 'Action failed: ' + (responseText || evt.detail.xhr.statusText);
-                toast.style.backgroundColor = '#dc3545';
-            }
-            toast.style.display = 'block';
-            setTimeout(() => { toast.style.display = 'none'; }, 5000);
-        });
-    </script>
 </body>
 </html>

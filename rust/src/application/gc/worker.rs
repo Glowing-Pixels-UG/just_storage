@@ -1,5 +1,5 @@
-use std::sync::Arc;
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tokio::time;
 use tracing::{error, info};
 
@@ -7,7 +7,7 @@ use crate::application::gc::collectors::{
     errors::GcResult as CollectorResult, Collector, OrphanedBlobCollector, StuckUploadCollector,
 };
 use crate::application::gc::config::GcConfig;
-use crate::application::gc::results::GcResult;
+use crate::application::gc::results::{GcResult, GcStatistics};
 use crate::application::gc::scheduler::TaskScheduler;
 use crate::application::ports::{BlobRepository, BlobStore, ObjectRepository};
 
@@ -69,6 +69,10 @@ pub struct GarbageCollector {
     config: GcConfig,
     /// Optional scheduler for stuck upload cleanup (runs less frequently).
     stuck_upload_scheduler: Option<TaskScheduler>,
+    /// Statistics for garbage collection cycles.
+    stats: Mutex<GcStatistics>,
+    /// Last execution time.
+    last_run: Mutex<Option<Instant>>,
 }
 
 impl GarbageCollector {
@@ -111,6 +115,8 @@ impl GarbageCollector {
             collectors,
             config: GcConfig::new(interval, batch_size, 1),
             stuck_upload_scheduler: None, // No stuck upload collector
+            stats: Mutex::new(GcStatistics::default()),
+            last_run: Mutex::new(None),
         }
     }
 
@@ -133,8 +139,7 @@ impl GarbageCollector {
 
         // Add stuck upload collector if object repo is provided
         let stuck_upload_scheduler = if let Some(obj_repo) = object_repo {
-            let stuck_upload_collector =
-                StuckUploadCollector::new(obj_repo, stuck_upload_age_hours);
+            let stuck_upload_collector = StuckUploadCollector::new(obj_repo, stuck_upload_age_hours);
             collectors.push(Box::new(stuck_upload_collector));
             Some(TaskScheduler::new(config.stuck_upload_cleanup_interval()))
         } else {
@@ -145,6 +150,8 @@ impl GarbageCollector {
             collectors,
             config,
             stuck_upload_scheduler,
+            stats: Mutex::new(GcStatistics::default()),
+            last_run: Mutex::new(None),
         }
     }
 
@@ -178,6 +185,8 @@ impl GarbageCollector {
             collectors,
             config,
             stuck_upload_scheduler,
+            stats: Mutex::new(GcStatistics::default()),
+            last_run: Mutex::new(None),
         }
     }
 
@@ -195,6 +204,16 @@ impl GarbageCollector {
 
             match self.collect_once().await {
                 Ok(result) => {
+                    // Update stats
+                    {
+                        if let Ok(mut stats) = self.stats.lock() {
+                            stats.update(&result);
+                        }
+                        if let Ok(mut last_run) = self.last_run.lock() {
+                            *last_run = Some(Instant::now());
+                        }
+                    }
+
                     if result.has_deletions() {
                         info!(
                             "Garbage collection completed: {} total deleted ({} orphaned blobs, {} stuck uploads)",
@@ -215,6 +234,21 @@ impl GarbageCollector {
                 }
             }
         }
+    }
+
+    /// Returns statistics about the garbage collector.
+    pub fn stats(&self) -> GcStatistics {
+        self.stats.lock().map(|s| s.clone()).unwrap_or_default()
+    }
+
+    /// Returns the last execution time.
+    pub fn last_run(&self) -> Option<Instant> {
+        self.last_run.lock().ok().and_then(|guard| *guard)
+    }
+
+    /// Returns the configuration.
+    pub fn config(&self) -> &GcConfig {
+        &self.config
     }
 
     /// Runs one complete garbage collection cycle.

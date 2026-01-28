@@ -1,49 +1,102 @@
 {% extends "internal/base.html" %}
 
-{% block title %}Health Summary{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div id="health-status" hx-get="/internal/health" hx-trigger="every 30s" hx-select="#health-status" hx-swap="outerHTML">
-<div class="grid">
-    <div class="card">
-        <div class="label">Service Info</div>
-        <div class="stat">{{ service_name }}</div>
-        <div>Version: {{ version }}</div>
+<div id="health-status" hx-get="/dashboard/health" hx-trigger="every 30s" hx-select="#health-status" hx-swap="outerHTML">
+    <div class="grid">
+        <!-- Service Overview -->
+        <article class="card">
+            <header class="card-header">
+                <h2 class="label">Service Info</h2>
+                <span class="badge badge-success">Running</span>
+            </header>
+            <div class="stat">{{ service_name }}</div>
+            <dl>
+                <dt>Version</dt>
+                <dd>{{ version }}</dd>
+                
+                <dt>Uptime</dt>
+                <dd>{{ uptime }}</dd>
+            </dl>
+        </article>
+
+        <!-- Database -->
+        <article class="card">
+            <header class="card-header">
+                <h2 class="label">Database Status</h2>
+                {% if db_status == "Connected" %}
+                    <span class="badge badge-success">Online</span>
+                {% else %}
+                    <span class="badge badge-danger">Issue</span>
+                {% endif %}
+            </header>
+            <div class="stat">{{ db_status }}</div>
+            <dl>
+                <dt>Latency</dt>
+                <dd>{{ db_latency }}</dd>
+                
+                <dt>Active Pools</dt>
+                <dd>{{ db_pool_active }} / {{ db_pool_max }}</dd>
+                
+                <dt>Idle Pools</dt>
+                <dd>{{ db_pool_idle }}</dd>
+            </dl>
+        </article>
+
+        <!-- Storage Summary -->
+        <article class="card">
+            <header class="card-header">
+                <h2 class="label">Storage Summary</h2>
+                <span class="badge badge-info">{{ total_objects }} Objects</span>
+            </header>
+            <div class="stat">{{ hot_storage_usage }} <small>(Hot)</small></div>
+            <dl>
+                <dt>Cold Usage</dt>
+                <dd>{{ cold_storage_usage }}</dd>
+            </dl>
+            <footer style="margin-top: auto; padding-top: 1rem;">
+                <p style="font-size: 0.7rem; color: var(--text-muted); word-break: break-all;">
+                    Hot Path: {{ hot_storage_path }}
+                </p>
+            </footer>
+        </article>
+
+        <!-- Garbage Collector -->
+        <article class="card">
+            <header class="card-header">
+                <h2 class="label">Garbage Collector</h2>
+                {% if gc_status == "Active" %}
+                    <span class="badge badge-success">{{ gc_status }}</span>
+                {% else %}
+                    <span class="badge badge-secondary">{{ gc_status }}</span>
+                {% endif %}
+            </header>
+            <div class="stat">{{ gc_total_deleted }} <small>Deleted</small></div>
+            <dl>
+                <dt>Last Run</dt>
+                <dd>{{ gc_last_run }}</dd>
+                
+                <dt>Next Run</dt>
+                <dd>{{ gc_next_run }}</dd>
+            </dl>
+        </article>
     </div>
 
-    <div class="card">
-        <div class="label">Database Status</div>
-        <div class="stat">
-            {% if db_status == "Connected" %}
-                <span class="badge badge-success">{{ db_status }}</span>
-            {% else %}
-                <span class="badge badge-danger">{{ db_status }}</span>
-            {% endif %}
+    <!-- Quick Actions -->
+    <section class="card" style="margin-top: var(--space-lg);">
+        <h2 class="label" style="margin-bottom: 1rem;">System Actions</h2>
+        <div class="action-buttons" style="display: flex; flex-wrap: wrap; gap: 1rem;">
+            <button hx-post="/dashboard/actions/cache/clear" hx-swap="none" class="btn-secondary">
+                Clear Cache
+                <span class="htmx-indicator" aria-hidden="true">...</span>
+            </button>
+
+            <button hx-post="/dashboard/actions/reindex" hx-swap="none" class="btn-secondary">
+                Trigger Reindex
+                <span class="htmx-indicator" aria-hidden="true">...</span>
+            </button>
         </div>
-        <div>Latency: {{ db_latency }}</div>
-    </div>
-
-    <div class="card">
-        <div class="label">Storage Summary</div>
-        <div>Hot Usage: {{ hot_storage_usage }}</div>
-        <div>Cold Usage: {{ cold_storage_usage }}</div>
-        <div class="stat">{{ total_objects }} objects</div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="label">Actions</div>
-    <div style="margin-top: 1rem;">
-        <button hx-post="/internal/actions/cache/clear" hx-swap="none">
-            Clear Cache
-            <span class="htmx-indicator">...</span>
-        </button>
-
-        <button hx-post="/internal/actions/reindex" hx-swap="none" style="margin-left: 1rem;">
-            Trigger Reindex
-            <span class="htmx-indicator">...</span>
-        </button>
-    </div>
-</div>
+    </section>
 </div>
 {% endblock %}

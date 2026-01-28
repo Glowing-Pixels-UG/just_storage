@@ -15,10 +15,12 @@ spec:
       labels:
         app: just-storage
     spec:
+      imagePullSecrets:
+        - name: harbor-registry-secret
       containers:
         - name: just-storage
-          image: storage.bk.glpx.pro/just-storage:v1.1.1
-          imagePullPolicy: Never
+          image: registry.bk.glpx.pro/just-storage/just-storage:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http
@@ -78,6 +80,12 @@ spec:
                 secretKeyRef:
                   name: just-storage-secrets
                   key: api-keys
+                  optional: true
+            - name: INTERNAL_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: just-storage-secrets
+                  key: admin-token
                   optional: true
             - name: DISABLE_AUTH
               value: "false"

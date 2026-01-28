@@ -1,4 +1,4 @@
-FROM rust:1.93 AS builder
+FROM docker.io/library/rust:1.93 AS builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ COPY rust/src ./src
 RUN cargo build --release
 
 # Runtime stage
-FROM debian:bookworm-slim
+FROM docker.io/library/debian:bookworm-slim
 
 RUN apt-get update && \
   apt-get install -y ca-certificates && \
@@ -37,6 +37,7 @@ WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /app/target/release/just_storage /app/just_storage
+COPY --from=builder /app/internal_static /app/internal_static
 
 # Create data directories
 RUN mkdir -p /data/hot /data/cold

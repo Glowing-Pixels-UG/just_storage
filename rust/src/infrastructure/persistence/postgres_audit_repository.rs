@@ -24,7 +24,7 @@ impl AuditRepository for PostgresAuditRepository {
                 ip_address, user_agent, method, path, query, status_code,
                 response_time_ms, error_message, additional_data
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            VALUES ($1, $2, $3, $4, $5, CAST($6 AS inet), $7, $8, $9, $10, $11, $12, $13, $14)
             ",
         )
         .bind(entry.timestamp)
@@ -84,8 +84,9 @@ impl AuditRepository for PostgresAuditRepository {
         }
 
         if let Some(ip_address) = &filter.ip_address {
-            query_builder.push(" AND ip_address = ");
+            query_builder.push(" AND ip_address = CAST(");
             query_builder.push_bind(ip_address.clone());
+            query_builder.push(" AS inet)");
         }
 
         if let Some(path_pattern) = &filter.path_pattern {
@@ -239,8 +240,9 @@ impl AuditRepository for PostgresAuditRepository {
         }
 
         if let Some(ip_address) = &filter.ip_address {
-            query_builder.push(" AND ip_address = ");
+            query_builder.push(" AND ip_address = CAST(");
             query_builder.push_bind(ip_address.clone());
+            query_builder.push(" AS inet)");
         }
 
         if let Some(path_pattern) = &filter.path_pattern {

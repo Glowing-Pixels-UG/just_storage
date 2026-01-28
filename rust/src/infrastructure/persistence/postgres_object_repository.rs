@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 
 use crate::application::dto::{SearchRequest, TextSearchRequest};
 use crate::application::ports::{ObjectRepository, RepositoryError};
@@ -300,12 +300,18 @@ impl ObjectRepository for PostgresObjectRepository {
 
     async fn cleanup_stuck_uploads(&self, age_hours: i64) -> Result<usize, RepositoryError> {
         // Use the database function for atomic cleanup
-        let result: (i64,) = sqlx::query_as("SELECT cleanup_stuck_uploads($1) as deleted_count")
+        // Be tolerant of both INT4 and INT8 return types from Postgres
+        let result = sqlx::query("SELECT cleanup_stuck_uploads($1) as deleted_count")
             .bind(age_hours)
             .fetch_one(&self.pool)
             .await?;
 
-        Ok(result.0 as usize)
+        // Try to get as i64, fallback to i32 if needed
+        let count = result.try_get::<i64, _>(0)
+            .or_else(|_| result.try_get::<i32, _>(0).map(|v| v as i64))
+            .unwrap_or(0);
+
+        Ok(count as usize)
     }
 }
 

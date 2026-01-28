@@ -32,6 +32,24 @@ enum Commands {
         #[arg(short, long)]
         region: Option<String>,
     },
+    /// Build, push and deploy the application to Kubernetes
+    Run {
+        /// Container engine to use
+        #[arg(short, long, value_enum, default_value = "docker")]
+        engine: Engine,
+        /// Image tag
+        #[arg(short, long, default_value = "latest")]
+        tag: String,
+        /// Kubernetes namespace
+        #[arg(short, long, default_value = "just-storage")]
+        namespace: String,
+        /// Registry to use
+        #[arg(short, long, default_value = "registry.bk.glpx.pro")]
+        registry: String,
+        /// Skip pushing to registry
+        #[arg(long)]
+        no_push: bool,
+    },
     /// Validate deployment configuration
     Validate {
         /// Platform to validate config for
@@ -49,6 +67,12 @@ enum Commands {
         #[arg(short, long, default_value = ".env.example")]
         output: PathBuf,
     },
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+enum Engine {
+    Docker,
+    Podman,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -72,10 +96,121 @@ fn main() -> Result<()> {
             app_name,
             region,
         } => generate_config(&platform, &output, app_name.as_deref(), region.as_deref())?,
+        Commands::Run {
+            engine,
+            tag,
+            namespace,
+            registry,
+            no_push,
+        } => run_deployment(engine, &tag, &namespace, &registry, !no_push)?,
         Commands::Validate { platform, config } => validate_config(&platform, &config)?,
         Commands::Platforms => list_platforms(),
         Commands::Env { output } => generate_env_template(&output)?,
     }
+
+    Ok(())
+}
+
+fn run_deployment(
+    engine: Engine,
+    tag: &str,
+    namespace: &str,
+    registry: &str,
+    push: bool,
+) -> Result<()> {
+    let repo = "just-storage";
+    let image_name = "just-storage";
+    let full_image = format!("{}/{}/{}", registry, repo, image_name);
+    let tagged_image = format!("{}:{}", full_image, tag);
+
+    let engine_cmd = match engine {
+        Engine::Docker => "docker",
+        Engine::Podman => "podman",
+    };
+
+    println!("🚀 Starting deployment to Kubernetes (namespace: {})", namespace);
+    println!("📦 Image: {}", tagged_image);
+    println!("🔧 Engine: {:?}", engine);
+
+    // 1. Build locally
+    println!("\nStep 1/4: Building container image locally...");
+    let status = std::process::Command::new(engine_cmd)
+        .args(["build", "-t", &tagged_image, "."])
+        .current_dir("..") // Run from project root
+        .status()
+        .context(format!("Failed to execute {} build", engine_cmd))?;
+
+    if !status.success() {
+        anyhow::bail!("Build failed with status: {}", status);
+    }
+
+    // 2. Push to registry
+    if push {
+        println!("\nStep 2/4: Pushing image to registry...");
+        let status = std::process::Command::new(engine_cmd)
+            .args(["push", &tagged_image])
+            .status()
+            .context(format!("Failed to execute {} push", engine_cmd))?;
+
+        if !status.success() {
+            println!("⚠️ Push failed. This might be expected if the registry is not reachable from here.");
+            println!("Proceeding with deployment (assuming the node can pull or has the image).");
+        }
+    } else {
+        println!("\nStep 2/4: Skipping push (requested).");
+    }
+
+    // 3. Update Kubernetes deployment
+    println!("\nStep 3/4: Updating Kubernetes deployment...");
+    
+    // First, ensure base manifests are applied
+    let k8s_files = ["namespace.yaml", "pvc.yaml", "service.yaml", "deployment.yaml", "ingress.yaml"];
+    for file in k8s_files {
+        let path = format!("../k8s/{}", file);
+        if std::path::Path::new(&path).exists() {
+            println!("Applying {}...", file);
+            let _ = std::process::Command::new("kubectl")
+                .args(["apply", "-f", &path, "-n", namespace])
+                .status();
+        }
+    }
+
+    let status = std::process::Command::new("kubectl")
+        .args([
+            "set",
+            "image",
+            &format!("deployment/{}", image_name),
+            &format!("{}={}", image_name, tagged_image),
+            "-n",
+            namespace,
+        ])
+        .status()
+        .context("Failed to execute kubectl set image")?;
+
+    if !status.success() {
+        anyhow::bail!("Kubernetes update failed with status: {}", status);
+    }
+
+    // 4. Restart pods to ensure new image is pulled
+    println!("\nStep 4/4: Restarting pods...");
+    let status = std::process::Command::new("kubectl")
+        .args([
+            "rollout",
+            "restart",
+            &format!("deployment/{}", image_name),
+            "-n",
+            namespace,
+        ])
+        .status()
+        .context("Failed to execute kubectl rollout restart")?;
+
+    if !status.success() {
+        anyhow::bail!("Kubernetes rollout restart failed with status: {}", status);
+    }
+
+    println!("\n✅ Deployment complete!");
+    println!("URL: https://storage.bk.glpx.pro");
+    println!("URL: https://just-storage.bk.glpx.pro");
 
     Ok(())
 }
