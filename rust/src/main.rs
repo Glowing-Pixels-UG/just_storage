@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Create main router
-    let app = create_router(state.clone(), api_key_repo, audit_repo);
+    let app = create_router(state.clone(), api_key_repo, audit_repo).await;
 
     // Setup graceful shutdown signal
     let (shutdown_tx, _) = tokio::sync::broadcast::channel::<()>(1);
@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let admin_addr = format!("0.0.0.0:{}", port);
         info!("Internal admin listening on {}", admin_addr);
         let admin_listener = TcpListener::bind(&admin_addr).await?;
-        let admin_router = create_internal_router(state);
+        let admin_router = create_internal_router(state).await;
         let admin_shutdown_rx = shutdown_rx;
 
         let admin_server = async move {

@@ -1,11 +1,21 @@
 use async_trait::async_trait;
 use sqlx::PgPool;
+use time::OffsetDateTime;
+use chrono::{DateTime, Utc};
 
 use crate::application::ports::{ApiKeyRepository, ApiKeyRepositoryError};
 use crate::domain::{
     entities::{ApiKey, ApiKeyDbData},
     value_objects::{ApiKeyId, ApiKeyPermissions, ApiKeyValue},
 };
+
+fn to_chrono(odt: OffsetDateTime) -> DateTime<Utc> {
+    DateTime::from_timestamp(odt.unix_timestamp(), 0).unwrap_or_default()
+}
+
+fn to_offset(dt: DateTime<Utc>) -> OffsetDateTime {
+    OffsetDateTime::from_unix_timestamp(dt.timestamp()).unwrap()
+}
 
 /// PostgreSQL implementation of API key repository
 pub struct PostgresApiKeyRepository {
@@ -36,9 +46,9 @@ impl ApiKeyRepository for PostgresApiKeyRepository {
             api_key.description(),
             serde_json::to_value(api_key.permissions())?,
             api_key.is_active(),
-            api_key.expires_at(),
-            api_key.created_at(),
-            api_key.updated_at(),
+            api_key.expires_at().cloned().map(to_offset),
+            to_offset(*api_key.created_at()),
+            to_offset(*api_key.updated_at()),
         )
         .execute(&self.pool)
         .await?;
@@ -51,7 +61,10 @@ impl ApiKeyRepository for PostgresApiKeyRepository {
             r#"
             SELECT
                 id, api_key, tenant_id, name, description,
-                permissions, is_active, expires_at, created_at, updated_at, last_used_at
+                permissions, is_active, expires_at as "expires_at: OffsetDateTime", 
+                created_at as "created_at: OffsetDateTime", 
+                updated_at as "updated_at: OffsetDateTime", 
+                last_used_at as "last_used_at: OffsetDateTime"
             FROM api_keys
             WHERE id = $1
             "#,
@@ -74,10 +87,10 @@ impl ApiKeyRepository for PostgresApiKeyRepository {
                     description: row.description,
                     permissions,
                     is_active: row.is_active,
-                    expires_at: row.expires_at,
-                    created_at: row.created_at,
-                    updated_at: row.updated_at,
-                    last_used_at: row.last_used_at,
+                    expires_at: row.expires_at.map(to_chrono),
+                    created_at: to_chrono(row.created_at),
+                    updated_at: to_chrono(row.updated_at),
+                    last_used_at: row.last_used_at.map(to_chrono),
                 };
 
                 let api_key = ApiKey::from_db(db_data);
@@ -93,9 +106,12 @@ impl ApiKeyRepository for PostgresApiKeyRepository {
             r#"
             SELECT
                 id, api_key, tenant_id, name, description,
-                permissions, is_active, expires_at, created_at, updated_at, last_used_at
+                permissions, is_active, expires_at as "expires_at: OffsetDateTime", 
+                created_at as "created_at: OffsetDateTime", 
+                updated_at as "updated_at: OffsetDateTime", 
+                last_used_at as "last_used_at: OffsetDateTime"
             FROM api_keys
-            WHERE api_key = $1 AND is_active = true
+            WHERE api_key = $1
             "#,
             key,
         )
@@ -116,10 +132,10 @@ impl ApiKeyRepository for PostgresApiKeyRepository {
                     description: row.description,
                     permissions,
                     is_active: row.is_active,
-                    expires_at: row.expires_at,
-                    created_at: row.created_at,
-                    updated_at: row.updated_at,
-                    last_used_at: row.last_used_at,
+                    expires_at: row.expires_at.map(to_chrono),
+                    created_at: to_chrono(row.created_at),
+                    updated_at: to_chrono(row.updated_at),
+                    last_used_at: row.last_used_at.map(to_chrono),
                 };
 
                 let api_key = ApiKey::from_db(db_data);
@@ -140,7 +156,10 @@ impl ApiKeyRepository for PostgresApiKeyRepository {
             r#"
             SELECT
                 id, api_key, tenant_id, name, description,
-                permissions, is_active, expires_at, created_at, updated_at, last_used_at
+                permissions, is_active, expires_at as "expires_at: OffsetDateTime", 
+                created_at as "created_at: OffsetDateTime", 
+                updated_at as "updated_at: OffsetDateTime", 
+                last_used_at as "last_used_at: OffsetDateTime"
             FROM api_keys
             WHERE tenant_id = $1
             ORDER BY created_at DESC
@@ -167,10 +186,10 @@ impl ApiKeyRepository for PostgresApiKeyRepository {
                 description: row.description,
                 permissions,
                 is_active: row.is_active,
-                expires_at: row.expires_at,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
-                last_used_at: row.last_used_at,
+                expires_at: row.expires_at.map(to_chrono),
+                created_at: to_chrono(row.created_at),
+                updated_at: to_chrono(row.updated_at),
+                last_used_at: row.last_used_at.map(to_chrono),
             };
 
             let api_key = ApiKey::from_db(db_data);
@@ -183,15 +202,14 @@ impl ApiKeyRepository for PostgresApiKeyRepository {
     async fn count_by_tenant(&self, tenant_id: &str) -> Result<i64, ApiKeyRepositoryError> {
         let count = sqlx::query_scalar!(
             r#"
-            SELECT COUNT(*) as count
+            SELECT COUNT(*) as "count!"
             FROM api_keys
             WHERE tenant_id = $1
             "#,
             tenant_id,
         )
         .fetch_one(&self.pool)
-        .await?
-        .unwrap_or(0);
+        .await?;
 
         Ok(count)
     }
@@ -215,9 +233,9 @@ impl ApiKeyRepository for PostgresApiKeyRepository {
             api_key.description(),
             serde_json::to_value(api_key.permissions())?,
             api_key.is_active(),
-            api_key.expires_at(),
-            api_key.updated_at(),
-            api_key.last_used_at(),
+            api_key.expires_at().cloned().map(to_offset),
+            to_offset(*api_key.updated_at()),
+            api_key.last_used_at().cloned().map(to_offset),
         )
         .execute(&self.pool)
         .await?;
