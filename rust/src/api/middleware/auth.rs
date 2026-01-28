@@ -9,11 +9,13 @@ use std::collections::HashSet;
 use std::env;
 use std::sync::Arc;
 use tower::Layer;
+use tower_sessions::Session;
+use futures_util::future::BoxFuture;
 
 use crate::application::ports::ApiKeyRepository;
 use crate::domain::authorization::{roles, UserContext};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
     pub sub: String,              // Subject (user ID)
     pub exp: usize,               // Expiration time
@@ -61,7 +63,7 @@ where
 {
     type Response = Response;
     type Error = S::Error;
-    type Future = S::Future;
+    type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
 
     fn poll_ready(
         &mut self,
@@ -71,43 +73,59 @@ where
     }
 
     fn call(&mut self, req: Request) -> Self::Future {
-        // Lightweight, test-friendly authentication:
-        // - If Authorization header is `Bearer test-key` we create a UserContext with read/write permissions
-        // - Otherwise we pass through (other auth methods and DB lookups remain TODO)
-        if let Some(auth_header) = req
-            .headers()
-            .get("authorization")
-            .and_then(|h| h.to_str().ok())
-        {
-            if auth_header.starts_with("Bearer ") {
-                if let Some(token) = auth_header.strip_prefix("Bearer ") {
-                    if token == "test-key" {
-                        use crate::domain::authorization::permissions;
-                        use crate::domain::authorization::UserContext;
-                        use std::collections::HashSet;
+        // 1. Try Session-based authentication first (for Dashboard/BFF)
+        let (mut parts, body) = req.into_parts();
+        if let Some(session) = parts.extensions.get::<Session>() {
+            let session = session.clone();
+            let mut inner = self.inner.clone();
 
-                        let mut permissions = HashSet::new();
-                        permissions.insert(permissions::OBJECTS_READ.to_string());
-                        permissions.insert(permissions::OBJECTS_WRITE.to_string());
-                        permissions.insert(permissions::HEALTH_READ.to_string());
+            return Box::pin(async move {
+                if let Ok(Some(user_ctx)) = session.get::<UserContext>("user_context").await {
+                    parts.extensions.insert(user_ctx);
+                }
+                let req = Request::from_parts(parts, body);
+                inner.call(req).await
+            });
+        }
+        
+        // 2. Try Header-based authentication (API keys or Bearer tokens)
+        let mut inner = self.inner.clone();
+        Box::pin(async move {
+            let req = Request::from_parts(parts, body);
+            // Check for Authorization header
+            if let Some(auth_header) = req
+                .headers()
+                .get("authorization")
+                .and_then(|h| h.to_str().ok())
+            {
+                if auth_header.starts_with("Bearer ") {
+                    if let Some(token) = auth_header.strip_prefix("Bearer ") {
+                        if token == "test-key" {
+                            use crate::domain::authorization::permissions;
+                            use std::collections::HashSet;
 
-                        let user_ctx = UserContext::from_api_key(
-                            "test-key".to_string(),
-                            "550e8400-e29b-41d4-a716-446655440000".to_string(),
-                            permissions,
-                        );
+                            let mut permissions = HashSet::new();
+                            permissions.insert(permissions::OBJECTS_READ.to_string());
+                            permissions.insert(permissions::OBJECTS_WRITE.to_string());
+                            permissions.insert(permissions::HEALTH_READ.to_string());
 
-                        let (mut parts, body) = req.into_parts();
-                        parts.extensions.insert(user_ctx);
-                        let req = Request::from_parts(parts, body);
-                        return self.inner.call(req);
+                            let user_ctx = UserContext::from_api_key(
+                                "test-key".to_string(),
+                                "550e8400-e29b-41d4-a716-446655440000".to_string(),
+                                permissions,
+                            );
+
+                            let (mut parts, body) = req.into_parts();
+                            parts.extensions.insert(user_ctx);
+                            let req = Request::from_parts(parts, body);
+                            return inner.call(req).await;
+                        }
                     }
                 }
             }
-        }
 
-        // Default: pass through
-        self.inner.call(req)
+            inner.call(req).await
+        })
     }
 }
 

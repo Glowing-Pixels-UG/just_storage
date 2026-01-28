@@ -64,16 +64,16 @@ impl AppState {
 }
 
 /// Create router with all routes and middleware
-pub fn create_router(
+pub async fn create_router(
     state: AppState,
     api_key_repo: Arc<dyn ApiKeyRepository + Send + Sync>,
     audit_repo: Arc<dyn AuditRepository + Send + Sync>,
 ) -> Router {
-    create_router_with_middleware(state, api_key_repo, audit_repo, MiddlewareConfig::default())
+    create_router_with_middleware(state, api_key_repo, audit_repo, MiddlewareConfig::default()).await
 }
 
 /// Create router with custom middleware configuration
-pub fn create_router_with_middleware(
+pub async fn create_router_with_middleware(
     state: AppState,
     api_key_repo: Arc<dyn ApiKeyRepository + Send + Sync>,
     audit_repo: Arc<dyn AuditRepository + Send + Sync>,
@@ -82,7 +82,7 @@ pub fn create_router_with_middleware(
     let middleware_factory = MiddlewareFactory::new(middleware_config);
 
     // 3. Internal routes (have their own middleware and auth)
-    let internal_router = create_internal_router(state.clone());
+    let internal_router = create_internal_router(state.clone()).await;
 
     // Initialize the main router
     let mut router = Router::new();

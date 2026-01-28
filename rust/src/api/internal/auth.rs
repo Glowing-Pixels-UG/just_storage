@@ -7,11 +7,14 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use tower_cookies::Cookies;
+use tower_sessions::Session;
+use crate::domain::authorization::UserContext;
 
 /// Middleware for internal admin authentication
 pub async fn internal_admin_auth(
     State(state): State<AppState>,
     cookies: Cookies,
+    session: Session,
     req: Request<Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
@@ -25,12 +28,19 @@ pub async fn internal_admin_auth(
         return Ok(next.run(req).await);
     }
 
+    // 1. Check Session (new OIDC/Session-based)
+    if let Ok(Some(_user_ctx)) = session.get::<UserContext>("user_context").await {
+        // Here we could check for admin role if needed
+        // For now, any valid session in the dashboard is admin
+        return Ok(next.run(req).await);
+    }
+
     let expected_token = match &state.config.admin_token {
         Some(token) => token,
         None => return Err(StatusCode::FORBIDDEN),
     };
 
-    // 1. Check Authorization header
+    // 2. Check Authorization header (legacy/CLI)
     let auth_header = req
         .headers()
         .get(AUTHORIZATION)
@@ -41,13 +51,13 @@ pub async fn internal_admin_auth(
         return Ok(next.run(req).await);
     }
 
-    // 2. Check admin_session cookie
+    // 3. Check admin_session cookie (legacy simple token)
     let cookie_token = cookies.get("admin_session").map(|c| c.value().to_string());
     if cookie_token == Some(expected_token.clone()) {
         return Ok(next.run(req).await);
     }
 
-    // 3. Fallback: Redirect to login if it's a browser request (GET to HTML page)
+    // 4. Fallback: Redirect to login if it's a browser request (GET to HTML page)
     // For simplicity, we redirect all GET requests that aren't HTMX/API
     let accept_header = req
         .headers()

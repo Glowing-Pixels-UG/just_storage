@@ -83,8 +83,10 @@ pub mod roles {
     }
 }
 
+use serde::{Deserialize, Serialize};
+
 /// User context extracted from authentication
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UserContext {
     pub user_id: String,
     pub tenant_id: String,

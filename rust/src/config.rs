@@ -22,6 +22,13 @@ pub struct Config {
     // Internal admin options
     pub admin_token: Option<String>,
     pub admin_port: Option<u16>,
+    // OIDC options
+    pub oidc_issuer_url: Option<String>,
+    pub oidc_client_id: Option<String>,
+    pub oidc_client_secret: Option<String>,
+    pub oidc_redirect_url: Option<String>,
+    pub oidc_audience: Option<String>,
+    pub session_secret: Option<String>,
 }
 
 impl Config {
@@ -102,6 +109,13 @@ impl Config {
             admin_port: std::env::var("ADMIN_PORT")
                 .ok()
                 .and_then(|s| s.parse().ok()),
+            // OIDC configuration from environment
+            oidc_issuer_url: std::env::var("OIDC_ISSUER_URL").ok(),
+            oidc_client_id: std::env::var("OIDC_CLIENT_ID").ok(),
+            oidc_client_secret: std::env::var("OIDC_CLIENT_SECRET").ok(),
+            oidc_redirect_url: std::env::var("OIDC_REDIRECT_URL").ok(),
+            oidc_audience: std::env::var("OIDC_AUDIENCE").ok(),
+            session_secret: std::env::var("SESSION_SECRET").ok(),
         }
     }
 
