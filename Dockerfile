@@ -1,9 +1,18 @@
-FROM rust:1.93 as builder
+FROM rust:1.93 AS builder
 
 WORKDIR /app
 
-# Copy manifests
+# Copy manifests and static assets
 COPY rust/Cargo.toml rust/Cargo.lock ./
+COPY rust/benches ./benches
+COPY rust/tools ./tools
+COPY rust/migrations ./migrations
+COPY rust/templates ./templates
+COPY rust/internal_static ./internal_static
+COPY rust/.sqlx ./.sqlx
+
+# Set offline mode for SQLx
+ENV SQLX_OFFLINE=true
 
 # Create dummy main to cache dependencies
 RUN mkdir src && \
