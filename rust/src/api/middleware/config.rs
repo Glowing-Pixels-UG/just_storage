@@ -28,7 +28,6 @@ pub struct MiddlewareConfig {
     pub size_limits: SizeLimitConfig,
 }
 
-
 impl MiddlewareConfig {
     /// Create a new middleware config with default values
     pub fn new() -> Self {
@@ -110,7 +109,7 @@ mod tests {
         // Just verify it creates without panicking
         assert!(config.audit.enabled);
         assert!(config.input_sanitization.max_string_length > 0);
-        assert!(config.error_handling.sensitive_patterns.len() > 0);
+        assert!(!config.error_handling.sensitive_patterns.is_empty());
     }
 
     #[test]
@@ -138,7 +137,7 @@ mod tests {
             .with_error_handling(custom_error_config.clone());
 
         assert_eq!(config.input_sanitization.max_string_length, 1000);
-        assert_eq!(config.error_handling.include_debug_info, false);
+        assert!(!config.error_handling.include_debug_info);
     }
 
     #[test]

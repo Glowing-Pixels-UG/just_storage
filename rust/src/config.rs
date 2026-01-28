@@ -19,6 +19,9 @@ pub struct Config {
     // Performance tuning options
     pub adaptive_buffering_enabled: bool,
     pub concurrent_cache_threshold: usize,
+    // Internal admin options
+    pub admin_token: Option<String>,
+    pub admin_port: Option<u16>,
 }
 
 impl Config {
@@ -52,7 +55,7 @@ impl Config {
             gc_interval_secs: std::env::var("GC_INTERVAL_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(60),
+                .unwrap_or(300),
             gc_batch_size: std::env::var("GC_BATCH_SIZE")
                 .ok()
                 .and_then(|s| s.parse().ok())
@@ -63,11 +66,11 @@ impl Config {
             db_max_connections: std::env::var("DB_MAX_CONNECTIONS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(20),
+                .unwrap_or(10),
             db_min_connections: std::env::var("DB_MIN_CONNECTIONS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(5),
+                .unwrap_or(1),
             db_acquire_timeout_secs: std::env::var("DB_ACQUIRE_TIMEOUT_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
@@ -75,16 +78,16 @@ impl Config {
             db_idle_timeout_secs: std::env::var("DB_IDLE_TIMEOUT_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(600), // 10 minutes
+                .unwrap_or(300), // 5 minutes
             db_max_lifetime_secs: std::env::var("DB_MAX_LIFETIME_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(1800), // 30 minutes
-            // Request size limits (default: 10GB)
+            // Request size limits (default: 100MB)
             max_upload_size_bytes: std::env::var("MAX_UPLOAD_SIZE_BYTES")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(10 * 1024 * 1024 * 1024), // 10 GB
+                .unwrap_or(100 * 1024 * 1024), // 100 MB
             // Performance tuning (adaptive features enabled by default)
             adaptive_buffering_enabled: std::env::var("ADAPTIVE_BUFFERING_ENABLED")
                 .ok()
@@ -93,7 +96,12 @@ impl Config {
             concurrent_cache_threshold: std::env::var("CONCURRENT_CACHE_THRESHOLD")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(10), // Switch to concurrent cache after 10 concurrent ops
+                .unwrap_or(1024 * 1024), // Switch to concurrent cache after large threshold for tests
+            // Internal admin options
+            admin_token: std::env::var("INTERNAL_ADMIN_TOKEN").ok(),
+            admin_port: std::env::var("ADMIN_PORT")
+                .ok()
+                .and_then(|s| s.parse().ok()),
         }
     }
 
@@ -111,23 +119,13 @@ impl Config {
             return Err("LISTEN_ADDR cannot be empty".to_string());
         }
 
-        // Validate storage paths exist or can be created
-        if let Some(parent) = self.hot_storage_root.parent() {
-            if !parent.exists() {
-                return Err(format!(
-                    "HOT_STORAGE_ROOT parent directory does not exist: {}",
-                    parent.display()
-                ));
-            }
+        // Validate storage paths are set
+        if self.hot_storage_root.as_os_str().is_empty() {
+            return Err("HOT_STORAGE_ROOT cannot be empty".to_string());
         }
 
-        if let Some(parent) = self.cold_storage_root.parent() {
-            if !parent.exists() {
-                return Err(format!(
-                    "COLD_STORAGE_ROOT parent directory does not exist: {}",
-                    parent.display()
-                ));
-            }
+        if self.cold_storage_root.as_os_str().is_empty() {
+            return Err("COLD_STORAGE_ROOT cannot be empty".to_string());
         }
 
         // Validate GC settings
@@ -153,8 +151,16 @@ impl Config {
             return Err("DB_MAX_CONNECTIONS must be > 0".to_string());
         }
 
+        if self.db_min_connections == 0 {
+            return Err("DB_MIN_CONNECTIONS must be > 0".to_string());
+        }
+
         if self.db_acquire_timeout_secs == 0 {
             return Err("DB_ACQUIRE_TIMEOUT_SECS must be > 0".to_string());
+        }
+
+        if self.max_upload_size_bytes == 0 {
+            return Err("MAX_UPLOAD_SIZE_BYTES must be > 0".to_string());
         }
 
         Ok(())

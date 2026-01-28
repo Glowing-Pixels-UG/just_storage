@@ -212,7 +212,7 @@ pub enum ApiKeyUseCaseError {
 mod tests {
     use super::*;
     use crate::domain::entities::ApiKey;
-    use crate::domain::value_objects::{ApiKeyId, ApiKeyPermissions, ApiKeyValue};
+    use crate::domain::value_objects::{ApiKeyId, ApiKeyPermissions};
     use async_trait::async_trait;
     use mockall::mock;
     use mockall::predicate::*;
@@ -347,6 +347,12 @@ mod tests {
                 .times(1)
                 .returning(move |_, _, _| Ok(api_keys.clone()));
 
+            mock_repo
+                .expect_count_by_tenant()
+                .with(eq("tenant-123"))
+                .times(1)
+                .returning(|_| Ok(2));
+
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 
             let result = use_case.execute("tenant-123".to_string(), None, None).await;
@@ -380,6 +386,12 @@ mod tests {
                 .times(1)
                 .returning(move |_, _, _| Ok(api_keys.clone()));
 
+            mock_repo
+                .expect_count_by_tenant()
+                .with(eq("tenant-123"))
+                .times(1)
+                .returning(|_| Ok(1));
+
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 
             let result = use_case
@@ -400,6 +412,12 @@ mod tests {
                 .expect_list_by_tenant()
                 .times(1)
                 .returning(|_, _, _| Ok(vec![]));
+
+            mock_repo
+                .expect_count_by_tenant()
+                .with(eq("tenant-123"))
+                .times(1)
+                .returning(|_| Ok(0));
 
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 
@@ -549,7 +567,6 @@ mod tests {
 
         #[tokio::test]
         async fn test_delete_api_key_success() {
-            let api_key_id = ApiKeyId::new();
             let api_key = ApiKey::new(
                 "tenant-123".to_string(),
                 "Test Key".to_string(),
@@ -557,6 +574,7 @@ mod tests {
                 ApiKeyPermissions::read_only(),
                 None,
             );
+            let api_key_id = *api_key.id();
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
             mock_repo
@@ -564,6 +582,7 @@ mod tests {
                 .with(eq(api_key_id))
                 .times(1)
                 .returning(move |_| Ok(Some(api_key.clone())));
+
             mock_repo
                 .expect_delete()
                 .with(eq(api_key_id))
@@ -581,7 +600,6 @@ mod tests {
 
         #[tokio::test]
         async fn test_delete_api_key_repository_error() {
-            let api_key_id = ApiKeyId::new();
             let api_key = ApiKey::new(
                 "tenant-123".to_string(),
                 "Test Key".to_string(),
@@ -589,6 +607,7 @@ mod tests {
                 ApiKeyPermissions::read_only(),
                 None,
             );
+            let api_key_id = *api_key.id();
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
             mock_repo
@@ -596,6 +615,7 @@ mod tests {
                 .with(eq(api_key_id))
                 .times(1)
                 .returning(move |_| Ok(Some(api_key.clone())));
+
             mock_repo
                 .expect_delete()
                 .with(eq(api_key_id))

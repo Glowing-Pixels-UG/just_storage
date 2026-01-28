@@ -272,7 +272,7 @@ mod tests {
         // Unknown errors
         let unknown_err = sqlx::Error::ColumnDecode {
             index: "0".to_string(),
-            source: Box::new(std::io::Error::new(std::io::ErrorKind::Other, "unknown")),
+            source: Box::new(std::io::Error::other("unknown")),
         };
         let sanitized = sanitize_db_error(&unknown_err);
         assert!(sanitized.contains("Database") || sanitized.contains("decode"));

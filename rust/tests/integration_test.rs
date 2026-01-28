@@ -1,9 +1,10 @@
+#![allow(dead_code)]
+
 use std::sync::Arc;
 
 use just_storage::{
     application::{
         dto::UploadRequest,
-        ports::{BlobRepository, BlobStore, ObjectRepository},
         use_cases::{DeleteObjectUseCase, DownloadObjectUseCase, UploadObjectUseCase},
     },
     domain::value_objects::StorageClass,
@@ -11,11 +12,11 @@ use just_storage::{
 
 // Import shared test fixtures
 mod test_fixtures;
-use test_fixtures::{TestEnvironment, assertions};
+use test_fixtures::TestEnvironment;
 
 // Import enhanced test environments
-mod testcontainers_integration;
 mod api_endpoint_tests;
+mod testcontainers_integration;
 
 #[tokio::test]
 async fn test_full_lifecycle() {
@@ -94,12 +95,12 @@ async fn test_full_lifecycle() {
 #[cfg(test)]
 mod api_tests {
     use super::*;
+    use crate::test_fixtures::{assertions, http};
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use just_storage::api::create_router;
     use just_storage::ApplicationBuilder;
-    use crate::test_fixtures::{http, assertions};
-    use std::net::SocketAddr;
+
     use tower::ServiceExt;
 
     async fn setup_test_server() -> axum::Router {
@@ -114,7 +115,10 @@ mod api_tests {
         config.cold_storage_root = env.cold_dir.path().to_path_buf();
 
         // Build application
-        let builder = ApplicationBuilder::new(config).with_database().await.unwrap();
+        let builder = ApplicationBuilder::new(config)
+            .with_database()
+            .await
+            .unwrap();
 
         let gc = builder.build_gc().unwrap();
         tokio::spawn(Arc::clone(&gc).run());
@@ -151,7 +155,9 @@ mod api_tests {
         let response = app.clone().oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["status"], "healthy");
 
@@ -174,7 +180,9 @@ mod api_tests {
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(json["openapi"].is_string());
         assert!(json["paths"].is_object());

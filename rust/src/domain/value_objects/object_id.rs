@@ -68,13 +68,16 @@ mod tests {
         let uuid = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
         let object_id = ObjectId::from_uuid(uuid);
 
-        assert_eq!(object_id.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(
+            object_id.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
     }
 
     #[test]
     fn test_object_id_from_str_valid() {
         let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
-            let object_id: ObjectId = uuid_str.parse().unwrap();
+        let object_id: ObjectId = uuid_str.parse().unwrap();
         let expected_uuid = Uuid::parse_str(uuid_str).unwrap();
 
         assert_eq!(*object_id.as_uuid(), expected_uuid);
@@ -85,14 +88,17 @@ mod tests {
         let invalid_uuids = vec![
             "",
             "not-a-uuid",
-            "550e8400-e29b-41d4-a716", // too short
+            "550e8400-e29b-41d4-a716",                    // too short
             "550e8400-e29b-41d4-a716-446655440000-extra", // too long
-            "550e8400-e29b-41d4-a716-44665544000g", // invalid character
+            "550e8400-e29b-41d4-a716-44665544000g",       // invalid character
         ];
 
         for invalid in invalid_uuids {
-            assert!(invalid.parse::<ObjectId>().is_err(),
-                "Should fail to parse invalid UUID: {}", invalid);
+            assert!(
+                invalid.parse::<ObjectId>().is_err(),
+                "Should fail to parse invalid UUID: {}",
+                invalid
+            );
         }
     }
 
@@ -131,7 +137,7 @@ mod tests {
     #[test]
     fn test_object_id_clone() {
         let id1 = ObjectId::new();
-        let id2 = id1.clone();
+        let id2 = id1;
 
         assert_eq!(id1, id2);
     }

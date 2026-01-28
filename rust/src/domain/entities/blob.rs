@@ -81,6 +81,17 @@ impl Blob {
     }
 }
 
+// Custom equality focuses on identifying a blob by its content hash, storage class and size
+impl PartialEq for Blob {
+    fn eq(&self, other: &Self) -> bool {
+        self.content_hash == other.content_hash
+            && self.storage_class == other.storage_class
+            && self.size_bytes == other.size_bytes
+    }
+}
+
+impl Eq for Blob {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use std::collections::HashMap;
 use std::sync::Mutex;
 
 use crate::application::ports::{
@@ -110,6 +109,12 @@ impl MockBlobStore {
             deleted_files: Mutex::new(Vec::new()),
             should_fail_delete: true,
         }
+    }
+}
+
+impl Default for MockBlobStore {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

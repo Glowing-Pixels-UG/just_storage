@@ -86,7 +86,7 @@ impl RateLimiter {
                 &self.user_limits,
             ),
             LimitType::Tenant => (
-                self.config.authenticated_requests_per_minute * 5,
+                self.config.authenticated_requests_per_minute,
                 &self.tenant_limits,
             ),
         };
@@ -351,7 +351,7 @@ mod tests {
         let limiter = RateLimiter::new(config);
 
         // Fill up the limit
-        for i in 0..3 {
+        for _i in 0..3 {
             assert!(limiter.check_limit("test_ip", LimitType::IP).is_ok());
         }
 
@@ -381,7 +381,7 @@ mod tests {
         };
         let limiter = RateLimiter::new(config);
 
-        // Test IP limiting - use same key to exceed limit
+        // Test IP limiting: use the same key to fill the limit
         for _ in 0..3 {
             assert!(limiter.check_limit("ip_test", LimitType::IP).is_ok());
         }
@@ -390,7 +390,7 @@ mod tests {
             Err(RateLimitError::LimitExceeded(_))
         ));
 
-        // Test user limiting (different limit) - use same key
+        // Test user limiting (different limit): use same user id
         for _ in 0..5 {
             assert!(limiter.check_limit("user_test", LimitType::User).is_ok());
         }
@@ -399,8 +399,8 @@ mod tests {
             Err(RateLimitError::LimitExceeded(_))
         ));
 
-        // Test tenant limiting - use same key, tenant limit is auth_limit * 5 = 25
-        for _ in 0..25 {
+        // Test tenant limiting: use same tenant id
+        for _ in 0..5 {
             assert!(limiter
                 .check_limit("tenant_test", LimitType::Tenant)
                 .is_ok());

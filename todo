@@ -1,0 +1,116 @@
+# Phase 3: Feature-Based Test Organization (HIGH PRIORITY)
+
+**Status:** 🟠 In planning — branch: `phase-3-feature-organization`
+**Last Updated:** January 26, 2026
+**Context:** Phase 2 (test type reorganization) is complete — this document focuses only on Phase 3: migrating tests to feature/use-case files and implementing naming conventions and discovery improvements.
+
+---
+
+## Problem Statement
+
+- Monolithic test files (e.g., `e2e/api.rs`, `testcontainers_integration.rs`) mix unrelated features and grow too large.
+- Poor test naming and ambiguous scopes (e.g., `test_full_lifecycle()`, `api_test_health_endpoints()`).
+- Hard to discover tests by feature or reason about ownership.
+
+---
+
+## Goals
+
+- One test file per feature/use-case (module-per-feature organization).
+- Consistent naming convention: `feature_scenario_expected()`.
+- Test file names clearly indicate the feature (e.g., `object_upload_tests.rs`).
+- Keep files focused (<150 lines) and high test density.
+
+---
+
+## Naming Conventions
+
+- Test functions: `feature_scenario_expected()`
+  Examples: `object_upload_succeeds_when_valid_payload()`, `health_endpoint_returns_ok()`
+- File names: `{scope}_{feature}_tests.rs` or `feature_{scope}_tests.rs`
+  Examples: `e2e/api/object_lifecycle_tests.rs`, `integration/use_cases/upload_object_tests.rs`
+
+---
+
+## Target File Layout (migration goal)
+
+integration/use_cases/
+
+- `upload_object_tests.rs`      # Upload use case only
+- `download_object_tests.rs`    # Download use case only
+- `delete_object_tests.rs`      # Delete use case only
+- `search_object_tests.rs`      # Search behavior tests
+- `list_objects_tests.rs`       # Listing behavior tests
+
+e2e/api/
+
+- `health_endpoints_tests.rs`   # /health, /health/ready
+- `object_lifecycle_tests.rs`   # POST/GET/DELETE /v1/objects
+- `api_key_management_tests.rs` # /v1/api-keys
+- `search_endpoints_tests.rs`   # /v1/search, /v1/text-search
+- `security_tests.rs`           # Auth, CORS, headers, validation
+
+property/
+
+- `value_object_properties.rs`
+- `entity_properties.rs`
+- `validation_properties.rs`
+- `encoding_properties.rs`
+
+---
+
+## Migration Plan (file-by-file)
+
+1. Split `e2e/api.rs` into focused files (health, object lifecycle, api keys, search, security).
+2. Split `testcontainers_integration.rs` into integration/use_cases/* (upload/download/delete/search/list).
+3. Split `property_tests.rs` into domain property files.
+4. Move shared helpers into `tests/common/` (if not already).
+5. Delete monolithic source files after verification and ensure git history is preserved.
+
+Notes: Perform changes incrementally — move code, update `use` paths, run `cargo test --workspace` after each move.
+
+---
+
+## Success Criteria
+
+- Each test file <150 lines and focused on a single feature. ✅
+- Test names follow `feature_scenario_expected()` convention. ✅
+- Easy to find tests for a given endpoint or use case. ✅
+- Full test suite passes locally and in CI after each migration step.
+
+---
+
+## Implementation Tasks (Phase 3)
+
+- [x] Create `e2e/api/health_endpoints_tests.rs` (moved)
+- [ ] Create `e2e/api/object_lifecycle_tests.rs` (move POST/GET/DELETE tests)
+- [ ] Create `e2e/api/api_key_management_tests.rs` (move API key tests)
+- [ ] Create `e2e/api/search_endpoints_tests.rs` (move search tests)
+- [x] Split `e2e/security.rs` into `e2e/security/*` feature tests (auth, validation, headers, rate-limiting)
+- [ ] Split `testcontainers_integration.rs` into `integration/use_cases/*` files
+- [ ] Split `property_tests.rs` into domain-specific property files
+- [ ] Add per-feature `mod.rs` entries where needed to preserve test discovery
+- [ ] Run full test suite and fix any path/visibility issues
+- [ ] Delete old monolithic files when coverage is preserved
+
+---
+
+## Quick Commands
+
+- Run test suite: `cargo test --workspace`
+- Run a single file: `cargo test --test name_of_test_binary` (after `[[test]]` entries)
+- Run a single test: `cargo test <test_name> -- --exact --nocapture`
+
+---
+
+## Owner & Timeline
+
+- Owner: @damir
+- Estimated effort: 2-3 days (incremental, file-by-file)
+
+---
+
+```text
+Changelog:
+- Jan 26, 2026: Created focused Phase 3 plan and migration checklist.
+```

@@ -58,7 +58,7 @@ impl GcResult {
     /// }
     /// ```
     pub fn has_deletions(&self) -> bool {
-        self.total_deleted > 0
+        self.total_deleted > 0 || self.orphaned_blobs_deleted > 0 || self.stuck_uploads_deleted > 0
     }
 
     /// Returns true if orphaned blobs were deleted

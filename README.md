@@ -37,7 +37,7 @@ Replace generic S3/GCS usage with a domain-specific, streamlined interface desig
 - Simple API with 10-15 well-defined operations
 - Strong consistency with read-after-write guarantees
 - Clear cost model without complex pricing tiers
-- Optimized for Model Hub, knowledge base, and file storage workloads
+- Optimized for model hosting, knowledge base, and general file storage workloads
 
 ## Key Features
 
@@ -137,7 +137,7 @@ See [Contributing Guide](https://github.com/Glowing-Pixels-UG/just_storage/wiki/
 curl -X POST http://localhost:8080/v1/objects \
   -H "X-Namespace: models" \
   -H "X-Tenant: acme" \
-  -H "X-Key: gpt-4-turbo" \
+  -H "X-Key: example-model" \
   -H "X-Storage-Class: hot" \
   -H "Content-Type: application/octet-stream" \
   --data-binary @model.bin
@@ -150,7 +150,7 @@ Response:
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "namespace": "models",
   "tenant_id": "acme",
-  "key": "gpt-4-turbo",
+  "key": "example-model",
   "content_hash": "sha256:abcdef123...",
   "size_bytes": 1073741824,
   "storage_class": "hot",
@@ -166,7 +166,7 @@ curl http://localhost:8080/v1/objects/550e8400-e29b-41d4-a716-446655440000 \
   -H "X-Tenant: acme" -o model.bin
 
 # By key
-curl http://localhost:8080/v1/objects/by-key/models/acme/gpt-4-turbo -o model.bin
+curl http://localhost:8080/v1/objects/by-key/models/acme/example-model -o model.bin
 ```
 
 ### List objects
@@ -396,6 +396,16 @@ cargo tarpaulin --out Html
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
+
+---
+
+## Related projects
+
+- Main repository: [Glowing-Pixels-UG/just-storage](https://github.com/Glowing-Pixels-UG/just-storage)
+- SDKs:
+  - Node: [just-storage-node-sdk](https://github.com/Glowing-Pixels-UG/just-storage-node-sdk)
+  - Python: [just-storage-python-sdk](https://github.com/Glowing-Pixels-UG/just-storage-python-sdk)
+  - Go: [just-storage-go-sdk](https://github.com/Glowing-Pixels-UG/just-storage-go-sdk)
 
 ## Status & Roadmap
 
