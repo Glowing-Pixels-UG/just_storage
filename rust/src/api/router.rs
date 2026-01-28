@@ -16,8 +16,7 @@ use crate::api::handlers::{
 };
 use crate::api::internal::create_internal_router;
 use crate::api::middleware::{
-    authorization, config::MiddlewareConfig, content_type, factory::MiddlewareFactory,
-    security_headers, size_limits,
+    authorization, config::MiddlewareConfig, content_type, factory::MiddlewareFactory, size_limits,
 };
 use crate::api::openapi::ApiDoc;
 use crate::application::gc::GarbageCollector;
@@ -252,10 +251,6 @@ fn add_api_key_routes(router: Router, state: &AppState) -> Router {
 }
 
 /// Apply the complete middleware stack to the router
-use crate::api::middleware::security_headers::{
-    RequestSanitizationMiddleware, SecurityHeadersMiddleware,
-};
-
 fn apply_middleware_stack(
     router: Router,
     middleware_factory: &MiddlewareFactory,

@@ -7,9 +7,8 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use axum::Router;
 use serde_json::json;
-use sqlx::PgPool;
-use std::sync::Arc;
-use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
+use testcontainers_modules::postgres::Postgres;
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use tower::ServiceExt;
 
 use just_storage::{api::create_router, ApplicationBuilder, Config};

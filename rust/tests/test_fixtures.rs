@@ -6,7 +6,6 @@
 //! and make tests more maintainable.
 
 use sqlx::{Executor, PgPool};
-use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
@@ -154,7 +153,7 @@ pub fn setup_test_storage() -> (TempDir, TempDir) {
 pub mod factories {
     use super::*;
     use just_storage::domain::entities::Object;
-    use just_storage::domain::value_objects::{Namespace, ObjectId, ObjectStatus, TenantId};
+    use just_storage::domain::value_objects::{Namespace, TenantId};
 
     /// Create a test object with default values
     pub fn create_test_object() -> Object {
@@ -216,7 +215,7 @@ pub mod factories {
 /// HTTP testing utilities
 pub mod http {
     use axum::body::Body;
-    use axum::http::{Method, Request, Uri};
+    use axum::http::{Method, Request};
     use serde_json::Value;
 
     /// Create a JSON request body
