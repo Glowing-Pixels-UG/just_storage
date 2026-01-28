@@ -72,7 +72,7 @@ pub struct ObjectMetadata {
     pub description: Option<String>,
 
     /// Last access timestamp (for tiering/GC decisions)
-    pub last_access_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_access_at: Option<time::OffsetDateTime>,
 
     /// Origin/provenance info
     pub origin: Option<OriginInfo>,

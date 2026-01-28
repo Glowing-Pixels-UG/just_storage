@@ -1,4 +1,3 @@
-use chrono::Utc;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use futures_util::future::join_all;
 use just_storage::application::ports::BlobStore;
@@ -164,7 +163,9 @@ fn storage_benchmarks(c: &mut Criterion) {
         // This ensures we satisfy "benchmark with historical data save in csv"
 
         // Run a quick check for CSV logging
-        let timestamp = Utc::now().to_rfc3339();
+        let timestamp = time::OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
 
         // Create shared store for CSV logging to avoid repeated directory creation
         let hot_dir = TempDir::new().unwrap();

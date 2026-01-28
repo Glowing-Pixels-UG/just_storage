@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use chrono::Utc;
 /// GC worker performance benchmarks
 /// Measures garbage collection performance with different batch sizes and blob counts
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -32,7 +31,7 @@ impl MockBlobRepository {
                 StorageClass::Hot,
                 1024,
                 0, // ref_count = 0 means orphaned
-                Utc::now(),
+                time::OffsetDateTime::now_utc(),
             );
             blobs.push(blob);
         }

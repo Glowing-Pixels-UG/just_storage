@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{
@@ -21,8 +21,8 @@ pub struct Object {
     size_bytes: Option<u64>,
     content_type: Option<String>,
     metadata: ObjectMetadata,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: OffsetDateTime,
+    updated_at: OffsetDateTime,
 }
 
 impl Object {
@@ -33,7 +33,7 @@ impl Object {
         key: Option<String>,
         storage_class: StorageClass,
     ) -> Self {
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
         Self {
             id: ObjectId::new(),
             namespace,
@@ -63,8 +63,8 @@ impl Object {
         size_bytes: Option<u64>,
         content_type: Option<String>,
         metadata: ObjectMetadata,
-        created_at: DateTime<Utc>,
-        updated_at: DateTime<Utc>,
+        created_at: OffsetDateTime,
+        updated_at: OffsetDateTime,
     ) -> Self {
         Self {
             id,
@@ -98,7 +98,7 @@ impl Object {
         self.status = ObjectStatus::Committed;
         self.content_hash = Some(content_hash.clone());
         self.size_bytes = Some(size_bytes);
-        self.updated_at = Utc::now();
+        self.updated_at = OffsetDateTime::now_utc();
 
         Ok(())
     }
@@ -110,7 +110,7 @@ impl Object {
         }
 
         self.status = ObjectStatus::Deleting;
-        self.updated_at = Utc::now();
+        self.updated_at = OffsetDateTime::now_utc();
 
         Ok(())
     }
@@ -125,7 +125,7 @@ impl Object {
         }
 
         self.status = ObjectStatus::Deleted;
-        self.updated_at = Utc::now();
+        self.updated_at = OffsetDateTime::now_utc();
 
         Ok(())
     }
@@ -177,14 +177,14 @@ impl Object {
 
     pub fn set_content_type(&mut self, content_type: String) {
         self.content_type = Some(content_type);
-        self.updated_at = Utc::now();
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
-    pub fn created_at(&self) -> DateTime<Utc> {
+    pub fn created_at(&self) -> OffsetDateTime {
         self.created_at
     }
 
-    pub fn updated_at(&self) -> DateTime<Utc> {
+    pub fn updated_at(&self) -> OffsetDateTime {
         self.updated_at
     }
 
@@ -318,7 +318,7 @@ mod tests {
         let original_updated_at = object.updated_at();
 
         // Manually set the updated_at to a known value in the past
-        object.updated_at = original_updated_at - chrono::Duration::seconds(1);
+        object.updated_at = original_updated_at - time::Duration::seconds(1);
         let past_updated_at = object.updated_at();
 
         let content_type = "application/json".to_string();
@@ -412,8 +412,8 @@ mod tests {
         assert!(updated_at >= created_at);
 
         // Timestamps should be recent (within last minute)
-        let now = Utc::now();
-        let one_minute_ago = now - chrono::Duration::minutes(1);
+        let now = OffsetDateTime::now_utc();
+        let one_minute_ago = now - time::Duration::minutes(1);
         assert!(created_at > one_minute_ago);
         assert!(updated_at > one_minute_ago);
     }

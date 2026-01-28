@@ -1,5 +1,5 @@
 use axum::{
-    extract::State,
+    extract::{State, Extension},
     response::{IntoResponse, Redirect},
     Form,
 };
@@ -8,21 +8,26 @@ use tower_cookies::{Cookie, Cookies};
 
 use crate::api::internal::templates::LoginTemplate;
 use crate::api::router::AppState;
+use crate::api::middleware::csrf::CsrfToken;
 
 #[derive(Deserialize)]
 pub struct LoginPayload {
     token: String,
 }
 
-pub async fn login_page() -> impl IntoResponse {
+pub async fn login_page(
+    Extension(csrf_token): Extension<CsrfToken>,
+) -> impl IntoResponse {
     LoginTemplate {
         title: "Admin Login".to_string(),
         error: None,
+        csrf_token: csrf_token.0,
     }
 }
 
 pub async fn login_handler(
     State(state): State<AppState>,
+    Extension(csrf_token): Extension<CsrfToken>,
     cookies: Cookies,
     Form(payload): Form<LoginPayload>,
 ) -> impl IntoResponse {
@@ -32,6 +37,7 @@ pub async fn login_handler(
             return LoginTemplate {
                 title: "Admin Login".to_string(),
                 error: Some("Admin access is disabled (token not configured)".to_string()),
+                csrf_token: csrf_token.0,
             }
             .into_response()
         }
@@ -51,6 +57,7 @@ pub async fn login_handler(
         LoginTemplate {
             title: "Admin Login".to_string(),
             error: Some("Invalid admin token".to_string()),
+            csrf_token: csrf_token.0,
         }
         .into_response()
     }

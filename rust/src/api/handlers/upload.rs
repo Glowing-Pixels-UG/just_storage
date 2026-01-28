@@ -80,7 +80,8 @@ pub async fn upload_handler(
             }
 
             // Validate tenant ownership - users can only upload to their own tenant
-            if tenant_id != user_context.tenant_id {
+            // Admins can upload to any tenant
+            if !user_context.is_admin() && tenant_id != user_context.tenant_id {
                 return Err(ApiError::new(
                     axum::http::StatusCode::FORBIDDEN,
                     "Cannot upload objects to other tenants".to_string(),
@@ -113,7 +114,8 @@ pub async fn upload_handler(
     }
 
     // Validate tenant ownership - users can only upload to their own tenant
-    if tenant_id != user_context.tenant_id {
+    // Admins can upload to any tenant
+    if !user_context.is_admin() && tenant_id != user_context.tenant_id {
         return Err(ApiError::new(
             axum::http::StatusCode::FORBIDDEN,
             "Cannot upload objects to other tenants".to_string(),

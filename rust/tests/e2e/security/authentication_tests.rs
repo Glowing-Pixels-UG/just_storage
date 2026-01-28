@@ -6,7 +6,7 @@ use crate::common::{environment as env, http};
 
 #[tokio::test]
 async fn unauthenticated_requests_require_authentication() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let endpoints = vec![
         (Method::POST, "/v1/objects"),
@@ -35,7 +35,7 @@ async fn unauthenticated_requests_require_authentication() {
 
 #[tokio::test]
 async fn invalid_api_key_returns_unauthorized() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     // invalid format
     let req = http::authenticated_request(Method::GET, "/v1/objects", "invalid-key-format");

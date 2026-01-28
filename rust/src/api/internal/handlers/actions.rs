@@ -1,7 +1,7 @@
 use crate::api::middleware::audit::{AuditEventType, AuditLogEntry};
 use crate::api::router::AppState;
 use axum::{extract::State, http::StatusCode, response::IntoResponse};
-use chrono::Utc;
+use time::OffsetDateTime;
 use serde_json::json;
 
 pub async fn clear_cache(State(state): State<AppState>) -> impl IntoResponse {
@@ -10,7 +10,7 @@ pub async fn clear_cache(State(state): State<AppState>) -> impl IntoResponse {
 
     // 2. Log to AuditRepository
     let log_entry = AuditLogEntry {
-        timestamp: Utc::now(),
+        timestamp: OffsetDateTime::now_utc(),
         event_type: AuditEventType::ConfigurationChange,
         user_id: Some("internal-admin".to_string()),
         tenant_id: None,
@@ -51,7 +51,7 @@ pub async fn reindex(State(state): State<AppState>) -> impl IntoResponse {
 
     // 2. Log to AuditRepository
     let log_entry = AuditLogEntry {
-        timestamp: Utc::now(),
+        timestamp: OffsetDateTime::now_utc(),
         event_type: AuditEventType::ConfigurationChange,
         user_id: Some("internal-admin".to_string()),
         tenant_id: None,

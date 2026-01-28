@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use sqlx::{PgPool, Row};
-
 use crate::api::middleware::audit::AuditLogEntry;
 use crate::application::ports::{AuditQueryFilter, AuditRepository, AuditRepositoryError};
 
@@ -139,44 +138,44 @@ impl AuditRepository for PostgresAuditRepository {
         for row in rows {
             let event_type_str: String = row.try_get("event_type")?;
             let event_type = match event_type_str.as_str() {
-                "AuthenticationSuccess" => {
+                "authentication_success" => {
                     crate::api::middleware::audit::AuditEventType::AuthenticationSuccess
                 }
-                "AuthenticationFailure" => {
+                "authentication_failure" => {
                     crate::api::middleware::audit::AuditEventType::AuthenticationFailure
                 }
-                "ApiKeyUsed" => crate::api::middleware::audit::AuditEventType::ApiKeyUsed,
-                "ApiKeyExpired" => crate::api::middleware::audit::AuditEventType::ApiKeyExpired,
-                "ApiKeyRevoked" => crate::api::middleware::audit::AuditEventType::ApiKeyRevoked,
-                "AuthorizationGranted" => {
+                "api_key_used" => crate::api::middleware::audit::AuditEventType::ApiKeyUsed,
+                "api_key_expired" => crate::api::middleware::audit::AuditEventType::ApiKeyExpired,
+                "api_key_revoked" => crate::api::middleware::audit::AuditEventType::ApiKeyRevoked,
+                "authorization_granted" => {
                     crate::api::middleware::audit::AuditEventType::AuthorizationGranted
                 }
-                "AuthorizationDenied" => {
+                "authorization_denied" => {
                     crate::api::middleware::audit::AuditEventType::AuthorizationDenied
                 }
-                "PermissionChecked" => {
+                "permission_checked" => {
                     crate::api::middleware::audit::AuditEventType::PermissionChecked
                 }
-                "ObjectCreated" => crate::api::middleware::audit::AuditEventType::ObjectCreated,
-                "ObjectRead" => crate::api::middleware::audit::AuditEventType::ObjectRead,
-                "ObjectUpdated" => crate::api::middleware::audit::AuditEventType::ObjectUpdated,
-                "ObjectDeleted" => crate::api::middleware::audit::AuditEventType::ObjectDeleted,
-                "ApiKeyCreated" => crate::api::middleware::audit::AuditEventType::ApiKeyCreated,
-                "ApiKeyUpdated" => crate::api::middleware::audit::AuditEventType::ApiKeyUpdated,
-                "ApiKeyDeleted" => crate::api::middleware::audit::AuditEventType::ApiKeyDeleted,
-                "RateLimitExceeded" => {
+                "object_created" => crate::api::middleware::audit::AuditEventType::ObjectCreated,
+                "object_read" => crate::api::middleware::audit::AuditEventType::ObjectRead,
+                "object_updated" => crate::api::middleware::audit::AuditEventType::ObjectUpdated,
+                "object_deleted" => crate::api::middleware::audit::AuditEventType::ObjectDeleted,
+                "api_key_created" => crate::api::middleware::audit::AuditEventType::ApiKeyCreated,
+                "api_key_updated" => crate::api::middleware::audit::AuditEventType::ApiKeyUpdated,
+                "api_key_deleted" => crate::api::middleware::audit::AuditEventType::ApiKeyDeleted,
+                "rate_limit_exceeded" => {
                     crate::api::middleware::audit::AuditEventType::RateLimitExceeded
                 }
-                "SuspiciousRequest" => {
+                "suspicious_request" => {
                     crate::api::middleware::audit::AuditEventType::SuspiciousRequest
                 }
-                "InvalidInput" => crate::api::middleware::audit::AuditEventType::InvalidInput,
-                "CorsViolation" => crate::api::middleware::audit::AuditEventType::CorsViolation,
-                "HealthCheck" => crate::api::middleware::audit::AuditEventType::HealthCheck,
-                "ConfigurationChange" => {
+                "invalid_input" => crate::api::middleware::audit::AuditEventType::InvalidInput,
+                "cors_violation" => crate::api::middleware::audit::AuditEventType::CorsViolation,
+                "health_check" => crate::api::middleware::audit::AuditEventType::HealthCheck,
+                "configuration_change" => {
                     crate::api::middleware::audit::AuditEventType::ConfigurationChange
                 }
-                "BackupOperation" => crate::api::middleware::audit::AuditEventType::BackupOperation,
+                "backup_operation" => crate::api::middleware::audit::AuditEventType::BackupOperation,
                 _ => continue, // Skip unknown event types
             };
 
@@ -213,7 +212,7 @@ impl AuditRepository for PostgresAuditRepository {
 
     async fn count(&self, filter: AuditQueryFilter) -> Result<i64, AuditRepositoryError> {
         let mut query_builder =
-            sqlx::QueryBuilder::new("SELECT COUNT(*) as count FROM audit_logs WHERE 1=1");
+            sqlx::QueryBuilder::new("SELECT COUNT(*) FROM audit_logs WHERE 1=1");
 
         // Apply same filters as query method
         if let Some(event_types) = &filter.event_types {
@@ -278,9 +277,10 @@ impl AuditRepository for PostgresAuditRepository {
             }
         }
 
-        let query = query_builder.build_query_as::<(i64,)>();
+        let query = query_builder.build();
 
-        let (count,) = query.fetch_one(&self.pool).await?;
+        let row = query.fetch_one(&self.pool).await?;
+        let count: i64 = row.try_get(0)?;
         Ok(count)
     }
 

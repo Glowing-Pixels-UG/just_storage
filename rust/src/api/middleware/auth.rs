@@ -1,39 +1,52 @@
 use axum::{
     extract::Request,
-    http::{HeaderMap, StatusCode},
+    http::header::AUTHORIZATION,
     response::Response,
 };
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::env;
 use std::sync::Arc;
 use tower::Layer;
 use tower_sessions::Session;
 use futures_util::future::BoxFuture;
+use jsonwebtoken::{decode, decode_header, DecodingKey, Validation};
 
 use crate::application::ports::ApiKeyRepository;
-use crate::domain::authorization::{roles, UserContext};
+use crate::domain::authorization::{roles, UserContext, CustomClaims};
+use super::oidc_config::OidcConfig;
 
+/// Claims structure for OIDC JWT tokens
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
     pub sub: String,              // Subject (user ID)
-    pub exp: usize,               // Expiration time
-    pub iat: usize,               // Issued at
-    pub tenant_id: String,        // Tenant identifier
-    pub roles: Vec<String>,       // User roles
-    pub permissions: Vec<String>, // Direct permissions (bypasses roles)
+    pub iss: Option<String>,      // Issuer
+    pub aud: Option<serde_json::Value>, // Audience (can be string or array)
+    pub exp: Option<usize>,       // Expiration time
+    pub iat: Option<usize>,       // Issued at
+    #[serde(flatten)]
+    pub custom: CustomClaims,      // Custom roles, tenant_id, etc.
 }
 
 #[derive(Clone)]
 pub struct AuthLayer {
-    // TODO: Add api_key_repo field when state injection is fixed
+    api_key_repo: Arc<dyn ApiKeyRepository>,
+    auth_config: crate::api::middleware::auth_config::AuthMiddlewareConfig,
+    oidc_config: OidcConfig,
+    jwks_cache: Arc<moka::future::Cache<String, DecodingKey>>,
 }
 
 impl AuthLayer {
-    pub fn new(_api_key_repo: Arc<dyn ApiKeyRepository>) -> Self {
+    pub fn new(
+        api_key_repo: Arc<dyn ApiKeyRepository>, 
+        auth_config: crate::api::middleware::auth_config::AuthMiddlewareConfig,
+        oidc_config: OidcConfig,
+        jwks_cache: Arc<moka::future::Cache<String, DecodingKey>>,
+    ) -> Self {
         Self {
-            // TODO: Store api_key_repo
+            api_key_repo,
+            auth_config,
+            oidc_config,
+            jwks_cache,
         }
     }
 }
@@ -46,14 +59,23 @@ where
     type Service = AuthService<S>;
 
     fn layer(&self, inner: S) -> Self::Service {
-        AuthService { inner }
+        AuthService { 
+            inner,
+            api_key_repo: Arc::clone(&self.api_key_repo),
+            auth_config: self.auth_config.clone(),
+            oidc_config: self.oidc_config.clone(),
+            jwks_cache: Arc::clone(&self.jwks_cache),
+        }
     }
 }
 
 #[derive(Clone)]
 pub struct AuthService<S> {
     inner: S,
-    // TODO: Add api_key_repo field
+    api_key_repo: Arc<dyn ApiKeyRepository>,
+    auth_config: crate::api::middleware::auth_config::AuthMiddlewareConfig,
+    oidc_config: OidcConfig,
+    jwks_cache: Arc<moka::future::Cache<String, DecodingKey>>,
 }
 
 impl<S> tower::Service<Request> for AuthService<S>
@@ -73,201 +95,158 @@ where
     }
 
     fn call(&mut self, req: Request) -> Self::Future {
-        // 1. Try Session-based authentication first (for Dashboard/BFF)
-        let (mut parts, body) = req.into_parts();
-        if let Some(session) = parts.extensions.get::<Session>() {
-            let session = session.clone();
-            let mut inner = self.inner.clone();
+        let mut inner = self.inner.clone();
+        let api_key_repo = Arc::clone(&self.api_key_repo);
+        let auth_config = self.auth_config.clone();
+        let oidc_config = self.oidc_config.clone();
+        let jwks_cache = Arc::clone(&self.jwks_cache);
 
-            return Box::pin(async move {
+        Box::pin(async move {
+            let (mut parts, body) = req.into_parts();
+
+            // 1. Try Session-based authentication (Dashboard/BFF)
+            if let Some(session) = parts.extensions.get::<Session>() {
                 if let Ok(Some(user_ctx)) = session.get::<UserContext>("user_context").await {
                     parts.extensions.insert(user_ctx);
+                    let req = Request::from_parts(parts, body);
+                    return inner.call(req).await;
                 }
-                let req = Request::from_parts(parts, body);
-                inner.call(req).await
-            });
-        }
-        
-        // 2. Try Header-based authentication (API keys or Bearer tokens)
-        let mut inner = self.inner.clone();
-        Box::pin(async move {
-            let req = Request::from_parts(parts, body);
-            // Check for Authorization header
-            if let Some(auth_header) = req
-                .headers()
-                .get("authorization")
-                .and_then(|h| h.to_str().ok())
-            {
-                if auth_header.starts_with("Bearer ") {
-                    if let Some(token) = auth_header.strip_prefix("Bearer ") {
-                        if token == "test-key" {
-                            use crate::domain::authorization::permissions;
-                            use std::collections::HashSet;
+            }
 
-                            let mut permissions = HashSet::new();
-                            permissions.insert(permissions::OBJECTS_READ.to_string());
-                            permissions.insert(permissions::OBJECTS_WRITE.to_string());
-                            permissions.insert(permissions::HEALTH_READ.to_string());
+            // 2. Try Authorization header
+            if let Some(auth_header) = parts.headers.get(AUTHORIZATION).and_then(|h| h.to_str().ok()) {
+                if let Some(token) = auth_header.strip_prefix("Bearer ") {
+                    
+                    // 2a. Try Master Token (Simple Deployment Mode)
+                    if auth_config.legacy_auth_enabled {
+                        if let Some(expected) = &auth_config.admin_token {
+                            if token == expected {
+                                let permissions: HashSet<String> = roles::get_permissions_for_role("admin").into_iter().map(|s| s.to_string()).collect();
+                                let user_ctx = UserContext::new(
+                                    "admin:master".to_string(),
+                                    "default".to_string(),
+                                    vec!["admin".to_string()],
+                                    permissions,
+                                    false,
+                                    None,
+                                );
+                                parts.extensions.insert(user_ctx);
+                                let req = Request::from_parts(parts, body);
+                                return inner.call(req).await;
+                            }
+                        }
+                    }
 
-                            let user_ctx = UserContext::from_api_key(
-                                "test-key".to_string(),
-                                "550e8400-e29b-41d4-a716-446655440000".to_string(),
-                                permissions,
-                            );
+                    // 2b. Try API Key from Database
+                    if auth_config.legacy_auth_enabled {
+                        if let Ok(Some(api_key)) = api_key_repo.find_by_key(token).await {
+                            if api_key.is_active() && !api_key.is_expired() {
+                                let mut permissions = HashSet::new();
+                                if api_key.permissions().read { permissions.insert("objects:read".to_string()); }
+                                if api_key.permissions().write { permissions.insert("objects:write".to_string()); }
+                                if api_key.permissions().delete { permissions.insert("objects:delete".to_string()); }
+                                if api_key.permissions().admin {
+                                    permissions.insert("admin".to_string());
+                                    permissions.insert("api_keys:read".to_string());
+                                    permissions.insert("api_keys:write".to_string());
+                                    permissions.insert("api_keys:delete".to_string());
+                                }
+                                permissions.insert("health:read".to_string());
 
-                            let (mut parts, body) = req.into_parts();
-                            parts.extensions.insert(user_ctx);
-                            let req = Request::from_parts(parts, body);
-                            return inner.call(req).await;
+                                let user_ctx = UserContext::from_api_key(
+                                    api_key.id().to_string(),
+                                    api_key.tenant_id().to_string(),
+                                    permissions,
+                                );
+                                
+                                let _ = api_key_repo.mark_used(api_key.id()).await;
+                                
+                                parts.extensions.insert(user_ctx);
+                                let req = Request::from_parts(parts, body);
+                                return inner.call(req).await;
+                            }
+                        }
+                    }
+
+                    // 2c. Try OIDC JWT Validation
+                    if oidc_config.enabled && oidc_config.issuer_url.is_some() {
+                        if let Ok(header) = decode_header(token) {
+                            if let Some(kid) = header.kid {
+                                if let Some(decoding_key) = jwks_cache.get(&kid).await {
+                                    // Mandate OIDC-compliant algorithms (Reject none, HS256, etc.)
+                                    use jsonwebtoken::Algorithm;
+                                    match header.alg {
+                                        Algorithm::RS256 | Algorithm::RS384 | Algorithm::RS512 |
+                                        Algorithm::PS256 | Algorithm::PS384 | Algorithm::PS512 => {},
+                                        _ => {
+                                            tracing::warn!("OIDC token uses non-compliant algorithm: {:?}", header.alg);
+                                            let req = Request::from_parts(parts, body);
+                                            return inner.call(req).await;
+                                        }
+                                    }
+
+                                    let mut validation = Validation::new(header.alg);
+                                    if let Some(iss) = &oidc_config.issuer_url {
+                                        validation.set_issuer(&[iss]);
+                                    }
+                                    if let Some(aud) = &oidc_config.audience {
+                                        validation.set_audience(&[aud]);
+                                    }
+
+                                    match decode::<Claims>(token, &decoding_key, &validation) {
+                                        Ok(token_data) => {
+                                            let claims = token_data.claims;
+                                            let mut permissions = HashSet::new();
+                                            
+                                            if let Some(perms) = &claims.custom.permissions {
+                                                for p in perms { permissions.insert(p.clone()); }
+                                            }
+
+                                            if let Some(user_roles) = &claims.custom.roles {
+                                                for role in user_roles {
+                                                    let role_perms = roles::get_permissions_for_role(role);
+                                                    for p in role_perms { permissions.insert(p.to_string()); }
+                                                }
+                                            }
+
+                                            let tenant_id = claims.custom.tenant_id.clone().unwrap_or_else(|| "default".to_string());
+                                            let user_ctx = UserContext::new(
+                                                claims.sub.clone(),
+                                                tenant_id,
+                                                claims.custom.roles.clone().unwrap_or_default(),
+                                                permissions,
+                                                false,
+                                                None,
+                                            );
+                                            
+                                            parts.extensions.insert(user_ctx);
+                                            let req = Request::from_parts(parts, body);
+                                            return inner.call(req).await;
+                                        }
+                                        Err(e) => {
+                                            tracing::debug!("OIDC token validation failed: {}", e);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
 
+            // Fallback to unauthenticated
+            let req = Request::from_parts(parts, body);
             inner.call(req).await
         })
     }
 }
 
-/// Create authentication middleware with API key repository
-pub fn create_auth_middleware(api_key_repo: Arc<dyn ApiKeyRepository>) -> AuthLayer {
-    AuthLayer::new(api_key_repo)
-}
-
-/// Authenticate a request and return user context
-#[allow(unused)]
-async fn authenticate_request(
-    headers: &HeaderMap,
-    api_key_repo: &dyn ApiKeyRepository,
-) -> Result<UserContext, StatusCode> {
-    let auth_header = headers
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-
-    // Try API key authentication first
-    if auth_header.starts_with("ApiKey ") {
-        if let Some(api_key_value) = auth_header.strip_prefix("ApiKey ") {
-            return authenticate_api_key(api_key_value, api_key_repo).await;
-        }
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    // Try JWT authentication
-    if auth_header.starts_with("Bearer ") {
-        if let Some(token) = auth_header.strip_prefix("Bearer ") {
-            return authenticate_jwt(token).await;
-        }
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    Err(StatusCode::UNAUTHORIZED)
-}
-
-/// Authenticate using API key
-#[allow(unused)]
-async fn authenticate_api_key(
-    api_key_value: &str,
-    api_key_repo: &dyn ApiKeyRepository,
-) -> Result<UserContext, StatusCode> {
-    // Look up API key in database
-    let api_key = api_key_repo
-        .find_by_key(api_key_value)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-
-    // Check if API key is active and not expired
-    if !api_key.is_active() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    if api_key.is_expired() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    // Convert API key permissions to permission strings
-    let mut permissions = HashSet::new();
-    if api_key.permissions().read {
-        permissions.insert("objects:read".to_string());
-    }
-    if api_key.permissions().write {
-        permissions.insert("objects:write".to_string());
-    }
-    if api_key.permissions().delete {
-        permissions.insert("objects:delete".to_string());
-    }
-    if api_key.permissions().admin {
-        permissions.insert("admin".to_string());
-        permissions.insert("api_keys:read".to_string());
-        permissions.insert("api_keys:write".to_string());
-        permissions.insert("api_keys:delete".to_string());
-    }
-    permissions.insert("health:read".to_string()); // API keys can always check health
-
-    // Update last used timestamp
-    let _ = api_key_repo.mark_used(api_key.id()).await;
-
-    Ok(UserContext::from_api_key(
-        api_key.id().to_string(),
-        api_key.tenant_id().to_string(),
-        permissions,
-    ))
-}
-
-/// Authenticate using JWT token
-async fn authenticate_jwt(token: &str) -> Result<UserContext, StatusCode> {
-    let claims = validate_jwt(token)?;
-
-    // Convert roles to permissions
-    let mut permissions = HashSet::new();
-
-    // Add direct permissions from JWT
-    for permission in &claims.permissions {
-        permissions.insert(permission.clone());
-    }
-
-    // Add permissions from roles
-    for role in &claims.roles {
-        let role_permissions = roles::get_permissions_for_role(role);
-        for perm in role_permissions {
-            permissions.insert(perm.to_string());
-        }
-    }
-
-    // Ensure health access for authenticated users
-    permissions.insert("health:read".to_string());
-
-    Ok(UserContext::new(
-        claims.sub.clone(),
-        claims.tenant_id.clone(),
-        claims.roles.clone(),
-        permissions,
-        false,
-        None,
-    ))
-}
-
-/// Validate JWT token
-fn validate_jwt(token: &str) -> Result<Claims, StatusCode> {
-    let jwt_secret = env::var("JWT_SECRET").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
-    let mut validation = Validation::new(Algorithm::HS256);
-    validation.validate_exp = true;
-
-    let token_data = decode::<Claims>(token, &decoding_key, &validation)
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
-
-    Ok(token_data.claims)
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn test_validate_api_key() {
-        // This test is now deprecated since we use database-backed API keys
-        // Keeping for backward compatibility but it doesn't test the actual auth flow
-    }
+/// Create authentication middleware
+pub fn create_auth_middleware(
+    api_key_repo: Arc<dyn ApiKeyRepository>,
+    auth_config: crate::api::middleware::auth_config::AuthMiddlewareConfig,
+    oidc_config: OidcConfig,
+    jwks_cache: Arc<moka::future::Cache<String, DecodingKey>>,
+) -> AuthLayer {
+    AuthLayer::new(api_key_repo, auth_config, oidc_config, jwks_cache)
 }

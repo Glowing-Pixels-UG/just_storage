@@ -11,7 +11,9 @@ use std::{
     net::IpAddr,
     sync::Arc,
     time::{Duration, Instant},
+    task::{Context, Poll},
 };
+use futures_util::future::BoxFuture;
 // Note: tower_http rate limiting has changed in newer versions
 // For now, we'll implement a simple in-memory rate limiter
 
@@ -171,7 +173,7 @@ impl RateLimitMiddleware {
 
     pub async fn layer(request: Request, next: Next) -> Response {
         // Extract identifiers for rate limiting
-        let ip_addr = extract_ip_address(&request);
+        let ip_addr = extract_ip_address(&request).map(|ip| ip.to_string()).unwrap_or_else(|| "unknown".to_string());
         let user_context = request.extensions().get::<UserContext>();
 
         let limiter = Arc::clone(request.extensions().get::<Arc<RateLimiter>>().unwrap());
@@ -212,7 +214,7 @@ impl RateLimitMiddleware {
 }
 
 /// Extract IP address from request
-fn extract_ip_address(request: &Request) -> String {
+fn extract_ip_address(request: &Request) -> Option<IpAddr> {
     // Try X-Forwarded-For header first (for proxies/load balancers)
     if let Some(forwarded_for) = request
         .headers()
@@ -222,7 +224,7 @@ fn extract_ip_address(request: &Request) -> String {
         // Take the first IP in case of multiple
         if let Some(first_ip) = forwarded_for.split(',').next() {
             if let Ok(ip) = first_ip.trim().parse::<IpAddr>() {
-                return ip.to_string();
+                return Some(ip);
             }
         }
     }
@@ -234,18 +236,18 @@ fn extract_ip_address(request: &Request) -> String {
         .and_then(|h| h.to_str().ok())
         .and_then(|ip| ip.parse::<IpAddr>().ok())
     {
-        return real_ip.to_string();
+        return Some(real_ip);
     }
 
     // Fallback to remote address if available
-    // Note: This requires the request to have been processed by a connector that sets remote_addr
-    "unknown".to_string()
+    // Note: In Axum, you usually get this via ConnectInfo, but here we only have the Request
+    None
 }
 
-/// Rate limiting layer
+    /// Rate limiting layer
 #[derive(Clone)]
 pub struct RateLimitLayer {
-    limiter: Arc<RateLimiter>,
+    pub limiter: Arc<RateLimiter>,
 }
 
 impl RateLimitLayer {
@@ -285,7 +287,6 @@ where
 #[derive(Clone)]
 pub struct RateLimitService<S> {
     inner: S,
-    #[allow(dead_code)]
     limiter: Arc<RateLimiter>,
 }
 
@@ -296,18 +297,128 @@ where
 {
     type Response = Response;
     type Error = S::Error;
-    type Future = S::Future;
+    type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
 
     fn poll_ready(
         &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
     }
 
-    fn call(&mut self, request: Request) -> Self::Future {
-        // For now, just pass through - rate limiting can be added later
-        self.inner.call(request)
+    fn call(&mut self, mut request: Request) -> Self::Future {
+        let limiter = Arc::clone(&self.limiter);
+        let mut inner = self.inner.clone();
+
+        // Inject limiter into extensions for potential use in from_fn
+        request.extensions_mut().insert(Arc::clone(&limiter));
+
+        Box::pin(async move {
+            // Extract identifiers for rate limiting inside the async block
+            // to ensure we have the correct request context
+            let ip_addr_opt = extract_ip_address(&request);
+            let ip_addr = ip_addr_opt.map(|ip| ip.to_string()).unwrap_or_else(|| "unknown".to_string());
+            let user_context = request.extensions().get::<UserContext>().cloned();
+
+            // Apply rate limiting based on authentication status
+            let rate_limit_result = if let Some(user_ctx) = user_context {
+                // Authenticated user: check user and tenant limits
+                let user_check = limiter.check_limit(&user_ctx.user_id, LimitType::User);
+                let tenant_check = limiter.check_limit(&user_ctx.tenant_id, LimitType::Tenant);
+
+                user_check.and(tenant_check)
+            } else {
+                // Unauthenticated: check IP limit
+                let key = if ip_addr == "unknown" {
+                    // Try to get it from request metadata if available
+                    request.uri().to_string() // Fallback to something unique-ish for the request
+                } else {
+                    ip_addr
+                };
+                limiter.check_limit(&key, LimitType::IP)
+            };
+
+            match rate_limit_result {
+                Ok(()) => {
+                    // Rate limit passed, continue with request
+                    inner.call(request).await
+                }
+                Err(RateLimitError::LimitExceeded(retry_after)) => {
+                    // Rate limit exceeded
+                    let response = RateLimitResponse {
+                        error: "Rate limit exceeded".to_string(),
+                        retry_after: Some(retry_after),
+                    };
+
+                    // For dashboard/internal routes, we might want to return HTML or simple JSON
+                    // The standard API returns JSON.
+                    Ok((
+                        StatusCode::TOO_MANY_REQUESTS,
+                        [("Retry-After", retry_after.to_string())],
+                        axum::Json(response),
+                    ).into_response())
+                }
+            }
+        })
+    }
+}
+
+/// Simple rate limiting middleware for Axum's `from_fn`
+pub async fn rate_limit_middleware(
+    request: Request,
+    next: Next,
+) -> Response {
+    let limiter = match request.extensions().get::<Arc<RateLimiter>>() {
+        Some(l) => Arc::clone(l),
+        None => {
+            // Fallback: check if we can get it from another extension if order is weird
+            tracing::warn!("RateLimiter extension not found in from_fn");
+            return next.run(request).await;
+        }
+    };
+    
+    // Extract identifiers for rate limiting
+    let ip_addr = extract_ip_address(&request).map(|ip| ip.to_string()).unwrap_or_else(|| "unknown".to_string());
+    let user_context = request.extensions().get::<UserContext>();
+
+    // For debugging: log the IP address found
+    // tracing::debug!("Found IP address: {}", ip_addr);
+
+    // Apply rate limiting based on authentication status
+    let rate_limit_result = if let Some(user_ctx) = user_context {
+        // Authenticated user: check user and tenant limits
+        let user_check = limiter.check_limit(&user_ctx.user_id, LimitType::User);
+        let tenant_check = limiter.check_limit(&user_ctx.tenant_id, LimitType::Tenant);
+
+        user_check.and(tenant_check)
+    } else {
+        // Unauthenticated: check IP limit
+        let key = if ip_addr == "unknown" {
+            "unknown-client".to_string()
+        } else {
+            ip_addr
+        };
+        limiter.check_limit(&key, LimitType::IP)
+    };
+
+    match rate_limit_result {
+        Ok(()) => {
+            // Rate limit passed, continue with request
+            next.run(request).await
+        }
+        Err(RateLimitError::LimitExceeded(retry_after)) => {
+            // Rate limit exceeded
+            let response = RateLimitResponse {
+                error: "Rate limit exceeded".to_string(),
+                retry_after: Some(retry_after),
+            };
+
+            (
+                StatusCode::TOO_MANY_REQUESTS,
+                [("Retry-After", retry_after.to_string())],
+                axum::Json(response),
+            ).into_response()
+        }
     }
 }
 
@@ -366,10 +477,7 @@ mod tests {
     fn test_extract_ip_address() {
         // This would need a real request to test properly
         // For now, just ensure the function exists and compiles
-        assert_eq!(
-            extract_ip_address(&axum::extract::Request::default()),
-            "unknown"
-        );
+        assert!(extract_ip_address(&axum::extract::Request::default()).is_none());
     }
 
     #[test]

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use sqlx::PgPool;
+use time::OffsetDateTime;
 
 use crate::application::ports::{BlobRepository, RepositoryError};
 use crate::domain::entities::Blob;
@@ -108,7 +109,7 @@ struct BlobRow {
     storage_class: String,
     size_bytes: i64,
     ref_count: i64,
-    created_at: chrono::DateTime<chrono::Utc>,
+    created_at: OffsetDateTime,
 }
 
 impl BlobRow {

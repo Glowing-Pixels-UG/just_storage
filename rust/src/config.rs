@@ -29,6 +29,7 @@ pub struct Config {
     pub oidc_redirect_url: Option<String>,
     pub oidc_audience: Option<String>,
     pub session_secret: Option<String>,
+    pub session_encryption_key: Option<String>,
 }
 
 impl Config {
@@ -116,6 +117,7 @@ impl Config {
             oidc_redirect_url: std::env::var("OIDC_REDIRECT_URL").ok(),
             oidc_audience: std::env::var("OIDC_AUDIENCE").ok(),
             session_secret: std::env::var("SESSION_SECRET").ok(),
+            session_encryption_key: std::env::var("SESSION_ENCRYPTION_KEY").ok(),
         }
     }
 

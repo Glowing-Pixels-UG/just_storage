@@ -33,7 +33,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .with_api_keys()
         .await?
-        .with_gc()?;
+        .with_gc()?
+        .with_oidc()
+        .await?;
 
     let (state, api_key_repo, audit_repo) = builder.build()?;
 

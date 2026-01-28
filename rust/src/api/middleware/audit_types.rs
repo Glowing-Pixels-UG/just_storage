@@ -4,7 +4,7 @@
 //! for audit logging functionality.
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use serde::{Deserialize, Serialize};
 
 /// Audit event types for security monitoring
@@ -75,7 +75,7 @@ impl std::fmt::Display for AuditEventType {
 /// Audit log entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLogEntry {
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: OffsetDateTime,
     pub event_type: AuditEventType,
     pub user_id: Option<String>,
     pub tenant_id: Option<String>,

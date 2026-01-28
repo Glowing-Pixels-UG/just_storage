@@ -5,4 +5,4 @@ pub mod middleware;
 pub mod openapi;
 pub mod router;
 
-pub use router::create_router;
+pub use router::{create_router, create_router_with_middleware};

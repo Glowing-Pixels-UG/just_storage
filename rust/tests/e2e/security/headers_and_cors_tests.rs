@@ -6,7 +6,7 @@ use crate::common::{environment as env, http};
 
 #[tokio::test]
 async fn cors_preflight_returns_cors_headers() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let req = Request::builder()
         .method(Method::OPTIONS)
@@ -27,7 +27,7 @@ async fn cors_preflight_returns_cors_headers() {
 
 #[tokio::test]
 async fn security_headers_present() {
-    let (app, _container, _temp_dir) = env::setup_test_api_server().await;
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let req = http::get_request("/health");
 

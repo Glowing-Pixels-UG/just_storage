@@ -931,15 +931,15 @@ fn validate_railway(content: &str) -> Result<()> {
 
 fn validate_render(content: &str) -> Result<()> {
     // Basic YAML validation
-    let _: serde_yaml::Value =
-        serde_yaml::from_str(content).context("Invalid YAML format for render.yaml")?;
+    let _: serde_yaml_bw::Value =
+        serde_yaml_bw::from_str(content).context("Invalid YAML format for render.yaml")?;
     Ok(())
 }
 
 fn validate_digitalocean(content: &str) -> Result<()> {
     // Basic YAML validation
-    let _: serde_yaml::Value =
-        serde_yaml::from_str(content).context("Invalid YAML format for app.yaml")?;
+    let _: serde_yaml_bw::Value =
+        serde_yaml_bw::from_str(content).context("Invalid YAML format for app.yaml")?;
     Ok(())
 }
 
@@ -1080,8 +1080,8 @@ METRICS_PORT=9090
 
 fn validate_docker_compose(content: &str) -> Result<()> {
     // Basic YAML validation
-    let _: serde_yaml::Value =
-        serde_yaml::from_str(content).context("Invalid YAML format for docker compose.yml")?;
+    let _: serde_yaml_bw::Value =
+        serde_yaml_bw::from_str(content).context("Invalid YAML format for docker compose.yml")?;
     Ok(())
 }
 

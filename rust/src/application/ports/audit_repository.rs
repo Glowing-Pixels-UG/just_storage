@@ -33,8 +33,8 @@ pub struct AuditQueryFilter {
     pub path_pattern: Option<String>,
     pub status_code_min: Option<i32>,
     pub status_code_max: Option<i32>,
-    pub from_timestamp: Option<chrono::DateTime<chrono::Utc>>,
-    pub to_timestamp: Option<chrono::DateTime<chrono::Utc>>,
+    pub from_timestamp: Option<time::OffsetDateTime>,
+    pub to_timestamp: Option<time::OffsetDateTime>,
     pub has_error: Option<bool>,
 }
 

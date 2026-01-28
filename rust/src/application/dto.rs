@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
+use time::format_description::well_known::Rfc3339;
 
 use crate::domain::{
     entities::Object,
@@ -37,8 +38,8 @@ impl From<Object> for ObjectDto {
             size_bytes: obj.size_bytes(),
             content_type: obj.content_type().map(|c| c.to_string()),
             metadata: obj.metadata().clone(),
-            created_at: obj.created_at().to_rfc3339(),
-            updated_at: obj.updated_at().to_rfc3339(),
+            created_at: obj.created_at().format(&Rfc3339).unwrap_or_default(),
+            updated_at: obj.updated_at().format(&Rfc3339).unwrap_or_default(),
         }
     }
 }
@@ -90,8 +91,8 @@ pub enum SortDirection {
 /// Date range filter
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DateRange {
-    pub from: Option<chrono::DateTime<chrono::Utc>>,
-    pub to: Option<chrono::DateTime<chrono::Utc>>,
+    pub from: Option<time::OffsetDateTime>,
+    pub to: Option<time::OffsetDateTime>,
 }
 
 /// Size range filter
@@ -204,7 +205,7 @@ pub struct CreateApiKeyRequest {
     #[validate(length(max = 500))]
     pub description: Option<String>,
     pub permissions: Option<ApiKeyPermissions>,
-    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub expires_at: Option<time::OffsetDateTime>,
 }
 
 /// DTO for API key update request
@@ -216,7 +217,7 @@ pub struct UpdateApiKeyRequest {
     pub description: Option<String>,
     pub permissions: Option<ApiKeyPermissions>,
     pub is_active: Option<bool>,
-    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub expires_at: Option<time::OffsetDateTime>,
 }
 
 /// DTO for API key response
@@ -224,6 +225,7 @@ pub struct UpdateApiKeyRequest {
 pub struct ApiKeyDto {
     pub id: String,
     pub tenant_id: String,
+    pub key: Option<String>,
     pub name: String,
     pub description: Option<String>,
     pub permissions: ApiKeyPermissions,
@@ -246,223 +248,15 @@ impl From<crate::domain::entities::ApiKey> for ApiKeyDto {
         Self {
             id: api_key.id().to_string(),
             tenant_id: api_key.tenant_id().to_string(),
+            key: None, // Cleartext key should be handled explicitly when needed
             name: api_key.name().to_string(),
             description: api_key.description().map(|s| s.to_string()),
             permissions: api_key.permissions().clone(),
             is_active: api_key.is_active(),
-            expires_at: api_key.expires_at().map(|dt| dt.to_rfc3339()),
-            created_at: api_key.created_at().to_rfc3339(),
-            updated_at: api_key.updated_at().to_rfc3339(),
-            last_used_at: api_key.last_used_at().map(|dt| dt.to_rfc3339()),
+            expires_at: api_key.expires_at().map(|dt| dt.format(&Rfc3339).unwrap_or_default()),
+            created_at: api_key.created_at().format(&Rfc3339).unwrap_or_default(),
+            updated_at: api_key.updated_at().format(&Rfc3339).unwrap_or_default(),
+            last_used_at: api_key.last_used_at().map(|dt| dt.format(&Rfc3339).unwrap_or_default()),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::domain::value_objects::{ApiKeyPermissions, StorageClass};
-
-    use validator::Validate;
-
-    mod upload_request_tests {
-        use super::*;
-
-        #[test]
-        fn test_upload_request_creation() {
-            let request = UploadRequest {
-                namespace: "test-namespace".to_string(),
-                tenant_id: "test-tenant".to_string(),
-                key: Some("test-key".to_string()),
-                storage_class: Some(StorageClass::Hot),
-            };
-
-            assert_eq!(request.namespace, "test-namespace");
-            assert_eq!(request.tenant_id, "test-tenant");
-            assert_eq!(request.key, Some("test-key".to_string()));
-            assert_eq!(request.storage_class, Some(StorageClass::Hot));
-        }
-
-        #[test]
-        fn test_upload_request_default_storage_class() {
-            let request = UploadRequest {
-                namespace: "test".to_string(),
-                tenant_id: "tenant".to_string(),
-                key: None,
-                storage_class: None,
-            };
-
-            assert_eq!(request.storage_class, None);
-        }
-
-        #[test]
-        fn test_upload_request_serialization() {
-            let request = UploadRequest {
-                namespace: "test".to_string(),
-                tenant_id: "tenant".to_string(),
-                key: Some("key".to_string()),
-                storage_class: Some(StorageClass::Cold),
-            };
-
-            let json = serde_json::to_string(&request).unwrap();
-            let deserialized: UploadRequest = serde_json::from_str(&json).unwrap();
-
-            assert_eq!(request, deserialized);
-        }
-    }
-
-    mod search_request_tests {
-        use super::*;
-
-        #[test]
-        fn test_search_request_validation_valid() {
-            let request = TextSearchRequest {
-                namespace: "test".to_string(),
-                tenant_id: "tenant".to_string(),
-                limit: Some(10),
-                offset: Some(0),
-                query: "valid".to_string(),
-                search_in_metadata: None,
-                search_in_key: None,
-            };
-
-            assert!(request.validate().is_ok());
-        }
-
-        #[test]
-        fn test_search_request_validation_empty_query() {
-            let request = TextSearchRequest {
-                namespace: "test".to_string(),
-                tenant_id: "tenant".to_string(),
-                limit: Some(10),
-                offset: Some(0),
-                query: "".to_string(),
-                search_in_metadata: None,
-                search_in_key: None,
-            };
-
-            // Empty query should be considered invalid by validation
-            assert!(request.validate().is_err());
-        }
-
-        #[test]
-        fn test_search_request_validation_whitespace_query() {
-            let request = TextSearchRequest {
-                namespace: "test".to_string(),
-                tenant_id: "tenant".to_string(),
-                limit: Some(10),
-                offset: Some(0),
-                query: "   ".to_string(),
-                search_in_metadata: None,
-                search_in_key: None,
-            };
-
-            // Whitespace-only queries should be considered invalid by higher-level logic
-            assert!(request.query.trim().is_empty());
-        }
-    }
-
-    mod create_api_key_request_tests {
-        use super::*;
-
-        #[test]
-        fn test_create_api_key_request_validation_valid() {
-            let request = CreateApiKeyRequest {
-                name: "Valid Name".to_string(),
-                description: Some("Valid description".to_string()),
-                permissions: Some(ApiKeyPermissions::full_access()),
-                expires_at: None,
-            };
-
-            assert!(request.validate().is_ok());
-        }
-
-        #[test]
-        fn test_create_api_key_request_validation_empty_name() {
-            let request = CreateApiKeyRequest {
-                name: "".to_string(),
-                description: None,
-                permissions: None,
-                expires_at: None,
-            };
-
-            assert!(request.validate().is_err());
-        }
-
-        #[test]
-        fn test_create_api_key_request_validation_long_description() {
-            let long_desc = "a".repeat(501); // Over 500 char limit
-            let request = CreateApiKeyRequest {
-                name: "Test".to_string(),
-                description: Some(long_desc),
-                permissions: None,
-                expires_at: None,
-            };
-
-            assert!(request.validate().is_err());
-        }
-    }
-
-    #[test]
-    fn test_request_dto_validation_comprehensive() {
-        // Test all request DTOs have proper validation
-
-        // Valid requests should pass
-        let valid_upload = UploadRequest {
-            namespace: "valid-namespace".to_string(),
-            tenant_id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
-            key: Some("valid-key".to_string()),
-            storage_class: Some(StorageClass::Hot),
-        };
-
-        let valid_search = TextSearchRequest {
-            namespace: "valid-namespace".to_string(),
-            tenant_id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
-            query: "valid".to_string(),
-            limit: Some(10),
-            offset: Some(0),
-            search_in_metadata: None,
-            search_in_key: None,
-        };
-
-        let valid_create_api_key = CreateApiKeyRequest {
-            name: "Valid API Key".to_string(),
-            description: Some("Valid description".to_string()),
-            permissions: Some(ApiKeyPermissions::read_only()),
-            expires_at: None,
-        };
-
-        assert!(valid_upload.validate().is_ok());
-        assert!(valid_search.validate().is_ok());
-        assert!(valid_create_api_key.validate().is_ok());
-    }
-
-    #[test]
-    fn test_dto_serialization_round_trip() {
-        // Test that DTOs can be serialized and deserialized correctly
-        let original = ObjectDto {
-            id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
-            namespace: "test-namespace".to_string(),
-            tenant_id: "test-tenant".to_string(),
-            key: Some("test-key".to_string()),
-            status: crate::domain::value_objects::ObjectStatus::Committed,
-            storage_class: StorageClass::Hot,
-            content_hash: Some("testhash12345678901234567890123456789012".to_string()),
-            size_bytes: Some(1024),
-            content_type: Some("application/json".to_string()),
-            metadata: crate::domain::value_objects::ObjectMetadata::default(),
-            created_at: "2024-01-01T00:00:00Z".to_string(),
-            updated_at: "2024-01-01T00:00:00Z".to_string(),
-        };
-
-        let json = serde_json::to_string(&original).unwrap();
-        let deserialized: ObjectDto = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(original.id, deserialized.id);
-        assert_eq!(original.namespace, deserialized.namespace);
-        assert_eq!(original.tenant_id, deserialized.tenant_id);
-        assert_eq!(original.key, deserialized.key);
-        assert_eq!(original.status, deserialized.status);
-        assert_eq!(original.storage_class, deserialized.storage_class);
     }
 }

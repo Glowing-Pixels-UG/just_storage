@@ -43,7 +43,8 @@ pub async fn delete_handler(
     Query(query): Query<DeleteQuery>,
 ) -> Result<StatusCode, ApiError> {
     // Validate tenant ownership - users can only delete from their own tenant
-    if query.tenant_id != user_context.tenant_id {
+    // Admins can delete from any tenant
+    if !user_context.is_admin() && query.tenant_id != user_context.tenant_id {
         return Err(ApiError::new(
             axum::http::StatusCode::FORBIDDEN,
             "Cannot delete objects from other tenants".to_string(),

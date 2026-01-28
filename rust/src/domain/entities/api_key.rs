@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::value_objects::{ApiKeyId, ApiKeyPermissions, ApiKeyValue};
@@ -13,10 +13,10 @@ pub struct ApiKeyDbData {
     pub description: Option<String>,
     pub permissions: ApiKeyPermissions,
     pub is_active: bool,
-    pub expires_at: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub last_used_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<OffsetDateTime>,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+    pub last_used_at: Option<OffsetDateTime>,
 }
 
 /// API key entity
@@ -29,10 +29,10 @@ pub struct ApiKey {
     description: Option<String>,
     permissions: ApiKeyPermissions,
     is_active: bool,
-    expires_at: Option<DateTime<Utc>>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    last_used_at: Option<DateTime<Utc>>,
+    expires_at: Option<OffsetDateTime>,
+    created_at: OffsetDateTime,
+    updated_at: OffsetDateTime,
+    last_used_at: Option<OffsetDateTime>,
 }
 
 impl ApiKey {
@@ -41,9 +41,9 @@ impl ApiKey {
         name: String,
         description: Option<String>,
         permissions: ApiKeyPermissions,
-        expires_at: Option<DateTime<Utc>>,
+        expires_at: Option<OffsetDateTime>,
     ) -> Self {
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
         Self {
             id: ApiKeyId::new(),
             api_key: ApiKeyValue::generate(),
@@ -105,55 +105,55 @@ impl ApiKey {
         self.is_active
     }
 
-    pub fn expires_at(&self) -> Option<&DateTime<Utc>> {
+    pub fn expires_at(&self) -> Option<&OffsetDateTime> {
         self.expires_at.as_ref()
     }
 
-    pub fn created_at(&self) -> &DateTime<Utc> {
+    pub fn created_at(&self) -> &OffsetDateTime {
         &self.created_at
     }
 
-    pub fn updated_at(&self) -> &DateTime<Utc> {
+    pub fn updated_at(&self) -> &OffsetDateTime {
         &self.updated_at
     }
 
-    pub fn last_used_at(&self) -> Option<&DateTime<Utc>> {
+    pub fn last_used_at(&self) -> Option<&OffsetDateTime> {
         self.last_used_at.as_ref()
     }
 
     // Setters
     pub fn set_name(&mut self, name: String) {
         self.name = name;
-        self.updated_at = Utc::now();
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
     pub fn set_description(&mut self, description: Option<String>) {
         self.description = description;
-        self.updated_at = Utc::now();
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
     pub fn set_permissions(&mut self, permissions: ApiKeyPermissions) {
         self.permissions = permissions;
-        self.updated_at = Utc::now();
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
     pub fn set_active(&mut self, is_active: bool) {
         self.is_active = is_active;
-        self.updated_at = Utc::now();
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
-    pub fn set_expires_at(&mut self, expires_at: Option<DateTime<Utc>>) {
+    pub fn set_expires_at(&mut self, expires_at: Option<OffsetDateTime>) {
         self.expires_at = expires_at;
-        self.updated_at = Utc::now();
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
     pub fn mark_used(&mut self) {
-        self.last_used_at = Some(Utc::now());
+        self.last_used_at = Some(OffsetDateTime::now_utc());
     }
 
     // Business logic
     pub fn is_expired(&self) -> bool {
-        self.expires_at.is_some_and(|expires| Utc::now() > expires)
+        self.expires_at.is_some_and(|expires| OffsetDateTime::now_utc() > expires)
     }
 
     pub fn can_read(&self) -> bool {
