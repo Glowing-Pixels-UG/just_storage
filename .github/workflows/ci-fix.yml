@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ main, master ]
 
-env:
-  CARGO_TERM_COLOR: always
-
 defaults:
   run:
     working-directory: rust
@@ -31,13 +28,13 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Check formatting
-      run: cargo fmt -- --check --color always
+      run: cargo fmt -- --check
 
     - name: Run clippy
-      run: cargo clippy -- -D warnings --color always
+      run: cargo clippy -- -D warnings
 
     - name: Run tests
-      run: cargo test --color always
+      run: cargo test
 
     - name: Run Miri (library only)
       run: |
@@ -69,14 +66,14 @@ jobs:
       run: cargo install cargo-udeps --locked
 
     - name: Audit dependencies for security vulnerabilities
-      run: cargo audit --color always
+      run: cargo audit
       continue-on-error: true
 
     - name: Check licenses and dependencies
-      run: cargo deny check --color always
+      run: cargo deny check
 
     - name: Check for unused dependencies
-      run: cargo +nightly udeps --workspace --color always
+      run: cargo +nightly udeps --workspace
       continue-on-error: true
 
   # Build and test across multiple targets
@@ -97,7 +94,7 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Build release
-      run: cargo build --release --workspace --color always
+      run: cargo build --release --workspace
 
     - name: Run tests
-      run: cargo test --workspace --release --color always
+      run: cargo test --workspace --release
