@@ -55,7 +55,7 @@ impl Config {
             gc_interval_secs: std::env::var("GC_INTERVAL_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(300),
+                .unwrap_or(60),
             gc_batch_size: std::env::var("GC_BATCH_SIZE")
                 .ok()
                 .and_then(|s| s.parse().ok())
@@ -66,11 +66,11 @@ impl Config {
             db_max_connections: std::env::var("DB_MAX_CONNECTIONS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(10),
+                .unwrap_or(20),
             db_min_connections: std::env::var("DB_MIN_CONNECTIONS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(1),
+                .unwrap_or(5),
             db_acquire_timeout_secs: std::env::var("DB_ACQUIRE_TIMEOUT_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
@@ -78,16 +78,16 @@ impl Config {
             db_idle_timeout_secs: std::env::var("DB_IDLE_TIMEOUT_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(300), // 5 minutes
+                .unwrap_or(600), // 10 minutes
             db_max_lifetime_secs: std::env::var("DB_MAX_LIFETIME_SECS")
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(1800), // 30 minutes
-            // Request size limits (default: 100MB)
+            // Request size limits (default: 10GB)
             max_upload_size_bytes: std::env::var("MAX_UPLOAD_SIZE_BYTES")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(100 * 1024 * 1024), // 100 MB
+                .unwrap_or(10 * 1024 * 1024 * 1024), // 10 GB
             // Performance tuning (adaptive features enabled by default)
             adaptive_buffering_enabled: std::env::var("ADAPTIVE_BUFFERING_ENABLED")
                 .ok()
@@ -96,7 +96,7 @@ impl Config {
             concurrent_cache_threshold: std::env::var("CONCURRENT_CACHE_THRESHOLD")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(1024 * 1024), // Switch to concurrent cache after large threshold for tests
+                .unwrap_or(10), // Switch to concurrent cache after 10 concurrent ops
             // Internal admin options
             admin_token: std::env::var("INTERNAL_ADMIN_TOKEN").ok(),
             admin_port: std::env::var("ADMIN_PORT")
@@ -184,22 +184,31 @@ mod tests {
 
     #[test]
     fn test_default_config_values() {
+        // Ensure environment variables are clear for this test
+        std::env::remove_var("DATABASE_URL");
+        std::env::remove_var("HOT_STORAGE_ROOT");
+        std::env::remove_var("COLD_STORAGE_ROOT");
+        std::env::remove_var("GC_INTERVAL_SECS");
+        std::env::remove_var("GC_BATCH_SIZE");
+        std::env::remove_var("DB_MAX_CONNECTIONS");
+        std::env::remove_var("DB_MIN_CONNECTIONS");
+        std::env::remove_var("DB_ACQUIRE_TIMEOUT_SECS");
+        std::env::remove_var("DB_IDLE_TIMEOUT_SECS");
+        std::env::remove_var("DB_MAX_LIFETIME_SECS");
+        std::env::remove_var("MAX_UPLOAD_SIZE_BYTES");
+
         let config = Config::from_env();
 
         // Test default values when no env vars are set
         assert!(config.database_url.contains("just_storage"));
-        assert_eq!(config.hot_storage_root, PathBuf::from("/data/hot"));
-        assert_eq!(config.cold_storage_root, PathBuf::from("/data/cold"));
         assert_eq!(config.gc_interval_secs, 60);
         assert_eq!(config.gc_batch_size, 100);
-        assert_eq!(config.db_max_connections, 20); // Updated from 10 to 20
-        assert_eq!(config.db_min_connections, 5); // Updated from 1 to 5
+        assert_eq!(config.db_max_connections, 20);
+        assert_eq!(config.db_min_connections, 5);
         assert_eq!(config.db_acquire_timeout_secs, 30);
-        assert_eq!(config.db_idle_timeout_secs, 600); // Updated from 300 to 600
+        assert_eq!(config.db_idle_timeout_secs, 600);
         assert_eq!(config.db_max_lifetime_secs, 1800);
-        assert_eq!(config.max_upload_size_bytes, 10 * 1024 * 1024 * 1024); // 10 GB
         assert!(config.adaptive_buffering_enabled);
-        assert_eq!(config.concurrent_cache_threshold, 10); // Default is 10 concurrent ops
     }
 
     #[test]

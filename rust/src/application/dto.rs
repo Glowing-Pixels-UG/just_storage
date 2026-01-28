@@ -311,8 +311,6 @@ mod tests {
         }
     }
 
-use just_storage::application::dto::TextSearchRequest;
-
     mod search_request_tests {
         use super::*;
 

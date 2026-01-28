@@ -158,6 +158,10 @@ impl BlobStore for MockBlobStore {
     ) -> Result<bool, StorageError> {
         unimplemented!("Not needed for GC collector tests")
     }
+
+    async fn get_total_size(&self, _storage_class: StorageClass) -> Result<u64, StorageError> {
+        Ok(0)
+    }
 }
 
 /// Mock object repository for testing

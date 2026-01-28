@@ -118,15 +118,15 @@ mod api_tests {
         let builder = ApplicationBuilder::new(config)
             .with_database()
             .await
+            .unwrap()
+            .with_infrastructure()
+            .await
             .unwrap();
 
         let gc = builder.build_gc().unwrap();
         tokio::spawn(Arc::clone(&gc).run());
 
         let (state, api_key_repo, audit_repo) = builder
-            .with_infrastructure()
-            .await
-            .unwrap()
             .with_api_keys()
             .await
             .unwrap()

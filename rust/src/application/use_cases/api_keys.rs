@@ -347,12 +347,6 @@ mod tests {
                 .times(1)
                 .returning(move |_, _, _| Ok(api_keys.clone()));
 
-            mock_repo
-                .expect_count_by_tenant()
-                .with(eq("tenant-123"))
-                .times(1)
-                .returning(|_| Ok(2));
-
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 
             let result = use_case.execute("tenant-123".to_string(), None, None).await;
@@ -386,12 +380,6 @@ mod tests {
                 .times(1)
                 .returning(move |_, _, _| Ok(api_keys.clone()));
 
-            mock_repo
-                .expect_count_by_tenant()
-                .with(eq("tenant-123"))
-                .times(1)
-                .returning(|_| Ok(1));
-
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 
             let result = use_case
@@ -406,18 +394,13 @@ mod tests {
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
             mock_repo
                 .expect_count_by_tenant()
+                .with(eq("tenant-123"))
                 .times(1)
                 .returning(|_| Ok(0));
             mock_repo
                 .expect_list_by_tenant()
                 .times(1)
                 .returning(|_, _, _| Ok(vec![]));
-
-            mock_repo
-                .expect_count_by_tenant()
-                .with(eq("tenant-123"))
-                .times(1)
-                .returning(|_| Ok(0));
 
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 

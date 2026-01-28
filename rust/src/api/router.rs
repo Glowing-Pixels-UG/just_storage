@@ -106,6 +106,17 @@ pub fn create_router_with_middleware(
         router = router.nest("/internal", internal_router);
     }
 
+    // Apply global middleware (security headers, etc.) to the entire application
+    router = router
+        .layer(axum_middleware::from_fn(|req, next| async move {
+            crate::api::middleware::security_headers::SecurityHeadersMiddleware::default()
+                .layer(req, next)
+                .await
+        }))
+        .layer(axum_middleware::from_fn(
+            crate::api::middleware::security_headers::RequestSanitizationMiddleware::layer,
+        ));
+
     router
 }
 
@@ -262,23 +273,12 @@ fn apply_middleware_stack(
     let audit_layer = middleware_factory.create_audit_layer(audit_repo);
 
     router
-        .layer(security_headers::create_security_headers_middleware())
         .layer(middleware_factory.create_metrics_layer())
         .layer(axum::middleware::from_fn(move |req, next| {
             let audit_layer = audit_layer.clone();
             async move { audit_layer.layer(req, next).await }
         }))
         .layer(middleware_factory.create_auth_layer(api_key_repo))
-        // Add request sanitization early to reject malformed requests (use from_fn to avoid layer type mismatches)
-        .layer(axum_middleware::from_fn(
-            crate::api::middleware::security_headers::RequestSanitizationMiddleware::layer,
-        ))
-        // Add security headers to responses
-        .layer(axum_middleware::from_fn(|req, next| async move {
-            crate::api::middleware::security_headers::SecurityHeadersMiddleware::default()
-                .layer(req, next)
-                .await
-        }))
         .layer(axum::middleware::from_fn(
             content_type::validate_json_for_objects,
         ))

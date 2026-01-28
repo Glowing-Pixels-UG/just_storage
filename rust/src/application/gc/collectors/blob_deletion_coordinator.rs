@@ -219,6 +219,10 @@ mod tests {
         ) -> Result<bool, StorageError> {
             unimplemented!()
         }
+
+        async fn get_total_size(&self, _storage_class: StorageClass) -> Result<u64, StorageError> {
+            Ok(0)
+        }
     }
 
     #[tokio::test]
