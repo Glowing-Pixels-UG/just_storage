@@ -43,6 +43,9 @@ jobs:
 
     - name: Run Miri (library only)
       run: cargo +nightly miri test --lib
+      env:
+        # Disable isolation to allow access to the host clock for chrono::Utc::now()
+        MIRIFLAGS: -Zmiri-disable-isolation
 
   # Security and dependency checks
   security:
