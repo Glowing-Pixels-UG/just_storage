@@ -337,16 +337,15 @@ mod tests {
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
             mock_repo
-                .expect_list_by_tenant()
-                .with(eq("tenant-123"), eq(50), eq(0))
-                .times(1)
-                .returning(move |_, _, _| Ok(api_keys.clone()));
-
-            mock_repo
                 .expect_count_by_tenant()
                 .with(eq("tenant-123"))
                 .times(1)
                 .returning(|_| Ok(2));
+            mock_repo
+                .expect_list_by_tenant()
+                .with(eq("tenant-123"), eq(50), eq(0))
+                .times(1)
+                .returning(move |_, _, _| Ok(api_keys.clone()));
 
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 
@@ -371,16 +370,15 @@ mod tests {
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
             mock_repo
-                .expect_list_by_tenant()
-                .with(eq("tenant-123"), eq(10), eq(20))
-                .times(1)
-                .returning(move |_, _, _| Ok(api_keys.clone()));
-
-            mock_repo
                 .expect_count_by_tenant()
                 .with(eq("tenant-123"))
                 .times(1)
                 .returning(|_| Ok(1));
+            mock_repo
+                .expect_list_by_tenant()
+                .with(eq("tenant-123"), eq(10), eq(20))
+                .times(1)
+                .returning(move |_, _, _| Ok(api_keys.clone()));
 
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 
@@ -395,15 +393,14 @@ mod tests {
         async fn test_list_api_keys_empty() {
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
             mock_repo
-                .expect_list_by_tenant()
-                .times(1)
-                .returning(|_, _, _| Ok(vec![]));
-
-            mock_repo
                 .expect_count_by_tenant()
                 .with(eq("tenant-123"))
                 .times(1)
                 .returning(|_| Ok(0));
+            mock_repo
+                .expect_list_by_tenant()
+                .times(1)
+                .returning(|_, _, _| Ok(vec![]));
 
             let use_case = ListApiKeysUseCase::new(Arc::new(mock_repo));
 

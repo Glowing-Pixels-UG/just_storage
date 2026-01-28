@@ -90,10 +90,10 @@ See [Architecture Overview](https://github.com/Glowing-Pixels-UG/just_storage/wi
 
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f just_storage
+docker compose logs -f just_storage
 
 # Test API
 curl http://localhost:8080/health
@@ -113,7 +113,7 @@ curl http://localhost:8080/health
 cp .env.example .env
 
 # 2. Start PostgreSQL
-docker-compose up -d postgres
+docker compose up -d postgres
 # OR use local PostgreSQL
 
 # 3. Create database and run migrations
@@ -429,7 +429,7 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 
 **Deployment Ready:**
 
-- Docker and docker-compose configurations
+- Docker and docker compose configurations
 - Kubernetes StatefulSet manifests
 - Environment variable configuration
 - Migration scripts

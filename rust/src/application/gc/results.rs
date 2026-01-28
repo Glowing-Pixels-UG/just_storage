@@ -194,6 +194,7 @@ mod tests {
         let mut result = GcResult::new();
         assert!(!result.has_deletions());
 
+        result.total_deleted = 5;
         result.orphaned_blobs_deleted = 5;
         assert!(result.has_deletions());
     }

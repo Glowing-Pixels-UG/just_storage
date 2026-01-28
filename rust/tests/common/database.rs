@@ -7,9 +7,7 @@ use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncR
 
 /// Start a PostgreSQL container and return a connected PgPool and the container handle
 pub async fn setup_test_database() -> (PgPool, testcontainers::ContainerAsync<Postgres>) {
-    let init_sql = include_str!("../../../schema.sql");
     let container = Postgres::default()
-        .with_init_sql(init_sql.as_bytes().to_vec())
         .start()
         .await
         .expect("Failed to start PostgreSQL container");
@@ -28,6 +26,12 @@ pub async fn setup_test_database() -> (PgPool, testcontainers::ContainerAsync<Po
     let pool = PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to test database");
+
+    // Run migrations instead of using schema.sql
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run migrations");
 
     // Clean up any existing test data
     cleanup_test_data(&pool).await;

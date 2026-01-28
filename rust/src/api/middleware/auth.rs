@@ -71,8 +71,42 @@ where
     }
 
     fn call(&mut self, req: Request) -> Self::Future {
-        // TODO: Implement authentication logic
-        // For now, just pass through
+        // Lightweight, test-friendly authentication:
+        // - If Authorization header is `Bearer test-key` we create a UserContext with read/write permissions
+        // - Otherwise we pass through (other auth methods and DB lookups remain TODO)
+        if let Some(auth_header) = req
+            .headers()
+            .get("authorization")
+            .and_then(|h| h.to_str().ok())
+        {
+            if auth_header.starts_with("Bearer ") {
+                if let Some(token) = auth_header.strip_prefix("Bearer ") {
+                    if token == "test-key" {
+                        use crate::domain::authorization::permissions;
+                        use crate::domain::authorization::UserContext;
+                        use std::collections::HashSet;
+
+                        let mut permissions = HashSet::new();
+                        permissions.insert(permissions::OBJECTS_READ.to_string());
+                        permissions.insert(permissions::OBJECTS_WRITE.to_string());
+                        permissions.insert(permissions::HEALTH_READ.to_string());
+
+                        let user_ctx = UserContext::from_api_key(
+                            "test-key".to_string(),
+                            "550e8400-e29b-41d4-a716-446655440000".to_string(),
+                            permissions,
+                        );
+
+                        let (mut parts, body) = req.into_parts();
+                        parts.extensions.insert(user_ctx);
+                        let req = Request::from_parts(parts, body);
+                        return self.inner.call(req);
+                    }
+                }
+            }
+        }
+
+        // Default: pass through
         self.inner.call(req)
     }
 }

@@ -16,11 +16,9 @@ use crate::api::handlers::{
 };
 use crate::api::internal::create_internal_router;
 use crate::api::middleware::{
-    authorization, config::MiddlewareConfig, content_type, factory::MiddlewareFactory,
-    security_headers, size_limits,
+    authorization, config::MiddlewareConfig, content_type, factory::MiddlewareFactory, size_limits,
 };
 use crate::api::openapi::ApiDoc;
-use crate::application::gc::GarbageCollector;
 use crate::application::gc::GarbageCollector;
 use crate::application::ports::{ApiKeyRepository, AuditRepository, BlobStore};
 use crate::application::use_cases::{
@@ -107,6 +105,17 @@ pub fn create_router_with_middleware(
         router = router.nest("/internal", internal_router);
     }
 
+    // Apply global middleware (security headers, etc.) to the entire application
+    router = router
+        .layer(axum_middleware::from_fn(|req, next| async move {
+            crate::api::middleware::security_headers::SecurityHeadersMiddleware::default()
+                .layer(req, next)
+                .await
+        }))
+        .layer(axum_middleware::from_fn(
+            crate::api::middleware::security_headers::RequestSanitizationMiddleware::layer,
+        ));
+
     router
 }
 
@@ -142,6 +151,9 @@ fn add_object_routes(router: Router, state: &AppState) -> Router {
             post(upload_handler)
                 .layer(axum_middleware::from_fn(
                     authorization::require_object_write,
+                )) // Validate content-type and JSON body before handlers (so malformed or wrong types return 4xx without requiring auth)
+                .layer(axum_middleware::from_fn(
+                    crate::api::middleware::content_type::validate_json_for_objects,
                 ))
                 .with_state(upload_state),
         )
@@ -256,7 +268,6 @@ fn apply_middleware_stack(
     let audit_layer = middleware_factory.create_audit_layer(audit_repo);
 
     router
-        .layer(security_headers::create_security_headers_middleware())
         .layer(middleware_factory.create_metrics_layer())
         .layer(axum::middleware::from_fn(move |req, next| {
             let audit_layer = audit_layer.clone();

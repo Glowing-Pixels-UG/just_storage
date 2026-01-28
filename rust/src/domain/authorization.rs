@@ -161,6 +161,7 @@ impl UserContext {
     pub fn is_tenant_admin(&self) -> bool {
         self.has_role("admin")
             || self.has_role("tenant_admin")
+            || self.has_permission(permissions::ADMIN)
             || self.has_permission(permissions::TENANT_ADMIN)
     }
 

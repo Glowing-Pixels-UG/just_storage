@@ -1,17 +1,15 @@
-use axum::{
-    extract::State,
-    response::IntoResponse,
-};
-use crate::api::router::AppState;
 use crate::api::internal::templates::HealthTemplate;
+use crate::api::router::AppState;
 use crate::domain::value_objects::StorageClass;
+use axum::{extract::State, response::IntoResponse};
 use std::time::Instant;
 
-pub async fn health_page(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn health_page(State(state): State<AppState>) -> impl IntoResponse {
     let start = Instant::now();
-    let db_ok = sqlx::query("SELECT 1").fetch_one(&*state.pool).await.is_ok();
+    let db_ok = sqlx::query("SELECT 1")
+        .fetch_one(&*state.pool)
+        .await
+        .is_ok();
     let db_latency = format!("{:?}", start.elapsed());
 
     // Get total objects count
@@ -25,23 +23,31 @@ pub async fn health_page(
         .fetch_one(&*state.pool)
         .await
         .unwrap_or(0);
-    
+
     // We expect 5 migrations based on the migrations folder
     let migrations_ok = migration_count == 5;
 
     // Get storage usage
-    let hot_usage = state.blob_store.get_total_size(StorageClass::Hot).await.unwrap_or(0);
-    let cold_usage = state.blob_store.get_total_size(StorageClass::Cold).await.unwrap_or(0);
+    let hot_usage = state
+        .blob_store
+        .get_total_size(StorageClass::Hot)
+        .await
+        .unwrap_or(0);
+    let cold_usage = state
+        .blob_store
+        .get_total_size(StorageClass::Cold)
+        .await
+        .unwrap_or(0);
 
     HealthTemplate {
         service_name: "just-storage".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        db_status: if db_ok && migrations_ok { 
-            "Connected".to_string() 
+        db_status: if db_ok && migrations_ok {
+            "Connected".to_string()
         } else if db_ok {
             format!("Connected ({} migrations pending)", 5 - migration_count)
-        } else { 
-            "Disconnected".to_string() 
+        } else {
+            "Disconnected".to_string()
         },
         db_latency,
         hot_storage_usage: format_size(hot_usage),

@@ -198,14 +198,21 @@ mod tests {
         assert!(checks.get("size_limits").is_some());
 
         // All values should be strings indicating status
-        for (_, value) in checks.as_object().unwrap() {
-            assert!(value.is_string());
+        for (key, value) in checks.as_object().unwrap() {
+            assert!(
+                value.is_string(),
+                "{} should be string, got {:?}",
+                key,
+                value
+            );
             let status = value.as_str().unwrap();
             assert!(
                 status == "enabled"
                     || status == "disabled"
                     || status == "development"
                     || status == "production"
+                    || status == "configured"
+                    || status == "enforced"
             );
         }
     }

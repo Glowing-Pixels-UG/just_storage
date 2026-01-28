@@ -5,7 +5,7 @@
 
 #![allow(dead_code)]
 
-use sqlx::{Executor, PgPool};
+use sqlx::PgPool;
 use std::sync::Arc;
 use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
 
@@ -32,10 +32,8 @@ pub struct TestEnvironment {
 impl TestEnvironment {
     /// Create a new test environment with PostgreSQL container
     pub async fn new() -> Self {
-        // Start PostgreSQL container with custom schema
-        let init_sql = include_str!("../../schema.sql");
+        // Start PostgreSQL container
         let container = Postgres::default()
-            .with_init_sql(init_sql.as_bytes().to_vec())
             .start()
             .await
             .expect("Failed to start PostgreSQL container");
@@ -55,6 +53,12 @@ impl TestEnvironment {
         let pool = PgPool::connect(&database_url)
             .await
             .expect("Failed to connect to test database");
+
+        // Run migrations
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("Failed to run migrations");
 
         // Setup repositories and use cases
         let object_repo: Arc<dyn ObjectRepository> = Arc::new(
@@ -103,28 +107,6 @@ impl TestEnvironment {
             delete_use_case,
             _container: container,
             _temp_dir: temp_dir,
-        }
-    }
-
-    /// Setup database schema for testing
-    #[allow(dead_code)]
-    async fn setup_schema(pool: &PgPool) {
-        let schema = include_str!("../../schema.sql");
-        let statements: Vec<&str> = schema
-            .split(';')
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty() && !s.starts_with("--"))
-            .collect();
-
-        for statement in statements {
-            if !statement.trim().is_empty() {
-                pool.execute(statement).await.unwrap_or_else(|e| {
-                    panic!(
-                        "Failed to execute schema statement: {}\nStatement: {}",
-                        e, statement
-                    )
-                });
-            }
         }
     }
 
