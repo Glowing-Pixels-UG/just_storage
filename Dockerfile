@@ -1,4 +1,4 @@
-FROM docker.io/library/rust:1.93 AS builder
+FROM docker.io/library/rust:1.95 AS builder
 
 WORKDIR /app
 
