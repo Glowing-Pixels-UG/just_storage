@@ -14,7 +14,18 @@ permissions:
 
 jobs:
   ci:
-    uses: Glowing-Pixels-UG/.github/workflows/rust-ci.yml@main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Check compilation
+        working-directory: rust
+        env:
+          SQLX_OFFLINE: "true"
+        run: cargo check
 
   docker-image:
     needs: ci

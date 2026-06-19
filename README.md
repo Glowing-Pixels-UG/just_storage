@@ -320,7 +320,7 @@ spec:
     spec:
       containers:
       - name: just-storage
-        image: just-storage:0.1.0-baikonur.20260619
+        image: just-storage:0.1.0-baikonur.20260619.1
         ports:
         - containerPort: 8080
         env:
@@ -375,10 +375,10 @@ spec:
 - GitHub Actions keeps the reusable Rust CI gate and publishes multi-arch GHCR images on non-PR events. Pull requests build the image without pushing.
 - Gitea Actions publishes the Baikonur Harbor image at `registry.bk.glpx.pro/just-storage/just-storage`. It builds native `linux/amd64` and `linux/arm64` images, then creates a multi-arch manifest.
 - Gitea requires repository Actions secrets named `REGISTRY_USERNAME` and `REGISTRY_PASSWORD`; the workflow fails before build if either is missing.
-- Production GitOps should use an immutable release tag or digest, not `latest`. To produce the current Baikonur chart tag, push a matching Git tag such as `0.1.0-baikonur.20260619` and verify it with:
+- Production GitOps should use an immutable release tag or digest, not `latest`. To produce the current Baikonur chart tag, push a matching Git tag such as `0.1.0-baikonur.20260619.1` and verify it with:
 
 ```bash
-docker buildx imagetools inspect registry.bk.glpx.pro/just-storage/just-storage:0.1.0-baikonur.20260619
+docker buildx imagetools inspect registry.bk.glpx.pro/just-storage/just-storage:0.1.0-baikonur.20260619.1
 ```
 
 ### Metrics (Prometheus)
