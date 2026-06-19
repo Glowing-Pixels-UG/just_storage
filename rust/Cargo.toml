@@ -46,7 +46,7 @@ time = { version = "0.3", features = ["serde", "macros", "formatting"] }
 thiserror = "2.0"
 async-trait = "0.1"
 dashmap = "6.1"
-rand = "0.8"
+rand = "0.10"
 
 # Templating & HTMX
 askama = "0.15"
