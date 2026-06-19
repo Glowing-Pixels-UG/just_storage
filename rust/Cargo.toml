@@ -98,7 +98,7 @@ proptest-derive = "0.7"
 
 # Test containers for integration testing
 testcontainers = "0.23"
-testcontainers-modules = { version = "0.11", features = ["postgres"] }
+testcontainers-modules = { version = "0.15", features = ["postgres"] }
 rsa = "0.9"
 base64 = "0.22"
 wiremock = "0.6.5"
