@@ -93,10 +93,14 @@ Both use `longhorn-fast` storage class. Adjust sizes in `pvc.yaml` if needed.
 Edit `deployment.yaml` and update the image reference:
 
 ```yaml
-image: storage.bk.glpx.pro/just_storage:latest
+image: storage.bk.glpx.pro/just_storage:0.1.0-baikonur.20260619
 ```
 
 Replace with your actual image registry and tag.
+
+For Baikonur GitOps, the Gitea Actions workflow publishes the deployable Harbor
+image. Use an immutable release tag or digest in the Helm chart; do not cut over
+with `latest`.
 
 ### 6. Deploy Application
 
@@ -138,6 +142,7 @@ kubectl logs -n just-storage -l app=just-storage -f
 # Test health endpoint
 kubectl port-forward -n just-storage svc/just-storage 8080:8080
 curl http://localhost:8080/health
+curl http://localhost:8080/health/ready
 ```
 
 ## Configuration
@@ -155,6 +160,9 @@ The deployment uses the following environment variables (configured in `deployme
 | `GC_INTERVAL_SECS` | Garbage collection interval | `60` |
 | `GC_BATCH_SIZE` | Blobs per GC cycle | `100` |
 | `RUST_LOG` | Log level | `info` |
+| `ENVIRONMENT` | Runtime environment name | `production` |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins | Baikonur JustStorage hosts |
+| `MAX_UPLOAD_SIZE_BYTES` | Maximum accepted upload size | `10737418240` |
 
 ### Database Connection Pool
 
@@ -168,11 +176,10 @@ Optional database pool settings (with defaults):
 ### Authentication
 
 For production, configure authentication via secrets:
-- `JWT_SECRET` - Secret for JWT validation
-- `API_KEYS` - Comma-separated API keys
+- `INTERNAL_ADMIN_TOKEN` - Optional bootstrap/admin bearer token for creating DB-backed API keys
 - `DISABLE_AUTH` - Set to `false` (or omit) for production
 
-Uncomment the authentication section in `deployment.yaml` and add the secrets to `secret.yaml`.
+Static `JWT_SECRET` and `API_KEYS` values are not consumed by the v1 runtime unless the code changes to add those auth modes. Keep `DISABLE_AUTH=false` in production and create ongoing API keys in the database.
 
 ## Resource Requirements
 
@@ -267,4 +274,3 @@ kubectl delete -f namespace.yaml
 ```
 
 **Warning:** Deleting PVCs will delete the data. Ensure you have backups before cleanup.
-

@@ -1,30 +1,26 @@
-use axum::{
-    extract::Request,
-    http::header::AUTHORIZATION,
-    response::Response,
-};
+use axum::{extract::Request, http::header::AUTHORIZATION, response::Response};
+use futures_util::future::BoxFuture;
+use jsonwebtoken::{decode, decode_header, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tower::Layer;
 use tower_sessions::Session;
-use futures_util::future::BoxFuture;
-use jsonwebtoken::{decode, decode_header, DecodingKey, Validation};
 
-use crate::application::ports::ApiKeyRepository;
-use crate::domain::authorization::{roles, UserContext, CustomClaims};
 use super::oidc_config::OidcConfig;
+use crate::application::ports::ApiKeyRepository;
+use crate::domain::authorization::{roles, CustomClaims, UserContext};
 
 /// Claims structure for OIDC JWT tokens
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
-    pub sub: String,              // Subject (user ID)
-    pub iss: Option<String>,      // Issuer
+    pub sub: String,                    // Subject (user ID)
+    pub iss: Option<String>,            // Issuer
     pub aud: Option<serde_json::Value>, // Audience (can be string or array)
-    pub exp: Option<usize>,       // Expiration time
-    pub iat: Option<usize>,       // Issued at
+    pub exp: Option<usize>,             // Expiration time
+    pub iat: Option<usize>,             // Issued at
     #[serde(flatten)]
-    pub custom: CustomClaims,      // Custom roles, tenant_id, etc.
+    pub custom: CustomClaims, // Custom roles, tenant_id, etc.
 }
 
 #[derive(Clone)]
@@ -37,7 +33,7 @@ pub struct AuthLayer {
 
 impl AuthLayer {
     pub fn new(
-        api_key_repo: Arc<dyn ApiKeyRepository>, 
+        api_key_repo: Arc<dyn ApiKeyRepository>,
         auth_config: crate::api::middleware::auth_config::AuthMiddlewareConfig,
         oidc_config: OidcConfig,
         jwks_cache: Arc<moka::future::Cache<String, DecodingKey>>,
@@ -59,7 +55,7 @@ where
     type Service = AuthService<S>;
 
     fn layer(&self, inner: S) -> Self::Service {
-        AuthService { 
+        AuthService {
             inner,
             api_key_repo: Arc::clone(&self.api_key_repo),
             auth_config: self.auth_config.clone(),
@@ -104,6 +100,24 @@ where
         Box::pin(async move {
             let (mut parts, body) = req.into_parts();
 
+            if !auth_config.enabled {
+                let permissions: HashSet<String> = roles::ADMIN
+                    .iter()
+                    .map(|permission| (*permission).to_string())
+                    .collect();
+                let user_ctx = UserContext::new(
+                    "disabled-auth:admin".to_string(),
+                    "default".to_string(),
+                    vec!["admin".to_string()],
+                    permissions,
+                    false,
+                    None,
+                );
+                parts.extensions.insert(user_ctx);
+                let req = Request::from_parts(parts, body);
+                return inner.call(req).await;
+            }
+
             // 1. Try Session-based authentication (Dashboard/BFF)
             if let Some(session) = parts.extensions.get::<Session>() {
                 if let Ok(Some(user_ctx)) = session.get::<UserContext>("user_context").await {
@@ -114,14 +128,21 @@ where
             }
 
             // 2. Try Authorization header
-            if let Some(auth_header) = parts.headers.get(AUTHORIZATION).and_then(|h| h.to_str().ok()) {
+            if let Some(auth_header) = parts
+                .headers
+                .get(AUTHORIZATION)
+                .and_then(|h| h.to_str().ok())
+            {
                 if let Some(token) = auth_header.strip_prefix("Bearer ") {
-                    
                     // 2a. Try Master Token (Simple Deployment Mode)
                     if auth_config.legacy_auth_enabled {
                         if let Some(expected) = &auth_config.admin_token {
                             if token == expected {
-                                let permissions: HashSet<String> = roles::get_permissions_for_role("admin").into_iter().map(|s| s.to_string()).collect();
+                                let permissions: HashSet<String> =
+                                    roles::get_permissions_for_role("admin")
+                                        .into_iter()
+                                        .map(|s| s.to_string())
+                                        .collect();
                                 let user_ctx = UserContext::new(
                                     "admin:master".to_string(),
                                     "default".to_string(),
@@ -142,9 +163,15 @@ where
                         if let Ok(Some(api_key)) = api_key_repo.find_by_key(token).await {
                             if api_key.is_active() && !api_key.is_expired() {
                                 let mut permissions = HashSet::new();
-                                if api_key.permissions().read { permissions.insert("objects:read".to_string()); }
-                                if api_key.permissions().write { permissions.insert("objects:write".to_string()); }
-                                if api_key.permissions().delete { permissions.insert("objects:delete".to_string()); }
+                                if api_key.permissions().read {
+                                    permissions.insert("objects:read".to_string());
+                                }
+                                if api_key.permissions().write {
+                                    permissions.insert("objects:write".to_string());
+                                }
+                                if api_key.permissions().delete {
+                                    permissions.insert("objects:delete".to_string());
+                                }
                                 if api_key.permissions().admin {
                                     permissions.insert("admin".to_string());
                                     permissions.insert("api_keys:read".to_string());
@@ -158,9 +185,9 @@ where
                                     api_key.tenant_id().to_string(),
                                     permissions,
                                 );
-                                
+
                                 let _ = api_key_repo.mark_used(api_key.id()).await;
-                                
+
                                 parts.extensions.insert(user_ctx);
                                 let req = Request::from_parts(parts, body);
                                 return inner.call(req).await;
@@ -176,10 +203,17 @@ where
                                     // Mandate OIDC-compliant algorithms (Reject none, HS256, etc.)
                                     use jsonwebtoken::Algorithm;
                                     match header.alg {
-                                        Algorithm::RS256 | Algorithm::RS384 | Algorithm::RS512 |
-                                        Algorithm::PS256 | Algorithm::PS384 | Algorithm::PS512 => {},
+                                        Algorithm::RS256
+                                        | Algorithm::RS384
+                                        | Algorithm::RS512
+                                        | Algorithm::PS256
+                                        | Algorithm::PS384
+                                        | Algorithm::PS512 => {}
                                         _ => {
-                                            tracing::warn!("OIDC token uses non-compliant algorithm: {:?}", header.alg);
+                                            tracing::warn!(
+                                                "OIDC token uses non-compliant algorithm: {:?}",
+                                                header.alg
+                                            );
                                             let req = Request::from_parts(parts, body);
                                             return inner.call(req).await;
                                         }
@@ -197,19 +231,28 @@ where
                                         Ok(token_data) => {
                                             let claims = token_data.claims;
                                             let mut permissions = HashSet::new();
-                                            
+
                                             if let Some(perms) = &claims.custom.permissions {
-                                                for p in perms { permissions.insert(p.clone()); }
+                                                for p in perms {
+                                                    permissions.insert(p.clone());
+                                                }
                                             }
 
                                             if let Some(user_roles) = &claims.custom.roles {
                                                 for role in user_roles {
-                                                    let role_perms = roles::get_permissions_for_role(role);
-                                                    for p in role_perms { permissions.insert(p.to_string()); }
+                                                    let role_perms =
+                                                        roles::get_permissions_for_role(role);
+                                                    for p in role_perms {
+                                                        permissions.insert(p.to_string());
+                                                    }
                                                 }
                                             }
 
-                                            let tenant_id = claims.custom.tenant_id.clone().unwrap_or_else(|| "default".to_string());
+                                            let tenant_id = claims
+                                                .custom
+                                                .tenant_id
+                                                .clone()
+                                                .unwrap_or_else(|| "default".to_string());
                                             let user_ctx = UserContext::new(
                                                 claims.sub.clone(),
                                                 tenant_id,
@@ -218,7 +261,7 @@ where
                                                 false,
                                                 None,
                                             );
-                                            
+
                                             parts.extensions.insert(user_ctx);
                                             let req = Request::from_parts(parts, body);
                                             return inner.call(req).await;

@@ -10,6 +10,7 @@
 
 # CI/CD and GitHub config
 /.github/**                     @SamyRai
+/.gitea/**                      @SamyRai
 
 # Rust source code
 /rust/src/**                    @SamyRai

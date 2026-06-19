@@ -272,8 +272,7 @@ Deploy JustStorage instantly to popular platforms with a single click:
 **Note:**
 
 - Replace `yourusername` in the URLs above with your actual GitHub username/organization
-- For Heroku: The button will prompt you to set `JWT_SECRET` and `API_KEYS` during deployment
-- For DigitalOcean: Set `JWT_SECRET` and `API_KEYS` as secrets in the dashboard after deployment
+- For Heroku/DigitalOcean: set `INTERNAL_ADMIN_TOKEN` for bootstrap/admin access, then create DB-backed API keys through the API. `JWT_SECRET` and static `API_KEYS` are not required by the v1 runtime.
 
 ### Quick Deployment Setup
 
@@ -321,7 +320,7 @@ spec:
     spec:
       containers:
       - name: just-storage
-        image: just-storage:latest
+        image: just-storage:0.1.0-baikonur.20260619
         ports:
         - containerPort: 8080
         env:
@@ -330,6 +329,16 @@ spec:
             secretKeyRef:
               name: just-storage-secrets
               key: database-url
+        - name: INTERNAL_ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: just-storage-secrets
+              key: admin-token
+              optional: true
+        - name: MAX_UPLOAD_SIZE_BYTES
+          value: "10737418240"
+        - name: DISABLE_AUTH
+          value: "false"
         volumeMounts:
         - name: hot-storage
           mountPath: /data/hot
@@ -359,7 +368,18 @@ spec:
 ### Health Checks
 
 - `GET /health` - Liveness
-- `GET /ready` - Readiness (DB + filesystem checks)
+- `GET /health/ready` - Readiness (DB, applied migrations, and storage directories)
+
+## CI/CD Images
+
+- GitHub Actions keeps the reusable Rust CI gate and publishes multi-arch GHCR images on non-PR events. Pull requests build the image without pushing.
+- Gitea Actions publishes the Baikonur Harbor image at `registry.bk.glpx.pro/just-storage/just-storage`. It builds native `linux/amd64` and `linux/arm64` images, then creates a multi-arch manifest.
+- Gitea requires repository Actions secrets named `REGISTRY_USERNAME` and `REGISTRY_PASSWORD`; the workflow fails before build if either is missing.
+- Production GitOps should use an immutable release tag or digest, not `latest`. To produce the current Baikonur chart tag, push a matching Git tag such as `0.1.0-baikonur.20260619` and verify it with:
+
+```bash
+docker buildx imagetools inspect registry.bk.glpx.pro/just-storage/just-storage:0.1.0-baikonur.20260619
+```
 
 ### Metrics (Prometheus)
 
@@ -419,7 +439,7 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 - Content-addressable storage with automatic deduplication
 - Two-phase commit for crash safety
 - Background garbage collection with tested worker
-- JWT and API key authentication
+- Internal admin token bootstrap and DB-backed API key authentication
 - Health check endpoints
 - Error handling without unsafe unwrap/expect
 - Unit test coverage with in-memory mocks
@@ -430,7 +450,7 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 **Deployment Ready:**
 
 - Docker and docker compose configurations
-- Kubernetes StatefulSet manifests
+- Kubernetes manifests
 - Environment variable configuration
 - Migration scripts
 

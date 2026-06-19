@@ -72,12 +72,15 @@ pub async fn create_router(
     audit_repo: Arc<dyn AuditRepository + Send + Sync>,
 ) -> Router {
     let mut middleware_config = MiddlewareConfig::default();
-    middleware_config.auth.enabled = true;
-    middleware_config.auth.legacy_auth_enabled = std::env::var("LEGACY_AUTH_ENABLED").map(|v| v == "true").unwrap_or(true);
+    middleware_config.auth.enabled = !state.config.disable_auth;
+    middleware_config.auth.legacy_auth_enabled =
+        crate::config::parse_bool_env("LEGACY_AUTH_ENABLED", true);
     middleware_config.auth.admin_token = state.config.admin_token.clone();
-    middleware_config.oidc.enabled = std::env::var("OIDC_ENABLED").map(|v| v == "true").unwrap_or(true);
+    middleware_config.oidc.enabled = crate::config::parse_bool_env("OIDC_ENABLED", true);
     middleware_config.oidc.issuer_url = state.config.oidc_issuer_url.clone();
     middleware_config.oidc.audience = state.config.oidc_audience.clone();
+    middleware_config.size_limits.max_request_size = state.config.max_upload_size_bytes;
+    middleware_config.size_limits.max_file_size = state.config.max_upload_size_bytes;
     create_router_with_middleware(state, api_key_repo, audit_repo, middleware_config).await
 }
 
@@ -95,10 +98,9 @@ pub async fn create_router_with_middleware(
 
     // Initialize the main router
     let mut router = Router::new();
-    
+
     // 1. Internal routes (nest under /dashboard if admin_port is not set)
     if state.config.admin_port.is_none() {
-        println!("DEBUG: Registering dashboard routes under /dashboard");
         router = router.nest("/dashboard", internal_router);
     }
 
@@ -106,7 +108,7 @@ pub async fn create_router_with_middleware(
     let mut public_router = Router::new();
     public_router = add_health_routes(public_router, &state);
     public_router = add_openapi_routes(public_router);
-    
+
     // Merge public routes into main router
     router = router.merge(public_router);
 
@@ -147,7 +149,7 @@ fn add_health_routes(router: Router, state: &AppState) -> Router {
         .route("/health", get(health_handler))
         .route(
             "/health/ready",
-            get(readiness_handler).with_state(Arc::clone(&state.pool)),
+            get(readiness_handler).with_state(state.clone()),
         )
         .route("/favicon.ico", get(|| async { StatusCode::NO_CONTENT }))
 }
@@ -294,6 +296,7 @@ fn apply_middleware_stack(
     // 8. CORS (innermost - runs first)
     let audit_layer = middleware_factory.create_audit_layer(audit_repo);
     let rate_limit_layer = middleware_factory.create_rate_limit_layer();
+    let size_limit_config = Arc::new(middleware_factory.config().size_limits.clone());
 
     router
         .layer(middleware_factory.create_metrics_layer())
@@ -306,8 +309,16 @@ fn apply_middleware_stack(
         .layer(axum::middleware::from_fn(
             content_type::validate_json_for_objects,
         ))
-        .layer(axum::middleware::from_fn(
-            size_limits::RequestSizeLimitMiddleware::layer,
-        ))
+        .layer(axum::middleware::from_fn(move |req, next| {
+            let size_limit_config = Arc::clone(&size_limit_config);
+            async move {
+                size_limits::RequestSizeLimitMiddleware::layer_with_config(
+                    req,
+                    next,
+                    size_limit_config,
+                )
+                .await
+            }
+        }))
         .layer(middleware_factory.create_cors_layer())
 }

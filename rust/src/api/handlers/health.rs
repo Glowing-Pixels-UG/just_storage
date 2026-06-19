@@ -1,9 +1,9 @@
 use axum::{extract::State, http::StatusCode, response::Json};
 use serde_json::json;
-use sqlx::PgPool;
-use std::sync::Arc;
 use std::time::Instant;
 use utoipa::ToSchema;
+
+use crate::api::router::AppState;
 
 use super::health_checks::{
     perform_readiness_checks, perform_security_health_checks, sanitize_db_error,
@@ -40,9 +40,6 @@ pub struct ReadinessResponse {
 pub async fn health_handler() -> (StatusCode, Json<serde_json::Value>) {
     let start_time = Instant::now();
 
-    // Perform basic security checks
-    let security_checks = perform_security_health_checks();
-
     let response_time = start_time.elapsed();
 
     (
@@ -53,8 +50,7 @@ pub async fn health_handler() -> (StatusCode, Json<serde_json::Value>) {
             "version": env!("CARGO_PKG_VERSION"),
             "timestamp": time::OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
             "uptime_seconds": std::process::id(), // Simplified uptime indicator
-            "response_time_ms": response_time.as_millis(),
-            "security": security_checks
+            "response_time_ms": response_time.as_millis()
         })),
     )
 }
@@ -71,26 +67,32 @@ pub async fn health_handler() -> (StatusCode, Json<serde_json::Value>) {
     )
 )]
 pub async fn readiness_handler(
-    State(pool): State<Arc<PgPool>>,
+    State(state): State<AppState>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     let start_time = Instant::now();
 
     // Check database connectivity with timeout
     let db_check = tokio::time::timeout(
         std::time::Duration::from_secs(2),
-        sqlx::query("SELECT 1 as health_check").fetch_one(pool.as_ref()),
+        sqlx::query("SELECT 1 as health_check").fetch_one(state.pool.as_ref()),
     )
     .await;
 
     let response_time = start_time.elapsed();
 
     // Perform security checks
-    let security_checks = perform_security_health_checks();
+    let security_checks = perform_security_health_checks(state.config.disable_auth);
 
     match db_check {
         Ok(Ok(_)) => {
             // Additional readiness checks
-            let readiness_checks = perform_readiness_checks(pool.as_ref()).await;
+            let readiness_checks = perform_readiness_checks(
+                state.pool.as_ref(),
+                state.expected_migration_count,
+                &state.config.hot_storage_root,
+                &state.config.cold_storage_root,
+            )
+            .await;
 
             if readiness_checks.healthy {
                 (
@@ -154,13 +156,22 @@ mod tests {
 
     #[test]
     fn test_security_health_checks() {
-        let checks = perform_security_health_checks();
+        let checks = perform_security_health_checks(false);
 
         // Verify that security features are reported
         assert!(checks.get("rate_limiting").is_some());
         assert!(checks.get("security_headers").is_some());
         assert!(checks.get("audit_logging").is_some());
         assert!(checks.get("cors_policy").is_some());
+    }
+
+    #[test]
+    fn test_security_health_checks_report_auth_status() {
+        let checks = perform_security_health_checks(false);
+        assert_eq!(checks["auth_enabled"], "enabled");
+
+        let checks = perform_security_health_checks(true);
+        assert_eq!(checks["auth_enabled"], "disabled");
     }
 
     #[test]
@@ -187,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_security_health_checks_structure() {
-        let checks = perform_security_health_checks();
+        let checks = perform_security_health_checks(false);
 
         // Verify the structure contains expected security features
         assert!(checks.get("rate_limiting").is_some());
@@ -280,7 +291,7 @@ mod tests {
         // Test that health responses include security status
         // This would be tested in integration tests, but we can test the function exists
 
-        let security_checks = perform_security_health_checks();
+        let security_checks = perform_security_health_checks(false);
 
         // Verify we have the expected security check fields
         let expected_fields = [

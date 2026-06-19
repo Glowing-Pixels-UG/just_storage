@@ -37,8 +37,11 @@ pub async fn upload_handler(
     query_params: Query<std::collections::HashMap<String, String>>,
     body: Body,
 ) -> Result<(StatusCode, Json<ObjectDto>), ApiError> {
-    // Buffer the body (for tests we accept JSON-based uploads as well as streaming uploads)
-    let bytes = axum::body::to_bytes(body, 10 * 1024 * 1024)
+    let upload_limit = usize::try_from(use_case.max_upload_size_bytes()).unwrap_or(usize::MAX);
+
+    // Buffer the body up to the configured upload limit. The storage layer still
+    // writes through an AsyncRead, so callers are not capped by a test-only 10MiB limit.
+    let bytes = axum::body::to_bytes(body, upload_limit)
         .await
         .map_err(|_| ApiError::bad_request("Failed to read request body"))?;
 
