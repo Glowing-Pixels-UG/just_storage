@@ -49,8 +49,8 @@ pub struct ApiKeyValue(String);
 impl ApiKeyValue {
     /// Generate a new random API key
     pub fn generate() -> Self {
-        use rand::{distributions::Alphanumeric, Rng};
-        let key: String = rand::thread_rng()
+        use rand::{distr::Alphanumeric, RngExt};
+        let key: String = rand::rng()
             .sample_iter(Alphanumeric)
             .take(64)
             .map(char::from)

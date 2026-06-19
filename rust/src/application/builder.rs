@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use openidconnect::core::CoreProviderMetadata;
+use openidconnect::reqwest::{self, Client as ReqwestClient};
 use openidconnect::{IssuerUrl, JsonWebKey};
-use reqwest::Client as ReqwestClient;
 use sqlx::postgres::PgPoolOptions;
 use tracing::{error, info, warn};
 
@@ -229,7 +229,8 @@ impl ApplicationBuilder {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let jwks_url = provider_metadata.jwks_uri().url();
         let jwks_response = http_client.get(jwks_url.as_str()).send().await?;
-        let jwks: openidconnect::core::CoreJsonWebKeySet = jwks_response.json().await?;
+        let jwks_body = jwks_response.bytes().await?;
+        let jwks: openidconnect::core::CoreJsonWebKeySet = serde_json::from_slice(&jwks_body)?;
 
         for jwk in jwks.keys() {
             if let Some(kid) = jwk.key_id() {

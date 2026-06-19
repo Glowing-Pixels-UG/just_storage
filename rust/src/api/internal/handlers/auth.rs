@@ -3,6 +3,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use openidconnect::core::{CoreClient, CoreResponseType};
+use openidconnect::reqwest;
 use openidconnect::{
     AuthorizationCode, ClientId, ClientSecret, CsrfToken, Nonce, PkceCodeChallenge,
     PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, AuthenticationFlow,

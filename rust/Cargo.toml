@@ -28,7 +28,8 @@ tower-http = { version = "0.6.8", features = ["cors", "limit", "sensitive-header
 
 # Database
 sqlx = { version = "0.9", features = [
-  "runtime-tokio-rustls",
+  "runtime-tokio",
+  "tls-rustls",
   "postgres",
   "time",
   "uuid",
@@ -53,10 +54,7 @@ askama = "0.15"
 axum-htmx = "0.8.1"
 
 # Hashing
-# SHA-256 with SIMD optimizations for performance
-# - asm: Enables assembly-optimized SHA-256 on x86_64
-# - asm-aarch64: Enables assembly-optimized SHA-256 on ARM64
-sha2 = { version = "0.11", features = ["asm", "asm-aarch64"] }
+sha2 = "0.11"
 hex = "0.4"
 aes-gcm = "0.10.3"
 
@@ -98,7 +96,7 @@ proptest-derive = "0.8"
 
 # Test containers for integration testing
 testcontainers = "0.27"
-testcontainers-modules = { version = "0.11", features = ["postgres"] }
+testcontainers-modules = { version = "0.15", features = ["postgres"] }
 rsa = "0.9"
 base64 = "0.22"
 wiremock = "0.6.5"

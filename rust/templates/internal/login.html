@@ -1,0 +1,24 @@
+{% extends "internal/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="card" style="max-width: 28rem; margin-inline: auto;">
+    <header class="card-header">
+        <h2 class="label">{{ title }}</h2>
+    </header>
+
+    {% if let Some(message) = error %}
+        <p class="badge badge-danger" role="alert">{{ message }}</p>
+    {% endif %}
+
+    <form method="post" action="/dashboard/login" style="display: grid; gap: 1rem; margin-top: 1rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <label for="token">Admin token</label>
+        <input id="token" name="token" type="password" autocomplete="current-password" required>
+
+        <button type="submit" class="w-full">Sign in</button>
+    </form>
+</section>
+{% endblock %}

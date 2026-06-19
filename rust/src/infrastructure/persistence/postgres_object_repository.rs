@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{PgPool, Row};
+use sqlx::{AssertSqlSafe, PgPool, Row};
 use time::OffsetDateTime;
 
 use crate::application::dto::{SearchRequest, TextSearchRequest};
@@ -79,7 +79,7 @@ impl ObjectRepository for PostgresObjectRepository {
             "{} WHERE id = $1 AND status = 'COMMITTED'",
             QueryBuilder::OBJECT_SELECT
         );
-        let row = sqlx::query_as::<_, ObjectRow>(&sql)
+        let row = sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
             .bind(id.as_uuid())
             .fetch_optional(&self.pool)
             .await?;
@@ -101,7 +101,7 @@ impl ObjectRepository for PostgresObjectRepository {
             QueryBuilder::OBJECT_SELECT,
             QueryBuilder::namespace_tenant_where(namespace.as_str(), &tenant_id.to_string())
         );
-        let row = sqlx::query_as::<_, ObjectRow>(&sql)
+        let row = sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
             .bind(namespace.as_str())
             .bind(tenant_id.to_string())
             .bind(key)
@@ -126,7 +126,7 @@ impl ObjectRepository for PostgresObjectRepository {
             QueryBuilder::OBJECT_SELECT,
             QueryBuilder::namespace_tenant_where(namespace.as_str(), &tenant_id.to_string())
         );
-        let rows = sqlx::query_as::<_, ObjectRow>(&sql)
+        let rows = sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
             .bind(namespace.as_str())
             .bind(tenant_id.to_string())
             .bind(limit)
@@ -173,7 +173,7 @@ impl ObjectRepository for PostgresObjectRepository {
         );
 
         // Use query_as with validated SQL (column names are validated above, not user input)
-        let rows: Vec<ObjectRow> = sqlx::query_as::<_, ObjectRow>(&sql)
+        let rows: Vec<ObjectRow> = sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
             .bind(&request.namespace)
             .bind(&request.tenant_id)
             .bind(limit)
@@ -202,7 +202,7 @@ impl ObjectRepository for PostgresObjectRepository {
                 QueryBuilder::OBJECT_SELECT,
                 QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
             );
-            sqlx::query_as::<_, ObjectRow>(&sql)
+            sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
                 .bind(&request.namespace)
                 .bind(&request.tenant_id)
                 .bind(format!("%{}%", request.query))
@@ -218,7 +218,7 @@ impl ObjectRepository for PostgresObjectRepository {
                 QueryBuilder::OBJECT_SELECT,
                 QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
             );
-            sqlx::query_as::<_, ObjectRow>(&sql)
+            sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
                 .bind(&request.namespace)
                 .bind(&request.tenant_id)
                 .bind(format!("%{}%", request.query))
@@ -233,7 +233,7 @@ impl ObjectRepository for PostgresObjectRepository {
                 QueryBuilder::OBJECT_SELECT,
                 QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
             );
-            sqlx::query_as::<_, ObjectRow>(&sql)
+            sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
                 .bind(&request.namespace)
                 .bind(&request.tenant_id)
                 .bind(format!("%{}%", request.query))
@@ -248,7 +248,7 @@ impl ObjectRepository for PostgresObjectRepository {
                 QueryBuilder::OBJECT_SELECT,
                 QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
             );
-            sqlx::query_as::<_, ObjectRow>(&sql)
+            sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
                 .bind(&request.namespace)
                 .bind(&request.tenant_id)
                 .bind(limit)

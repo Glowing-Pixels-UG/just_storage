@@ -1,6 +1,5 @@
 # Ignore Rust build artifacts
 rust/target/
-rust/Cargo.lock
 
 # Ignore data directories
 data/
@@ -30,7 +29,6 @@ Thumbs.db
 # Reports
 tarpaulin-report.html
 rust/tarpaulin-report.html
-*.html
 
 # Go SDK (separate repository)
 go-sdk/

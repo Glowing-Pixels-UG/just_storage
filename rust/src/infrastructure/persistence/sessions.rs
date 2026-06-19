@@ -4,7 +4,7 @@ use aes_gcm::{
     aead::{Aead, KeyInit, Payload},
     Aes256Gcm, Nonce,
 };
-use rand::RngCore;
+use rand::RngExt;
 use sqlx::PgPool;
 use time::OffsetDateTime;
 use std::collections::HashMap;
@@ -51,7 +51,7 @@ impl EncryptedPostgresStore {
             .map_err(|e| SessionError::Encryption(e.to_string()))?;
         
         let mut nonce_bytes = [0u8; 12];
-        rand::thread_rng().fill_bytes(&mut nonce_bytes);
+        rand::rng().fill(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         let ciphertext = cipher

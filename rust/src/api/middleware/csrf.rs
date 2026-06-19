@@ -4,9 +4,9 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use rand::{distributions::Alphanumeric, Rng};
-use tower_sessions::Session;
+use rand::{distr::Alphanumeric, RngExt};
 use serde::{Deserialize, Serialize};
+use tower_sessions::Session;
 
 pub const CSRF_SESSION_KEY: &str = "csrf_token";
 pub const CSRF_HEADER_NAME: &str = "X-CSRF-Token";
@@ -25,8 +25,8 @@ pub async fn csrf_middleware(
         Ok(Some(token)) => token,
         _ => {
             let token = CsrfToken(
-                rand::thread_rng()
-                    .sample_iter(&Alphanumeric)
+                rand::rng()
+                    .sample_iter(Alphanumeric)
                     .take(32)
                     .map(char::from)
                     .collect(),
