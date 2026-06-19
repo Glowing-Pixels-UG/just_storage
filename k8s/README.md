@@ -93,7 +93,7 @@ Both use `longhorn-fast` storage class. Adjust sizes in `pvc.yaml` if needed.
 Edit `deployment.yaml` and update the image reference:
 
 ```yaml
-image: storage.bk.glpx.pro/just_storage:0.1.0-baikonur.20260619
+image: storage.bk.glpx.pro/just_storage:0.1.0-baikonur.20260619.1
 ```
 
 Replace with your actual image registry and tag.
