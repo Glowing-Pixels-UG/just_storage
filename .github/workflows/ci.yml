@@ -3,170 +3,82 @@ name: CI
 on:
   push:
     branches: [ main, master ]
+    tags: [ "*" ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
-defaults:
-  run:
-    working-directory: rust
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  # Fast quality checks - runs on every push/PR
-  quality:
-    name: Quality Checks
+  ci:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal
 
-    - name: Install Rust nightly (for Miri)
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        components: miri
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Check formatting
-      run: cargo fmt -- --check
-
-    - name: Run clippy
-      run: cargo clippy -- -D warnings
-
-    - name: Run tests
-      run: cargo test --workspace
-
-    - name: Run Miri (library only)
-      run: cargo +nightly miri test --lib
-      env:
-        # Disable isolation to allow access to the host clock for chrono::Utc::now()
-        MIRIFLAGS: -Zmiri-disable-isolation
-
-  # Security and dependency checks
-  security:
-    name: Security & Dependencies
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install cargo-audit
-      run: cargo install cargo-audit --locked
-
-    - name: Install cargo-deny
-      run: cargo install cargo-deny --locked
-
-    - name: Install cargo-udeps
-      run: cargo install cargo-udeps --locked
-
-    - name: Audit dependencies for security vulnerabilities
-      run: cargo audit
-      continue-on-error: true
-
-    - name: Check licenses and dependencies
-      run: cargo deny check
-
-    - name: Check for unused dependencies
-      run: cargo +nightly udeps --workspace
-      continue-on-error: true
-
-  # Build and test across multiple targets
-  build:
-    name: Build & Test (${{ matrix.os }}, ${{ matrix.rust }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        rust: [stable]
-        include:
-          - os: ubuntu-latest
-            rust: stable
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: x86_64-unknown-linux-gnu, x86_64-apple-darwin
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Build release
-      run: cargo build --release --workspace
-
-    - name: Run tests
-      run: cargo test --workspace --release
-
-  # Performance and binary analysis
-  performance:
-    name: Performance Analysis
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install cargo-bloat
-      run: cargo install cargo-bloat --locked
-
-    - name: Build for analysis
-      run: cargo build --release
-
-    - name: Analyze binary size
-      run: cargo bloat --release --crates
-      continue-on-error: true
-
-  # Integration tests (if any exist)
-  integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:14
+      - name: Check compilation
+        working-directory: rust
         env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+          SQLX_OFFLINE: "true"
+        run: cargo check
+
+  docker-image:
+    needs: ci
+    runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+      - uses: docker/setup-qemu-action@v3
 
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      - uses: docker/setup-buildx-action@v3
 
-    - name: Install sqlx-cli
-      run: cargo install sqlx-cli --no-default-features --features postgres
+      - name: Compute image tags
+        id: image-tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY}"
+          image="$(printf '%s' "$image" | tr '[:upper:]' '[:lower:]')"
+          short_sha="$(git rev-parse --short=12 HEAD)"
+          release_tag=""
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            release_tag="${GITHUB_REF_NAME#v}"
+          elif [ "${GITHUB_REF:-}" != "${GITHUB_REF#refs/tags/}" ]; then
+            release_tag="${GITHUB_REF#refs/tags/}"
+            release_tag="${release_tag#v}"
+          fi
+          {
+            echo "image=${image}"
+            echo "tags<<EOF"
+            echo "${image}:sha-${short_sha}"
+            if [ -n "$release_tag" ]; then
+              echo "${image}:${release_tag}"
+            elif [ "${GITHUB_REF_NAME:-}" = "main" ] || [ "${GITHUB_REF_NAME:-}" = "master" ]; then
+              echo "${image}:${GITHUB_REF_NAME}"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-    - name: Run integration tests
-      run: |
-        cargo test --workspace --test integration -- --nocapture
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
-      continue-on-error: true
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.image-tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

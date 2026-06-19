@@ -8,16 +8,16 @@ use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
 use tower_http::{services::ServeDir, set_header::SetResponseHeaderLayer};
 
-use tower_sessions::{Expiry, SessionManagerLayer};
-use crate::infrastructure::persistence::EncryptedPostgresStore;
 use crate::api::internal::auth::internal_admin_auth;
 use crate::api::internal::handlers::actions::{clear_cache, reindex};
+use crate::api::internal::handlers::auth::{oidc_callback, oidc_login, oidc_logout};
 use crate::api::internal::handlers::health::health_page;
 use crate::api::internal::handlers::login::{login_handler, login_page};
-use crate::api::internal::handlers::auth::{oidc_login, oidc_callback, oidc_logout};
-use crate::api::router::AppState;
-use crate::api::middleware::htmx::htmx_redirect_middleware;
 use crate::api::middleware::csrf::csrf_middleware;
+use crate::api::middleware::htmx::htmx_redirect_middleware;
+use crate::api::router::AppState;
+use crate::infrastructure::persistence::EncryptedPostgresStore;
+use tower_sessions::{Expiry, SessionManagerLayer};
 
 pub mod auth;
 pub mod handlers;
@@ -26,9 +26,20 @@ pub mod templates;
 /// Create the internal ops router
 pub async fn create_internal_router(state: AppState) -> Router {
     let security_layer = ServiceBuilder::new()
-        .layer(SetResponseHeaderLayer::overriding(CACHE_CONTROL, "no-store, max-age=0".parse::<HeaderValue>().unwrap()))
-        .layer(SetResponseHeaderLayer::overriding(CONTENT_SECURITY_POLICY, "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';".parse::<HeaderValue>().unwrap()))
-        .layer(SetResponseHeaderLayer::overriding(X_FRAME_OPTIONS, "DENY".parse::<HeaderValue>().unwrap()));
+        .layer(SetResponseHeaderLayer::overriding(
+            CACHE_CONTROL,
+            "no-store, max-age=0".parse::<HeaderValue>().unwrap(),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            CONTENT_SECURITY_POLICY,
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
+                .parse::<HeaderValue>()
+                .unwrap(),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            X_FRAME_OPTIONS,
+            "DENY".parse::<HeaderValue>().unwrap(),
+        ));
 
     // Set up session storage
     let encryption_key = match &state.config.session_encryption_key {
@@ -41,15 +52,21 @@ pub async fn create_internal_router(state: AppState) -> Router {
         }
         None => {
             // Derive from session_secret if available, otherwise use a default (not for prod!)
-            use sha2::{Sha256, Digest};
+            use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
-            hasher.update(state.config.session_secret.as_deref().unwrap_or("default-secret-key"));
+            hasher.update(
+                state
+                    .config
+                    .session_secret
+                    .as_deref()
+                    .unwrap_or("default-secret-key"),
+            );
             hasher.finalize().into()
         }
     };
 
     let session_store = EncryptedPostgresStore::new(state.pool.as_ref().clone(), encryption_key);
-    
+
     // Spawn background task to clean up expired sessions
     let session_store_clone = session_store.clone();
     tokio::spawn(async move {
@@ -70,7 +87,8 @@ pub async fn create_internal_router(state: AppState) -> Router {
         unauthenticated_requests_per_minute: 10, // Aggressive for login/callback
         ..Default::default()
     };
-    let auth_rate_limit_layer = crate::api::middleware::rate_limiting::RateLimitLayer::new(auth_rate_limit_config);
+    let auth_rate_limit_layer =
+        crate::api::middleware::rate_limiting::RateLimitLayer::new(auth_rate_limit_config);
 
     Router::new()
         .route("/health", get(health_page))
@@ -82,7 +100,6 @@ pub async fn create_internal_router(state: AppState) -> Router {
         .route("/auth/logout", get(oidc_logout))
         .nest_service("/static", ServeDir::new("internal_static"))
         .layer(auth_rate_limit_layer)
-        .layer(axum_middleware::from_fn(csrf_middleware))
         .layer(axum_middleware::from_fn(csrf_middleware))
         .layer(axum_middleware::from_fn_with_state(
             state.clone(),

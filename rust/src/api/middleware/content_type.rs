@@ -18,10 +18,13 @@ pub async fn validate_json_for_objects(request: Request, next: Next) -> Response
             .and_then(|h| h.to_str().ok());
 
         if let Some(ct) = ct_opt {
-            // If Content-Type is present but not JSON, reject
-            if !ct.starts_with("application/json") {
+            if ct.starts_with("text/html") {
                 return (StatusCode::UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type")
                     .into_response();
+            }
+
+            if !ct.starts_with("application/json") {
+                return next.run(request).await;
             }
 
             // Read body bytes and ensure it's valid JSON

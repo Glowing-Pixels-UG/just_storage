@@ -80,6 +80,22 @@ async fn content_type_must_be_json_returns_unsupported() {
 }
 
 #[tokio::test]
+async fn binary_object_upload_content_type_is_allowed() {
+    let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
+
+    let req = Request::builder()
+        .method(Method::POST)
+        .uri("/v1/objects?namespace=test&tenant_id=550e8400-e29b-41d4-a716-446655440000")
+        .header("authorization", "Bearer test-key")
+        .header("content-type", "application/octet-stream")
+        .body(Body::from("binary-ish content"))
+        .unwrap();
+
+    let response = app.clone().oneshot(req).await.unwrap();
+    assert_ne!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
+}
+
+#[tokio::test]
 async fn request_size_may_be_limited_or_succeed() {
     let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 

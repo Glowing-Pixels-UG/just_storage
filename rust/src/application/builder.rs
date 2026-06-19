@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use sqlx::postgres::PgPoolOptions;
-use tracing::{info, warn, error};
 use openidconnect::core::CoreProviderMetadata;
 use openidconnect::{IssuerUrl, JsonWebKey};
 use reqwest::Client as ReqwestClient;
+use sqlx::postgres::PgPoolOptions;
+use tracing::{error, info, warn};
 
 use crate::api::router::AppState;
 use crate::application::gc::GarbageCollector;
@@ -25,7 +25,14 @@ use crate::infrastructure::persistence::{
 use crate::infrastructure::storage::LocalFilesystemStore;
 
 /// Result type for the application builder
-pub type BuildResult = Result<(AppState, Arc<dyn ApiKeyRepository>, Arc<dyn AuditRepository>), Box<dyn std::error::Error>>;
+pub type BuildResult = Result<
+    (
+        AppState,
+        Arc<dyn ApiKeyRepository>,
+        Arc<dyn AuditRepository>,
+    ),
+    Box<dyn std::error::Error>,
+>;
 
 /// Builder for the application container
 pub struct ApplicationBuilder {
@@ -62,7 +69,7 @@ impl ApplicationBuilder {
 
     /// Set up database connection pool
     pub async fn with_database(mut self) -> Result<Self, Box<dyn std::error::Error>> {
-        info!("Connecting to database: {}", self.config.database_url);
+        info!("Connecting to database");
 
         use sqlx::postgres::PgConnectOptions;
         use std::str::FromStr;
@@ -70,10 +77,9 @@ impl ApplicationBuilder {
         // Parse connection options and disable statement cache for PgBouncer compatibility
         let mut connect_options = PgConnectOptions::from_str(&self.config.database_url)
             .map_err(|e| format!("Invalid database URL: {}", e))?;
-        
+
         // Disable statement cache for PgBouncer compatibility
-        connect_options = connect_options
-            .statement_cache_capacity(0);
+        connect_options = connect_options.statement_cache_capacity(0);
 
         // Retry connection with exponential backoff
         let mut retries = 3;
@@ -91,7 +97,10 @@ impl ApplicationBuilder {
             {
                 Ok(pool) => break pool,
                 Err(e) if retries > 0 => {
-                    warn!("Database connection failed: {}. Retrying in {:?}...", e, delay);
+                    warn!(
+                        "Database connection failed: {}. Retrying in {:?}...",
+                        e, delay
+                    );
                     tokio::time::sleep(delay).await;
                     retries -= 1;
                     delay *= 2;
@@ -104,13 +113,10 @@ impl ApplicationBuilder {
         info!("Running database migrations");
         let migrator = sqlx::migrate!("./migrations");
         self.expected_migration_count = migrator.migrations.len();
-        migrator
-            .run(&pool)
-            .await
-            .map_err(|e| {
-                error!("Migration failed: {}", e);
-                e
-            })?;
+        migrator.run(&pool).await.map_err(|e| {
+            error!("Migration failed: {}", e);
+            e
+        })?;
 
         self.pool = Some(Arc::new(pool));
         Ok(self)
@@ -120,17 +126,26 @@ impl ApplicationBuilder {
     pub async fn with_infrastructure(mut self) -> Result<Self, Box<dyn std::error::Error>> {
         let pool = self.pool.as_ref().ok_or("Database pool not initialized")?;
 
-        let object_repo = Arc::new(PostgresObjectRepository::new(Arc::clone(pool).as_ref().clone()));
-        let blob_repo = Arc::new(PostgresBlobRepository::new(Arc::clone(pool).as_ref().clone()));
-        let audit_repo = Arc::new(PostgresAuditRepository::new(Arc::clone(pool).as_ref().clone()));
+        let object_repo = Arc::new(PostgresObjectRepository::new(
+            Arc::clone(pool).as_ref().clone(),
+        ));
+        let blob_repo = Arc::new(PostgresBlobRepository::new(
+            Arc::clone(pool).as_ref().clone(),
+        ));
+        let audit_repo = Arc::new(PostgresAuditRepository::new(
+            Arc::clone(pool).as_ref().clone(),
+        ));
 
         let blob_store = Arc::new(LocalFilesystemStore::new(
             self.config.hot_storage_root.clone(),
             self.config.cold_storage_root.clone(),
         ));
-        
+
         // Initialize storage directories
-        blob_store.init().await.map_err(|e| format!("Failed to initialize blob store: {}", e))?;
+        blob_store
+            .init()
+            .await
+            .map_err(|e| format!("Failed to initialize blob store: {}", e))?;
 
         self.object_repo = Some(object_repo);
         self.blob_repo = Some(blob_repo);
@@ -143,7 +158,9 @@ impl ApplicationBuilder {
     /// Set up API key repository
     pub async fn with_api_keys(mut self) -> Result<Self, Box<dyn std::error::Error>> {
         let pool = self.pool.as_ref().ok_or("Database pool not initialized")?;
-        let api_key_repo = Arc::new(PostgresApiKeyRepository::new(Arc::clone(pool).as_ref().clone()));
+        let api_key_repo = Arc::new(PostgresApiKeyRepository::new(
+            Arc::clone(pool).as_ref().clone(),
+        ));
         self.api_key_repo = Some(api_key_repo);
         Ok(self)
     }
@@ -169,7 +186,8 @@ impl ApplicationBuilder {
                 .timeout(std::time::Duration::from_secs(10))
                 .build()?;
 
-            let provider_metadata = CoreProviderMetadata::discover_async(issuer_url.clone(), &http_client).await?;
+            let provider_metadata =
+                CoreProviderMetadata::discover_async(issuer_url.clone(), &http_client).await?;
             self.oidc_metadata = Some(provider_metadata.clone());
 
             // Initial JWKS fetch and cache population
@@ -179,12 +197,18 @@ impl ApplicationBuilder {
             let jwks_cache = Arc::clone(&self.jwks_cache);
             let http_client_clone = http_client.clone();
             let provider_metadata_clone = provider_metadata.clone();
-            
+
             tokio::spawn(async move {
                 let mut interval = tokio::time::interval(Duration::from_secs(3600));
                 loop {
                     interval.tick().await;
-                    match Self::refresh_jwks(&http_client_clone, &provider_metadata_clone, &jwks_cache).await {
+                    match Self::refresh_jwks(
+                        &http_client_clone,
+                        &provider_metadata_clone,
+                        &jwks_cache,
+                    )
+                    .await
+                    {
                         Ok(_) => info!("JWKS cache refreshed successfully"),
                         Err(e) => error!("Failed to refresh JWKS cache: {}", e),
                     }
@@ -234,10 +258,11 @@ impl ApplicationBuilder {
         let audit_repo = self.audit_repo.ok_or("Audit repository not initialized")?;
 
         // Initialize use cases (application layer)
-        let upload_use_case = Arc::new(UploadObjectUseCase::new(
+        let upload_use_case = Arc::new(UploadObjectUseCase::with_max_upload_size_bytes(
             Arc::clone(&object_repo),
             Arc::clone(&blob_repo),
             Arc::clone(&blob_store),
+            self.config.max_upload_size_bytes,
         ));
 
         let download_use_case = Arc::new(DownloadObjectUseCase::new(
@@ -253,7 +278,8 @@ impl ApplicationBuilder {
 
         let list_use_case = Arc::new(ListObjectsUseCase::new(Arc::clone(&object_repo)));
         let search_use_case = Arc::new(SearchObjectsUseCase::new(Arc::clone(&object_repo)));
-        let text_search_use_case = Arc::new(TextSearchObjectsUseCase::new(Arc::clone(&object_repo)));
+        let text_search_use_case =
+            Arc::new(TextSearchObjectsUseCase::new(Arc::clone(&object_repo)));
 
         let create_api_key_use_case = Arc::new(CreateApiKeyUseCase::new(Arc::clone(&api_key_repo)));
         let list_api_keys_use_case = Arc::new(ListApiKeysUseCase::new(Arc::clone(&api_key_repo)));
@@ -289,8 +315,14 @@ impl ApplicationBuilder {
 
     /// Internal helper to build garbage collector
     fn build_gc(&self) -> Result<Arc<GarbageCollector>, Box<dyn std::error::Error>> {
-        let blob_repo = self.blob_repo.as_ref().ok_or("Blob repository not initialized")?;
-        let blob_store = self.blob_store.as_ref().ok_or("Blob store not initialized")?;
+        let blob_repo = self
+            .blob_repo
+            .as_ref()
+            .ok_or("Blob repository not initialized")?;
+        let blob_store = self
+            .blob_store
+            .as_ref()
+            .ok_or("Blob store not initialized")?;
         let object_repo = self.object_repo.clone();
 
         let gc = GarbageCollector::with_object_repo(
