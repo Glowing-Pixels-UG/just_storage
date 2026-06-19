@@ -94,7 +94,7 @@ mockall = "0.14"
 tempfile = "3.23.0"
 criterion = { version = "0.8.1", features = ["async_tokio"] }
 proptest = "1.9"
-proptest-derive = "0.7"
+proptest-derive = "0.8"
 
 # Test containers for integration testing
 testcontainers = "0.23"
