@@ -79,7 +79,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # CLI tools
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
-toml = "0.9"
+toml = "1.1"
 serde_yaml_bw = "2"
 
 # Additional utilities for better performance and security
