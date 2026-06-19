@@ -49,7 +49,7 @@ dashmap = "6.1"
 rand = "0.8"
 
 # Templating & HTMX
-askama = "0.15"
+askama = "0.16"
 axum-htmx = "0.8.1"
 
 # Hashing
