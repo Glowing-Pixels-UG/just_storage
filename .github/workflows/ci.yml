@@ -16,7 +16,7 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust
         run: rustup toolchain install stable --profile minimal
@@ -31,7 +31,7 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-qemu-action@v3
 
