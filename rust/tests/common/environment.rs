@@ -165,7 +165,13 @@ pub async fn setup_test_api_server() -> (
     testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>,
     tempfile::TempDir,
 ) {
-    use just_storage::{api::{create_router, create_router_with_middleware, internal::create_internal_router, middleware::config::MiddlewareConfig}, ApplicationBuilder, Config};
+    use just_storage::{
+        api::{
+            create_router, create_router_with_middleware, internal::create_internal_router,
+            middleware::config::MiddlewareConfig,
+        },
+        ApplicationBuilder, Config,
+    };
 
     // Start PostgreSQL container (migrations will be run by ApplicationBuilder)
     let container = setup_test_database().await.1;
@@ -224,13 +230,25 @@ pub async fn setup_test_api_server_with_oidc(
     testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>,
     tempfile::TempDir,
 ) {
-    use just_storage::{api::{create_router, create_router_with_middleware, internal::create_internal_router, middleware::config::MiddlewareConfig}, ApplicationBuilder, Config};
+    use just_storage::{
+        api::{
+            create_router, create_router_with_middleware, internal::create_internal_router,
+            middleware::config::MiddlewareConfig,
+        },
+        ApplicationBuilder, Config,
+    };
 
     // Start PostgreSQL container
     let container = setup_test_database().await.1;
 
-    let host = container.get_host().await.expect("Failed to get container host");
-    let port = container.get_host_port_ipv4(5432).await.expect("Failed to get container port");
+    let host = container
+        .get_host()
+        .await
+        .expect("Failed to get container host");
+    let port = container
+        .get_host_port_ipv4(5432)
+        .await
+        .expect("Failed to get container port");
     let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
 
     // Create test config

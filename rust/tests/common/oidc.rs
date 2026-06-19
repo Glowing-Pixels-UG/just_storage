@@ -1,11 +1,11 @@
-use wiremock::{MockServer, Mock, ResponseTemplate};
-use wiremock::matchers::{method, path};
-use serde_json::json;
-use jsonwebtoken::{EncodingKey, Header, Algorithm};
-use serde::{Serialize, Deserialize};
 use base64::Engine;
-use rsa::traits::PublicKeyParts;
+use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use rsa::pkcs1::EncodeRsaPrivateKey;
+use rsa::traits::PublicKeyParts;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[allow(dead_code)]
 pub struct MockOidcServer {
@@ -35,16 +35,21 @@ impl MockOidcServer {
         let issuer_url = server.uri();
         let kid = "test-kid".to_string();
 
-        // Generate a real RSA key pair for signing tokens in tests
-        let mut rng = rand::thread_rng();
+        // Generate a real RSA key pair for signing tokens in tests.
+        // rsa 0.9 is built against rand_core 0.6; use its re-exported OsRng so
+        // the RNG trait bounds line up (rand 0.9's `rng()` exposes rand_core 0.10,
+        // which does not satisfy `RsaPrivateKey::new`).
+        let mut rng = rsa::rand_core::OsRng;
         let rsa = rsa::RsaPrivateKey::new(&mut rng, 2048).expect("failed to generate key");
-        
+
         // Try PKCS#1 DER for jsonwebtoken v10 compatibility
         let private_key_der = rsa.to_pkcs1_der().unwrap().as_bytes().to_vec();
-        
+
         let public_key = rsa::RsaPublicKey::from(&rsa);
-        let n = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public_key.n().to_bytes_be());
-        let e = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public_key.e().to_bytes_be());
+        let n =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public_key.n().to_bytes_be());
+        let e =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public_key.e().to_bytes_be());
 
         let public_key_jwk = json!({
             "kty": "RSA",

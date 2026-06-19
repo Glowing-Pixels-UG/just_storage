@@ -30,23 +30,18 @@ clean: ## Clean build artifacts
 
 fmt: ## Format code
 	cd rust && cargo fmt
-	cd binary-container-poc && cargo fmt
 
 fmt-check: ## Check code formatting without modifying files
 	cd rust && cargo fmt -- --check
-	cd binary-container-poc && cargo fmt -- --check
 
 clippy: ## Run clippy lints (basic)
-	cd rust && cargo clippy -- -D warnings
-	cd binary-container-poc && cargo clippy -- -D warnings
+	cd rust && cargo clippy --all-targets -- -D warnings
 
 clippy-all: ## Run clippy with all lints enabled
 	cd rust && cargo clippy --all-targets --all-features -- -D warnings -W clippy::pedantic -W clippy::nursery
-	cd binary-container-poc && cargo clippy --all-targets --all-features -- -D warnings -W clippy::pedantic -W clippy::nursery
 
 check: ## Check compilation
-	cd rust && cargo check
-	cd binary-container-poc && cargo check
+	cd rust && cargo check --all-targets
 
 docker-build: ## Build Docker image
 	docker compose build
@@ -59,6 +54,9 @@ docker-down: ## Stop Docker Compose services
 
 docker-logs: ## Show Docker Compose logs
 	docker compose logs -f just_storage
+
+ci-docker: ## Run the full CI gate (fmt, clippy, unit+doc tests) inside Docker
+	DOCKER_BUILDKIT=1 docker build --target ci -f Dockerfile .
 
 db-setup: ## Create database and run migrations
 	createdb just_storage || true
@@ -82,27 +80,22 @@ security: audit deny ## Run all security checks (audit + deny)
 audit: ## Run cargo-audit for security vulnerabilities
 	@command -v cargo-audit >/dev/null 2>&1 || { echo "Installing cargo-audit..."; cargo install cargo-audit --locked; }
 	cd rust && cargo audit
-	cd binary-container-poc && cargo audit
 
 deny: ## Run cargo-deny for comprehensive dependency checks
 	@command -v cargo-deny >/dev/null 2>&1 || { echo "Installing cargo-deny..."; cargo install cargo-deny --locked; }
 	cd rust && cargo deny check
-	cd binary-container-poc && cargo deny check
 
 udeps: ## Check for unused dependencies
 	@command -v cargo-udeps >/dev/null 2>&1 || { echo "Installing cargo-udeps..."; cargo install cargo-udeps --locked; }
 	cd rust && cargo +nightly udeps
-	cd binary-container-poc && cargo +nightly udeps
 
 bloat: ## Analyze binary size with cargo-bloat
 	@command -v cargo-bloat >/dev/null 2>&1 || { echo "Installing cargo-bloat..."; cargo install cargo-bloat --locked; }
 	cd rust && cargo bloat --release
-	cd binary-container-poc && cargo bloat --release
 
 miri: ## Run tests with Miri (undefined behavior detection)
 	@rustup +nightly component add miri 2>/dev/null || true
 	cd rust && cargo +nightly miri test
-	cd binary-container-poc && cargo +nightly miri test
 
 # Comprehensive linting target
 lint: fmt-check clippy security ## Run all linting and static analysis checks

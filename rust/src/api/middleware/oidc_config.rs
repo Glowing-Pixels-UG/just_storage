@@ -9,6 +9,10 @@ pub struct OidcConfig {
 
 impl OidcConfig {
     pub fn new(enabled: bool, issuer_url: Option<String>, audience: Option<String>) -> Self {
-        Self { enabled, issuer_url, audience }
+        Self {
+            enabled,
+            issuer_url,
+            audience,
+        }
     }
 }

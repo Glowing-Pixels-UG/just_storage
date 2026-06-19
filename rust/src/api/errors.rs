@@ -67,9 +67,7 @@ impl From<ObjectUseCaseError> for ApiError {
             ObjectUseCaseError::Repository(e) => {
                 Self::internal_error(format!("Repository error: {e}"))
             }
-            ObjectUseCaseError::Storage(e) => {
-                Self::internal_error(format!("Storage error: {e}"))
-            }
+            ObjectUseCaseError::Storage(e) => Self::internal_error(format!("Storage error: {e}")),
         }
     }
 }
@@ -84,9 +82,7 @@ impl From<DownloadUseCaseError> for ApiError {
             DownloadUseCaseError::Repository(e) => {
                 Self::internal_error(format!("Repository error: {e}"))
             }
-            DownloadUseCaseError::Storage(e) => {
-                Self::internal_error(format!("Storage error: {e}"))
-            }
+            DownloadUseCaseError::Storage(e) => Self::internal_error(format!("Storage error: {e}")),
         }
     }
 }
@@ -94,16 +90,12 @@ impl From<DownloadUseCaseError> for ApiError {
 impl From<DeleteUseCaseError> for ApiError {
     fn from(err: DeleteUseCaseError) -> Self {
         match err {
-            DeleteUseCaseError::Domain(e) => {
-                Self::internal_error(format!("Domain error: {e}"))
-            }
+            DeleteUseCaseError::Domain(e) => Self::internal_error(format!("Domain error: {e}")),
             DeleteUseCaseError::NotFound(msg) => Self::not_found(msg),
             DeleteUseCaseError::Repository(e) => {
                 Self::internal_error(format!("Repository error: {e}"))
             }
-            DeleteUseCaseError::Storage(e) => {
-                Self::internal_error(format!("Storage error: {e}"))
-            }
+            DeleteUseCaseError::Storage(e) => Self::internal_error(format!("Storage error: {e}")),
         }
     }
 }
@@ -125,9 +117,7 @@ impl From<TextSearchUseCaseError> for ApiError {
 impl From<ApiKeyUseCaseError> for ApiError {
     fn from(err: ApiKeyUseCaseError) -> Self {
         match err {
-            ApiKeyUseCaseError::NotFound(id) => {
-                Self::not_found(format!("API key not found: {id}"))
-            }
+            ApiKeyUseCaseError::NotFound(id) => Self::not_found(format!("API key not found: {id}")),
             ApiKeyUseCaseError::InvalidId(id) => {
                 Self::bad_request(format!("Invalid API key ID: {id}"))
             }

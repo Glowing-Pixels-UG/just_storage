@@ -176,10 +176,6 @@ impl Config {
             return Err("DB_ACQUIRE_TIMEOUT_SECS must be > 0".to_string());
         }
 
-        if self.max_upload_size_bytes == 0 {
-            return Err("MAX_UPLOAD_SIZE_BYTES must be > 0".to_string());
-        }
-
         Ok(())
     }
 }

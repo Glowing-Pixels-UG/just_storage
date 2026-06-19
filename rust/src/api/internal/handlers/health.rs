@@ -1,8 +1,11 @@
 use crate::api::internal::templates::HealthTemplate;
-use crate::api::router::AppState;
 use crate::api::middleware::csrf::CsrfToken;
+use crate::api::router::AppState;
 use crate::domain::value_objects::StorageClass;
-use axum::{extract::{State, Extension}, response::IntoResponse};
+use axum::{
+    extract::{Extension, State},
+    response::IntoResponse,
+};
 use std::time::{Duration, Instant};
 
 pub async fn health_page(

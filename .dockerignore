@@ -1,0 +1,51 @@
+# Keep the build context small — the active Docker daemon may be remote (ships
+# context over SSH). Exclude VCS, build artifacts, archives, and anything the
+# image build does not need.
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Rust build output (regenerated inside the image)
+**/target
+
+# Large archives / binary blobs that must never enter the build context
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+# Editor / backup cruft
+**/*.bak
+**/*.backup
+**/*.swp
+.DS_Store
+
+# Dead nested duplicate (removed in cleanup; guard against re-entry)
+rust/rust/
+
+# Stray POC build dump (existed only in history)
+binary-container-poc/
+
+# CI / deployment / k8s manifests not needed to build the binary
+.github/
+.gitea/
+.do/
+deployments/
+k8s/
+*.md
+docs/
+
+# Local env files (never bake secrets/config into an image)
+.env
+**/.env
+*.env
+.env.*
+
+# Python tooling under k8s/, node modules, coverage
+**/__pycache__/
+**/.venv/
+**/node_modules/
+**/*.proptest-regressions
+benchmark_history.csv

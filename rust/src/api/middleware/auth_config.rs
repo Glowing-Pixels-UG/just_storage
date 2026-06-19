@@ -9,6 +9,10 @@ pub struct AuthMiddlewareConfig {
 
 impl AuthMiddlewareConfig {
     pub fn new(enabled: bool, legacy_auth_enabled: bool, admin_token: Option<String>) -> Self {
-        Self { enabled, legacy_auth_enabled, admin_token }
+        Self {
+            enabled,
+            legacy_auth_enabled,
+            admin_token,
+        }
     }
 }

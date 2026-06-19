@@ -1,8 +1,8 @@
 use crate::api::middleware::audit::{AuditEventType, AuditLogEntry};
 use crate::api::router::AppState;
 use axum::{extract::State, http::StatusCode, response::IntoResponse};
-use time::OffsetDateTime;
 use serde_json::json;
+use time::OffsetDateTime;
 
 pub async fn clear_cache(State(state): State<AppState>) -> impl IntoResponse {
     // 1. Perform action (In this case, we don't have a global cache to clear yet, but we'll simulate it)

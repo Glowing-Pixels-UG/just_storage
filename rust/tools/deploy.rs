@@ -128,7 +128,10 @@ fn run_deployment(
         Engine::Podman => "podman",
     };
 
-    println!("🚀 Starting deployment to Kubernetes (namespace: {})", namespace);
+    println!(
+        "🚀 Starting deployment to Kubernetes (namespace: {})",
+        namespace
+    );
     println!("📦 Image: {}", tagged_image);
     println!("🔧 Engine: {:?}", engine);
 
@@ -162,9 +165,15 @@ fn run_deployment(
 
     // 3. Update Kubernetes deployment
     println!("\nStep 3/4: Updating Kubernetes deployment...");
-    
+
     // First, ensure base manifests are applied
-    let k8s_files = ["namespace.yaml", "pvc.yaml", "service.yaml", "deployment.yaml", "ingress.yaml"];
+    let k8s_files = [
+        "namespace.yaml",
+        "pvc.yaml",
+        "service.yaml",
+        "deployment.yaml",
+        "ingress.yaml",
+    ];
     for file in k8s_files {
         let path = format!("../k8s/{}", file);
         if std::path::Path::new(&path).exists() {

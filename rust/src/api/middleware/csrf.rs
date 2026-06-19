@@ -15,11 +15,7 @@ pub const CSRF_HEADER_NAME: &str = "X-CSRF-Token";
 pub struct CsrfToken(pub String);
 
 /// CSRF protection middleware for Dashboard/BFF
-pub async fn csrf_middleware(
-    session: Session,
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn csrf_middleware(session: Session, request: Request, next: Next) -> Response {
     // 1. Get or generate CSRF token in session
     let csrf_token = match session.get::<CsrfToken>(CSRF_SESSION_KEY).await {
         Ok(Some(token)) => token,
@@ -33,7 +29,8 @@ pub async fn csrf_middleware(
             );
             if let Err(e) = session.insert(CSRF_SESSION_KEY, token.clone()).await {
                 tracing::error!("Failed to insert CSRF token into session: {}", e);
-                return (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response();
+                return (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error")
+                    .into_response();
             }
             token
         }
@@ -41,18 +38,27 @@ pub async fn csrf_middleware(
 
     // 2. Validate token for state-changing methods
     let method = request.method();
-    if method == Method::POST || method == Method::PUT || method == Method::DELETE || method == Method::PATCH {
+    if method == Method::POST
+        || method == Method::PUT
+        || method == Method::DELETE
+        || method == Method::PATCH
+    {
         let path = request.uri().path();
-        
+
         // Skip validation for OIDC callback (it has its own state) and login
         if path != "/dashboard/auth/callback" && path != "/dashboard/login" {
-            let provided_token = request.headers()
+            let provided_token = request
+                .headers()
                 .get(CSRF_HEADER_NAME)
                 .and_then(|h| h.to_str().ok())
                 .map(|s| s.to_string());
 
             if provided_token.as_deref() != Some(&csrf_token.0) {
-                tracing::warn!("CSRF validation failed for path: {} (provided: {:?})", path, provided_token);
+                tracing::warn!(
+                    "CSRF validation failed for path: {} (provided: {:?})",
+                    path,
+                    provided_token
+                );
                 return (StatusCode::FORBIDDEN, "CSRF token mismatch").into_response();
             }
         }

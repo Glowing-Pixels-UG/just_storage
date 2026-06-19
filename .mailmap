@@ -1,0 +1,4 @@
+# Unify the maintainer's commit identities under one canonical name + email.
+# Format: Proper Name <proper@email> <other-commit-email>
+Damir Mukimov <mukimov.d@gmail.com> <damir@laika.baikonur.glpx.pro>
+Damir Mukimov <mukimov.d@gmail.com> <SamyRai@users.noreply.github.com>

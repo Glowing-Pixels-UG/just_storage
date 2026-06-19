@@ -1,4 +1,5 @@
 use crate::api::router::AppState;
+use crate::domain::authorization::UserContext;
 use axum::{
     body::Body,
     extract::State,
@@ -8,7 +9,6 @@ use axum::{
 };
 use tower_cookies::Cookies;
 use tower_sessions::Session;
-use crate::domain::authorization::UserContext;
 
 /// Middleware for internal admin authentication
 pub async fn internal_admin_auth(
@@ -21,12 +21,17 @@ pub async fn internal_admin_auth(
     let path = req.uri().path();
 
     // Exempt login page and static assets from auth
-    // Note: When nested under /dashboard, the path here might be relative or absolute 
-    // depending on where the middleware is applied. 
-    if path == "/login" || path == "/dashboard/login" || 
-       path == "/auth/login" || path == "/dashboard/auth/login" ||
-       path == "/auth/callback" || path == "/dashboard/auth/callback" ||
-       path.starts_with("/static") || path.starts_with("/dashboard/static") {
+    // Note: When nested under /dashboard, the path here might be relative or absolute
+    // depending on where the middleware is applied.
+    if path == "/login"
+        || path == "/dashboard/login"
+        || path == "/auth/login"
+        || path == "/dashboard/auth/login"
+        || path == "/auth/callback"
+        || path == "/dashboard/auth/callback"
+        || path.starts_with("/static")
+        || path.starts_with("/dashboard/static")
+    {
         return Ok(next.run(req).await);
     }
 

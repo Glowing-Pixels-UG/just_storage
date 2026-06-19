@@ -43,7 +43,7 @@ async fn search_endpoints_work_as_expected() {
     );
     let response = app.clone().oneshot(search_req).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = http::extract_json_response(response).await;
     let objects = body.get("objects").unwrap().as_array().unwrap();
     assert_eq!(objects.len(), 2);
@@ -61,8 +61,10 @@ async fn search_endpoints_work_as_expected() {
     );
     let response = app.oneshot(text_search_req).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = http::extract_json_response(response).await;
     let results = body.get("objects").unwrap().as_array().unwrap();
-    assert!(results.iter().any(|r| r.get("key").unwrap().as_str().unwrap() == "rust-programming.txt"));
+    assert!(results
+        .iter()
+        .any(|r| r.get("key").unwrap().as_str().unwrap() == "rust-programming.txt"));
 }

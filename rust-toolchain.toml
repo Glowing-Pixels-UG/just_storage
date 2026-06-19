@@ -1,0 +1,9 @@
+# Pinned toolchain for reproducible builds across local dev, Docker, and CI.
+#
+# 1.96 is the project's standardized version. The real minimum (MSRV) is 1.94 —
+# sqlx 0.9 requires rustc >= 1.94 — but we pin to 1.96 everywhere (Dockerfile
+# builder, CI runner, clippy.toml msrv) to avoid version drift.
+[toolchain]
+channel = "1.96.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

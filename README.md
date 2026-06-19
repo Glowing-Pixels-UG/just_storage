@@ -1,11 +1,11 @@
 # JustStorage - Content-Addressable Object Storage
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](#testing)
+[![CI](https://github.com/Glowing-Pixels-UG/just_storage/actions/workflows/ci.yml/badge.svg)](https://github.com/Glowing-Pixels-UG/just_storage/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#license)
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](#prerequisites)
+[![Rust](https://img.shields.io/badge/rust-1.96-orange)](#prerequisites)
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/yourusername/just_storage)
-[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/yourusername/just_storage/tree/main)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/Glowing-Pixels-UG/just_storage)
+[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/Glowing-Pixels-UG/just_storage/tree/main)
 
 A content-addressable object storage service with strong consistency guarantees, automatic deduplication, and crash-safe operations.
 
@@ -104,13 +104,13 @@ curl http://localhost:8080/health
 #### Prerequisites
 
 - **Postgres 14+** with uuid extension
-- **Rust 1.75+** with tokio runtime
+- **Rust 1.96** (pinned via `rust-toolchain.toml`; minimum supported 1.94, required by sqlx 0.9)
 
 #### Setup
 
 ```bash
 # 1. Copy environment file
-cp .env.example .env
+cp rust/.env.example rust/.env
 
 # 2. Start PostgreSQL
 docker compose up -d postgres
@@ -266,12 +266,11 @@ Every object transitions through explicit states:
 
 Deploy JustStorage instantly to popular platforms with a single click:
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/yourusername/just_storage)
-[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/yourusername/just_storage/tree/main)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/Glowing-Pixels-UG/just_storage)
+[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/Glowing-Pixels-UG/just_storage/tree/main)
 
 **Note:**
 
-- Replace `yourusername` in the URLs above with your actual GitHub username/organization
 - For Heroku/DigitalOcean: set `INTERNAL_ADMIN_TOKEN` for bootstrap/admin access, then create DB-backed API keys through the API. `JWT_SECRET` and static `API_KEYS` are not required by the v1 runtime.
 
 ### Quick Deployment Setup
@@ -456,18 +455,19 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 
 ### 🎯 Next Steps
 
-- [ ] Integration tests with real database
-- [ ] Prometheus metrics implementation
-- [ ] Production deployment to dev cluster
-- [ ] Performance benchmarks
+- [x] Integration tests with real database (testcontainers)
+- [x] Prometheus metrics middleware
+- [x] Performance benchmark suite (criterion)
+- [x] OIDC authentication + session hardening
+- [x] CI gate: fmt, clippy, tests, cargo-deny
 - [ ] Monitoring dashboards
-- [ ] Load testing
+- [ ] Load testing at scale
 
 ### Tech Stack
 
 | Component | Technology |
 |-----------|------------|
-| **Language** | Rust 1.75+ (2021 edition) |
+| **Language** | Rust 1.96 (2021 edition) |
 | **Runtime** | Tokio async |
 | **HTTP Framework** | Axum 0.8 |
 | **Database** | PostgreSQL 14+ with SQLx |

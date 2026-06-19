@@ -1,5 +1,5 @@
-use time::OffsetDateTime;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 
 use crate::domain::value_objects::{ApiKeyId, ApiKeyPermissions, ApiKeyValue};
 
@@ -153,7 +153,8 @@ impl ApiKey {
 
     // Business logic
     pub fn is_expired(&self) -> bool {
-        self.expires_at.is_some_and(|expires| OffsetDateTime::now_utc() > expires)
+        self.expires_at
+            .is_some_and(|expires| OffsetDateTime::now_utc() > expires)
     }
 
     pub fn can_read(&self) -> bool {

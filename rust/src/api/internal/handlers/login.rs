@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Extension},
+    extract::{Extension, State},
     response::{IntoResponse, Redirect},
     Form,
 };
@@ -7,17 +7,15 @@ use serde::Deserialize;
 use tower_cookies::{Cookie, Cookies};
 
 use crate::api::internal::templates::LoginTemplate;
-use crate::api::router::AppState;
 use crate::api::middleware::csrf::CsrfToken;
+use crate::api::router::AppState;
 
 #[derive(Deserialize)]
 pub struct LoginPayload {
     token: String,
 }
 
-pub async fn login_page(
-    Extension(csrf_token): Extension<CsrfToken>,
-) -> impl IntoResponse {
+pub async fn login_page(Extension(csrf_token): Extension<CsrfToken>) -> impl IntoResponse {
     LoginTemplate {
         title: "Admin Login".to_string(),
         error: None,
@@ -49,9 +47,9 @@ pub async fn login_handler(
         cookie.set_http_only(true);
         cookie.set_secure(true); // Should be true in prod
         cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
-        
+
         cookies.add(cookie);
-        
+
         Redirect::to("/dashboard/health").into_response()
     } else {
         LoginTemplate {

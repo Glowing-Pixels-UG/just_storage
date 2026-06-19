@@ -12,23 +12,62 @@ permissions:
   contents: read
   packages: write
 
+env:
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: "true"
+
 jobs:
-  ci:
+  # ---- Format + lint gate ----
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      - name: Install Rust
-        run: rustup toolchain install stable --profile minimal
-
-      - name: Check compilation
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: rustfmt
         working-directory: rust
-        env:
-          SQLX_OFFLINE: "true"
-        run: cargo check
+        run: cargo fmt --all -- --check
+      - name: clippy (all targets, warnings denied)
+        working-directory: rust
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
+  # ---- Tests ----
+  # Unit + doc tests need no services. Integration/e2e/property tests use
+  # testcontainers + a mock OIDC server, which require the runner's Docker
+  # daemon (present on ubuntu-latest). The timing-sensitive performance guards
+  # (tests/performance*.rs) are intentionally excluded from the gate.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.96.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: unit + doc tests
+        working-directory: rust
+        run: cargo test --locked --lib --bins --doc
+      - name: integration + e2e + property tests
+        working-directory: rust
+        run: cargo test --locked --test integration --test e2e --test property
+
+  # ---- Dependency / advisory / license gate ----
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: rust/Cargo.toml
+          command: check
+
+  # ---- Multi-arch image (publishes on non-PR events) ----
   docker-image:
-    needs: ci
+    needs: [ lint, test, deny ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -77,6 +116,7 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          target: runtime
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.image-tags.outputs.tags }}

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
+use time::format_description::well_known::Rfc3339;
 use utoipa::ToSchema;
 use validator::Validate;
-use time::format_description::well_known::Rfc3339;
 
 use crate::domain::{
     entities::Object,
@@ -253,10 +253,14 @@ impl From<crate::domain::entities::ApiKey> for ApiKeyDto {
             description: api_key.description().map(|s| s.to_string()),
             permissions: api_key.permissions().clone(),
             is_active: api_key.is_active(),
-            expires_at: api_key.expires_at().map(|dt| dt.format(&Rfc3339).unwrap_or_default()),
+            expires_at: api_key
+                .expires_at()
+                .map(|dt| dt.format(&Rfc3339).unwrap_or_default()),
             created_at: api_key.created_at().format(&Rfc3339).unwrap_or_default(),
             updated_at: api_key.updated_at().format(&Rfc3339).unwrap_or_default(),
-            last_used_at: api_key.last_used_at().map(|dt| dt.format(&Rfc3339).unwrap_or_default()),
+            last_used_at: api_key
+                .last_used_at()
+                .map(|dt| dt.format(&Rfc3339).unwrap_or_default()),
         }
     }
 }

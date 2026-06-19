@@ -1,13 +1,16 @@
-use async_trait::async_trait;
-use tower_sessions::{session::{Id, Record}, SessionStore};
 use aes_gcm::{
     aead::{Aead, KeyInit, Payload},
     Aes256Gcm, Nonce,
 };
+use async_trait::async_trait;
 use rand::RngExt;
 use sqlx::PgPool;
-use time::OffsetDateTime;
 use std::collections::HashMap;
+use time::OffsetDateTime;
+use tower_sessions::{
+    session::{Id, Record},
+    SessionStore,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SessionError {
@@ -49,13 +52,19 @@ impl EncryptedPostgresStore {
     fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>, SessionError> {
         let cipher = Aes256Gcm::new_from_slice(&self.key)
             .map_err(|e| SessionError::Encryption(e.to_string()))?;
-        
+
         let mut nonce_bytes = [0u8; 12];
         rand::rng().fill(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         let ciphertext = cipher
-            .encrypt(&nonce, Payload { msg: data, aad: &[] })
+            .encrypt(
+                &nonce,
+                Payload {
+                    msg: data,
+                    aad: &[],
+                },
+            )
             .map_err(|e| SessionError::Encryption(e.to_string()))?;
 
         let mut result = nonce_bytes.to_vec();
@@ -70,13 +79,19 @@ impl EncryptedPostgresStore {
 
         let cipher = Aes256Gcm::new_from_slice(&self.key)
             .map_err(|e| SessionError::Encryption(e.to_string()))?;
-        
+
         let (nonce_bytes, ciphertext) = data.split_at(12);
         let nonce = <&[u8; 12]>::try_from(nonce_bytes)
             .map_err(|_| SessionError::Encryption("Invalid nonce length".into()))?;
 
         let plaintext = cipher
-            .decrypt(nonce.into(), Payload { msg: ciphertext, aad: &[] })
+            .decrypt(
+                nonce.into(),
+                Payload {
+                    msg: ciphertext,
+                    aad: &[],
+                },
+            )
             .map_err(|e| SessionError::Encryption(e.to_string()))?;
 
         Ok(plaintext)
@@ -101,9 +116,9 @@ impl SessionStore for EncryptedPostgresStore {
                     tracing::error!("Failed to decrypt session data: {}", e);
                     e
                 })?;
-                
-                let data: HashMap<String, serde_json::Value> = serde_json::from_slice(&decrypted_data)
-                    .map_err(SessionError::Serialization)?;
+
+                let data: HashMap<String, serde_json::Value> =
+                    serde_json::from_slice(&decrypted_data).map_err(SessionError::Serialization)?;
 
                 Ok(Some(Record {
                     id: *session_id,
@@ -125,7 +140,7 @@ impl SessionStore for EncryptedPostgresStore {
             VALUES ($1, $2, $3)
             ON CONFLICT (id) DO UPDATE
             SET data = EXCLUDED.data, expiry_date = EXCLUDED.expiry_date
-            "#
+            "#,
         )
         .bind(record.id.to_string())
         .bind(encrypted_data)

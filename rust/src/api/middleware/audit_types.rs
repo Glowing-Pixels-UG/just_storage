@@ -4,8 +4,8 @@
 //! for audit logging functionality.
 
 use async_trait::async_trait;
-use time::OffsetDateTime;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 
 /// Audit event types for security monitoring
 #[derive(Debug, Clone, Serialize, Deserialize)]

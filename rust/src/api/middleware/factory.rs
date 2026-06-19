@@ -41,7 +41,7 @@ impl MiddlewareFactory {
         jwks_cache: Arc<moka::future::Cache<String, jsonwebtoken::DecodingKey>>,
     ) -> auth::AuthLayer {
         auth::create_auth_middleware(
-            api_key_repo, 
+            api_key_repo,
             self.config.auth.clone(),
             self.config.oidc.clone(),
             jwks_cache,

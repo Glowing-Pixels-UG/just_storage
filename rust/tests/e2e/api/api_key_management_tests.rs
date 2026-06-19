@@ -28,7 +28,7 @@ async fn api_key_management_full_flow_succeeds() {
 
     let response = app.clone().oneshot(create_req).await.unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
-    
+
     let body = http::extract_json_response(response).await;
     let key_id = body.get("id").unwrap().as_str().unwrap().to_string();
     let key_secret = body.get("key").unwrap().as_str().unwrap().to_string();
@@ -37,10 +37,12 @@ async fn api_key_management_full_flow_succeeds() {
     let list_req = http::authenticated_request(Method::GET, "/v1/api-keys", api_key);
     let response = app.clone().oneshot(list_req).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = http::extract_json_response(response).await;
     let keys = body.get("api_keys").unwrap().as_array().unwrap();
-    assert!(keys.iter().any(|k| k.get("id").unwrap().as_str().unwrap() == key_id));
+    assert!(keys
+        .iter()
+        .any(|k| k.get("id").unwrap().as_str().unwrap() == key_id));
 
     // 3. Update API key
     let update_req = http::authenticated_json_request(
@@ -61,20 +63,14 @@ async fn api_key_management_full_flow_succeeds() {
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     // 5. Delete API key
-    let delete_req = http::authenticated_request(
-        Method::DELETE,
-        &format!("/v1/api-keys/{}", key_id),
-        api_key
-    );
+    let delete_req =
+        http::authenticated_request(Method::DELETE, &format!("/v1/api-keys/{}", key_id), api_key);
     let response = app.clone().oneshot(delete_req).await.unwrap();
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 
     // 6. Verify deletion
-    let get_req = http::authenticated_request(
-        Method::GET,
-        &format!("/v1/api-keys/{}", key_id),
-        api_key
-    );
+    let get_req =
+        http::authenticated_request(Method::GET, &format!("/v1/api-keys/{}", key_id), api_key);
     let response = app.oneshot(get_req).await.unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

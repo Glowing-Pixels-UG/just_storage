@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use sqlx::{PgPool, Row};
 use crate::api::middleware::audit::AuditLogEntry;
 use crate::application::ports::{AuditQueryFilter, AuditRepository, AuditRepositoryError};
+use async_trait::async_trait;
+use sqlx::{PgPool, Row};
 
 pub struct PostgresAuditRepository {
     pool: PgPool,
@@ -175,7 +175,9 @@ impl AuditRepository for PostgresAuditRepository {
                 "configuration_change" => {
                     crate::api::middleware::audit::AuditEventType::ConfigurationChange
                 }
-                "backup_operation" => crate::api::middleware::audit::AuditEventType::BackupOperation,
+                "backup_operation" => {
+                    crate::api::middleware::audit::AuditEventType::BackupOperation
+                }
                 _ => continue, // Skip unknown event types
             };
 

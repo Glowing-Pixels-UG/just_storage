@@ -2,14 +2,19 @@
 
 This directory contains deployment configurations for various Platform-as-a-Service (PaaS) providers.
 
+> **Authentication model (v1):** the runtime uses `INTERNAL_ADMIN_TOKEN`
+> (bootstrap) → DB-backed API keys, plus optional `OIDC_*`. It does **not** read
+> `JWT_SECRET` or a static `API_KEYS` list — ignore any older references to those
+> below. The authoritative, exhaustive env list is
+> [`rust/.env.example`](../rust/.env.example).
+
 ## Quick Start
 
 ### Local Development with Docker Compose
 
-For local development and testing:
+The canonical Compose stack is at the repository root. From the repo root:
 
 ```bash
-cd deployments/docker compose
 docker compose up -d
 ```
 
@@ -388,8 +393,9 @@ All platforms require these environment variables:
 | Variable | Description | Required | Default |
 |----------|-------------|----------|----------|
 | `DATABASE_URL` | PostgreSQL connection string | Yes | - |
-| `JWT_SECRET` | Secret for JWT validation | Yes (production) | - |
-| `API_KEYS` | Comma-separated API keys | Yes (production) | - |
+| `INTERNAL_ADMIN_TOKEN` | Bootstrap token; create DB-backed API keys via the API | Yes (production) | - |
+| `OIDC_ISSUER_URL` | OpenID Connect issuer (enables OIDC when set) | No | - |
+| `SESSION_SECRET` / `SESSION_ENCRYPTION_KEY` | Session signing/encryption (with OIDC) | With OIDC | - |
 | `HOT_STORAGE_ROOT` | Hot storage path | No | `/data/hot` |
 | `COLD_STORAGE_ROOT` | Cold storage path | No | `/data/cold` |
 | `PORT` | Server port (auto-set by PaaS) | No | `8080` |
@@ -398,6 +404,8 @@ All platforms require these environment variables:
 | `GC_BATCH_SIZE` | GC batch size | No | `100` |
 | `RUST_LOG` | Log level | No | `info` |
 | `DISABLE_AUTH` | Disable auth (dev only) | No | `false` |
+
+See [`rust/.env.example`](../rust/.env.example) for the complete list.
 
 ## Storage Considerations
 
@@ -432,9 +440,9 @@ All platforms support PostgreSQL. Options:
 
 Before deploying to production:
 
-- [ ] Set strong `JWT_SECRET` (use random generator)
-- [ ] Configure `API_KEYS` with secure keys
-- [ ] Remove `DISABLE_AUTH` or set to `false`
+- [ ] Set a strong `INTERNAL_ADMIN_TOKEN`, then create DB-backed API keys via the API
+- [ ] If using OIDC, configure `OIDC_*` and set `SESSION_SECRET` / `SESSION_ENCRYPTION_KEY`
+- [ ] Ensure `DISABLE_AUTH` is unset or `false`
 - [ ] Use HTTPS (most PaaS providers enable by default)
 - [ ] Configure database backups
 - [ ] Set up monitoring and alerts

@@ -6,8 +6,9 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    audit_config::AuditConfig, auth_config::AuthMiddlewareConfig, oidc_config::OidcConfig, error_handling::ErrorHandlingConfig,
-    input_sanitization::InputSanitizationConfig, rate_limiting::RateLimitConfig,
+    audit_config::AuditConfig, auth_config::AuthMiddlewareConfig,
+    error_handling::ErrorHandlingConfig, input_sanitization::InputSanitizationConfig,
+    oidc_config::OidcConfig, rate_limiting::RateLimitConfig,
     security_headers::SecurityHeadersConfig, size_limits::SizeLimitConfig,
 };
 

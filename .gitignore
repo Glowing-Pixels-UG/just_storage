@@ -32,3 +32,14 @@ rust/tarpaulin-report.html
 
 # Go SDK (separate repository)
 go-sdk/
+
+# Backup / archive / build-dump cruft (must never be committed)
+*.bak
+*.backup
+*.tar
+*.tar.gz
+binary-container-poc/
+
+# Secrets / local service config (never commit credentials)
+scanner-config.env
+*.local.env

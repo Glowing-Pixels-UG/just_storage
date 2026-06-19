@@ -1,5 +1,5 @@
-use time::OffsetDateTime;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 
 use crate::domain::{
     errors::DomainError,

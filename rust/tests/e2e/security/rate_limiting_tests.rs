@@ -1,5 +1,5 @@
-use axum::http::{Request, StatusCode};
 use axum::body::Body;
+use axum::http::{Request, StatusCode};
 use tower::ServiceExt;
 
 use just_storage::api::middleware::config::MiddlewareConfig;
@@ -10,10 +10,10 @@ use just_storage::ApplicationBuilder;
 #[tokio::test]
 async fn rate_limiting_returns_429_when_limit_exceeded() {
     let _ = tracing_subscriber::fmt::try_init();
-    
+
     // Setup test environment
     let (config, container, temp_dir) = setup_config().await;
-    
+
     // Set very low rate limit for testing: 3 requests per minute
     let middleware_config = MiddlewareConfig {
         rate_limiting: RateLimitConfig {
@@ -42,7 +42,8 @@ async fn rate_limiting_returns_429_when_limit_exceeded() {
         .build()
         .unwrap();
 
-    let app = create_router_with_middleware(state, api_key_repo, audit_repo, middleware_config).await;
+    let app =
+        create_router_with_middleware(state, api_key_repo, audit_repo, middleware_config).await;
 
     // Use a fixed IP for all requests to ensure they hit the same rate limit bucket
     let ip = "1.2.3.4";
@@ -55,7 +56,12 @@ async fn rate_limiting_returns_429_when_limit_exceeded() {
             .body(Body::empty())
             .unwrap();
         let response = app.clone().oneshot(req).await.unwrap();
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "Request {} should have been 401", i + 1);
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "Request {} should have been 401",
+            i + 1
+        );
     }
 
     // 4th request should be rate limited
@@ -67,10 +73,10 @@ async fn rate_limiting_returns_429_when_limit_exceeded() {
     let response = app.clone().oneshot(req).await.unwrap();
     let status = response.status();
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
-    
+
     // Check for Retry-After header
     assert!(response.headers().contains_key("Retry-After"));
-    
+
     let _ = temp_dir; // keep alive
     let _ = container; // keep alive
 }
@@ -78,7 +84,7 @@ async fn rate_limiting_returns_429_when_limit_exceeded() {
 #[tokio::test]
 async fn auth_routes_have_aggressive_rate_limiting() {
     let (config, container, temp_dir) = setup_config().await;
-    
+
     let builder = ApplicationBuilder::new(config.clone())
         .with_database()
         .await
@@ -109,7 +115,7 @@ async fn auth_routes_have_aggressive_rate_limiting() {
             .body(Body::empty())
             .unwrap();
         let response = internal_app.clone().oneshot(req).await.unwrap();
-        
+
         let status = response.status();
         assert_ne!(status, StatusCode::TOO_MANY_REQUESTS);
     }
@@ -127,7 +133,11 @@ async fn auth_routes_have_aggressive_rate_limiting() {
     let _ = container; // keep alive
 }
 
-async fn setup_config() -> (just_storage::Config, testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>, tempfile::TempDir) {
+async fn setup_config() -> (
+    just_storage::Config,
+    testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>,
+    tempfile::TempDir,
+) {
     use crate::common::database::setup_test_database;
     let container = setup_test_database().await.1;
     let host = container.get_host().await.unwrap();
@@ -136,12 +146,12 @@ async fn setup_config() -> (just_storage::Config, testcontainers::ContainerAsync
 
     let mut config = just_storage::Config::from_env();
     config.database_url = database_url;
-    
+
     let temp_dir = tempfile::TempDir::new().unwrap();
     config.hot_storage_root = temp_dir.path().join("hot");
     config.cold_storage_root = temp_dir.path().join("cold");
     std::fs::create_dir_all(&config.hot_storage_root).unwrap();
     std::fs::create_dir_all(&config.cold_storage_root).unwrap();
-    
+
     (config, container, temp_dir)
 }

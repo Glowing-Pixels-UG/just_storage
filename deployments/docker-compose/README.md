@@ -1,186 +1,38 @@
-# JustStorage Docker Compose Setup
+# JustStorage — Local Docker Compose
 
-This directory contains a Docker Compose configuration for running JustStorage locally with PostgreSQL database.
+The canonical Compose stack lives at the **repository root** in
+[`docker-compose.yml`](../../docker-compose.yml). Run it from there:
 
-## Quick Start
+```bash
+# from the repo root
+docker compose up -d
+docker compose logs -f just_storage
+curl http://localhost:8080/health
+```
 
-1. **Prerequisites:**
-   - Docker and Docker Compose installed
-   - At least 2GB free RAM
-   - At least 5GB free disk space
-
-2. **Start the services:**
-
-   ```bash
-   cd deployments/docker compose
-   docker compose up -d
-   ```
-
-3. **Check the status:**
-
-   ```bash
-   docker compose ps
-   ```
-
-4. **View logs:**
-
-   ```bash
-   docker compose logs -f just-storage
-   ```
-
-5. **Access the application:**
-   - JustStorage API: <http://localhost:8080>
-   - Health check: <http://localhost:8080/health>
-   - pgAdmin (optional): <http://localhost:8081>
-
-## Services
-
-### just-storage
-
-- **Port:** 8080
-- **Health Check:** `/health`
-- **Persistent Volumes:**
-  - `hot_storage`: Frequently accessed data
-  - `cold_storage`: Infrequently accessed data
-
-### db (PostgreSQL)
-
-- **Port:** 5432
-- **Database:** just_storage
-- **User:** postgres
-- **Password:** password
-- **Persistent Volume:** `postgres_data`
-
-### pgadmin (Optional)
-
-- **Port:** 8081
-- **Email:** <admin@juststorage.com>
-- **Password:** password
-- **Purpose:** Database administration interface
+This brings up PostgreSQL (with the schema applied) and the JustStorage service.
 
 ## Configuration
 
-### Environment Variables
+All configuration is via environment variables. The authoritative, exhaustive
+template is [`rust/.env.example`](../../rust/.env.example) — every variable there
+is actually read by the service (see `rust/src/config.rs`).
 
-Copy `docker compose.env` to `.env` and modify as needed:
+Authentication model (v1):
 
-```bash
-cp docker compose.env .env
-```
+- `INTERNAL_ADMIN_TOKEN` bootstraps admin access; create DB-backed API keys
+  through the API.
+- `OIDC_*` enables OpenID Connect (optional).
+- `DISABLE_AUTH=true` is **development only**.
 
-Key configuration options:
+> Note: `JWT_SECRET` and a static `API_KEYS` list are **not** used by the v1
+> runtime; ignore any older references to them.
 
-- `JWT_SECRET`: Change for production use
-- `API_KEYS`: Configure API keys for authentication
-- `DISABLE_AUTH`: Set to `false` for production
-- `RUST_LOG`: Set to `debug` for more detailed logging
+## Cloud platforms
 
-### Scaling
-
-To run multiple instances of JustStorage:
-
-```bash
-docker compose up -d --scale just-storage=3
-```
-
-Note: Load balancing is not included in this setup. Use a reverse proxy like nginx or traefik for production scaling.
-
-## Database Management
-
-### Using pgAdmin
-
-1. Open <http://localhost:8081>
-2. Login with <admin@juststorage.com> / password
-3. Add server:
-   - Host: db
-   - Port: 5432
-   - Username: postgres
-   - Password: password
-   - Database: just_storage
-
-### Direct PostgreSQL Access
+For PaaS targets (Heroku, Fly.io, Railway, Render, DigitalOcean, CapRover) use the
+generator CLI and see [`../README.md`](../README.md):
 
 ```bash
-docker compose exec db psql -U postgres -d just_storage
+cd rust && cargo run --release --bin just-storage-deploy -- generate <platform>
 ```
-
-## Development Workflow
-
-### Building Custom Images
-
-To build with local changes:
-
-```bash
-# From the project root
-docker compose -f deployments/docker compose/docker compose.yml build
-```
-
-### Database Migrations
-
-The application automatically runs database migrations on startup.
-
-### Logs and Debugging
-
-```bash
-# All services
-docker compose logs -f
-
-# Specific service
-docker compose logs -f just-storage
-
-# Database logs
-docker compose logs -f db
-```
-
-## Production Considerations
-
-This Docker Compose setup is intended for development and testing. For production:
-
-1. **Security:**
-   - Change all default passwords
-   - Use strong JWT secrets
-   - Configure proper authentication
-   - Enable SSL/TLS
-
-2. **Persistence:**
-   - Use named volumes or bind mounts for data persistence
-   - Consider backup strategies for the database
-
-3. **Monitoring:**
-   - Add monitoring services (Prometheus, Grafana)
-   - Configure log aggregation
-
-4. **Scaling:**
-   - Use Docker Swarm or Kubernetes for orchestration
-   - Implement load balancing
-   - Configure session affinity if needed
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Port conflicts:**
-   - Change ports in docker compose.yml if 8080/5432/8081 are in use
-
-2. **Permission issues:**
-   - Ensure Docker has access to project files
-   - Check file permissions on mounted volumes
-
-3. **Database connection issues:**
-   - Wait for database to fully start (check logs)
-   - Verify DATABASE_URL configuration
-
-4. **Out of memory:**
-   - Increase Docker memory limit
-   - Reduce DB_MAX_CONNECTIONS if needed
-
-### Reset Everything
-
-To completely reset the environment:
-
-```bash
-docker compose down -v
-docker compose up -d
-```
-
-This will remove all data and restart fresh.

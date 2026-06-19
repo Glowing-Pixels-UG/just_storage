@@ -7,7 +7,7 @@ use crate::common::environment as env;
 #[tokio::test]
 async fn htmx_requests_get_hx_redirect_instead_of_302() {
     let _ = tracing_subscriber::fmt::try_init();
-    
+
     // We can use the internal app which handles redirects for OIDC login
     let (_app, internal_app, _container, _temp_dir) = env::setup_test_api_server().await;
 
@@ -36,7 +36,12 @@ async fn htmx_requests_get_hx_redirect_instead_of_302() {
     assert_eq!(response.status(), StatusCode::OK);
     assert!(response.headers().contains_key("HX-Redirect"));
     assert!(!response.headers().contains_key("location"));
-    
-    let hx_redirect = response.headers().get("HX-Redirect").unwrap().to_str().unwrap();
+
+    let hx_redirect = response
+        .headers()
+        .get("HX-Redirect")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(hx_redirect.contains("/dashboard/login") || hx_redirect.contains("authorize"));
 }

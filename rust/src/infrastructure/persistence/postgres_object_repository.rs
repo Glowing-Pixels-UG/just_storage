@@ -308,7 +308,8 @@ impl ObjectRepository for PostgresObjectRepository {
             .await?;
 
         // Try to get as i64, fallback to i32 if needed
-        let count = result.try_get::<i64, _>(0)
+        let count = result
+            .try_get::<i64, _>(0)
             .or_else(|_| result.try_get::<i32, _>(0).map(|v| v as i64))
             .unwrap_or(0);
 

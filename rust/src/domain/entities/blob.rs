@@ -1,5 +1,5 @@
-use time::OffsetDateTime;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 
 use crate::domain::value_objects::{ContentHash, StorageClass};
 
@@ -228,7 +228,10 @@ mod tests {
 
         // Blobs with same content hash should be equal (equality ignores timestamps)
         assert_eq!(blob_original.content_hash(), blob_duplicate.content_hash());
-        assert_eq!(blob_original.storage_class(), blob_duplicate.storage_class());
+        assert_eq!(
+            blob_original.storage_class(),
+            blob_duplicate.storage_class()
+        );
         assert_eq!(blob_original.size_bytes(), blob_duplicate.size_bytes());
         // Blobs with different content hashes should not be equal
         assert_ne!(blob_original.content_hash(), blob_different.content_hash());

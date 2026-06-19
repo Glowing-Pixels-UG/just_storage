@@ -5,15 +5,15 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use dashmap::DashMap;
+use futures_util::future::BoxFuture;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
     net::IpAddr,
     sync::Arc,
-    time::{Duration, Instant},
     task::{Context, Poll},
+    time::{Duration, Instant},
 };
-use futures_util::future::BoxFuture;
 // Note: tower_http rate limiting has changed in newer versions
 // For now, we'll implement a simple in-memory rate limiter
 
@@ -173,7 +173,9 @@ impl RateLimitMiddleware {
 
     pub async fn layer(request: Request, next: Next) -> Response {
         // Extract identifiers for rate limiting
-        let ip_addr = extract_ip_address(&request).map(|ip| ip.to_string()).unwrap_or_else(|| "unknown".to_string());
+        let ip_addr = extract_ip_address(&request)
+            .map(|ip| ip.to_string())
+            .unwrap_or_else(|| "unknown".to_string());
         let user_context = request.extensions().get::<UserContext>();
 
         let limiter = Arc::clone(request.extensions().get::<Arc<RateLimiter>>().unwrap());
@@ -244,7 +246,7 @@ fn extract_ip_address(request: &Request) -> Option<IpAddr> {
     None
 }
 
-    /// Rate limiting layer
+/// Rate limiting layer
 #[derive(Clone)]
 pub struct RateLimitLayer {
     pub limiter: Arc<RateLimiter>,
@@ -299,10 +301,7 @@ where
     type Error = S::Error;
     type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
 
-    fn poll_ready(
-        &mut self,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
     }
 
@@ -317,7 +316,9 @@ where
             // Extract identifiers for rate limiting inside the async block
             // to ensure we have the correct request context
             let ip_addr_opt = extract_ip_address(&request);
-            let ip_addr = ip_addr_opt.map(|ip| ip.to_string()).unwrap_or_else(|| "unknown".to_string());
+            let ip_addr = ip_addr_opt
+                .map(|ip| ip.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
             let user_context = request.extensions().get::<UserContext>().cloned();
 
             // Apply rate limiting based on authentication status
@@ -356,7 +357,8 @@ where
                         StatusCode::TOO_MANY_REQUESTS,
                         [("Retry-After", retry_after.to_string())],
                         axum::Json(response),
-                    ).into_response())
+                    )
+                        .into_response())
                 }
             }
         })
@@ -364,10 +366,7 @@ where
 }
 
 /// Simple rate limiting middleware for Axum's `from_fn`
-pub async fn rate_limit_middleware(
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn rate_limit_middleware(request: Request, next: Next) -> Response {
     let limiter = match request.extensions().get::<Arc<RateLimiter>>() {
         Some(l) => Arc::clone(l),
         None => {
@@ -376,9 +375,11 @@ pub async fn rate_limit_middleware(
             return next.run(request).await;
         }
     };
-    
+
     // Extract identifiers for rate limiting
-    let ip_addr = extract_ip_address(&request).map(|ip| ip.to_string()).unwrap_or_else(|| "unknown".to_string());
+    let ip_addr = extract_ip_address(&request)
+        .map(|ip| ip.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
     let user_context = request.extensions().get::<UserContext>();
 
     // For debugging: log the IP address found
@@ -417,7 +418,8 @@ pub async fn rate_limit_middleware(
                 StatusCode::TOO_MANY_REQUESTS,
                 [("Retry-After", retry_after.to_string())],
                 axum::Json(response),
-            ).into_response()
+            )
+                .into_response()
         }
     }
 }
