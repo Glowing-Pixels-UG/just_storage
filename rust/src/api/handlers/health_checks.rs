@@ -5,6 +5,7 @@
 
 use serde_json::{json, Map, Value};
 use sqlx::PgPool;
+use std::path::Path;
 
 /// Result of readiness checks
 #[derive(Debug)]
@@ -15,10 +16,10 @@ pub struct ReadinessCheckResult {
 }
 
 /// Perform basic security health checks
-pub fn perform_security_health_checks() -> Value {
+pub fn perform_security_health_checks(auth_disabled: bool) -> Value {
     json!({
         "environment": if cfg!(debug_assertions) { "development" } else { "production" },
-        "auth_enabled": if std::env::var("DISABLE_AUTH").unwrap_or_default().is_empty() { "enabled" } else { "disabled" },
+        "auth_enabled": if auth_disabled { "disabled" } else { "enabled" },
         "rate_limiting": "enabled",
         "security_headers": "enabled",
         "audit_logging": "enabled",
@@ -29,19 +30,114 @@ pub fn perform_security_health_checks() -> Value {
 }
 
 /// Perform readiness checks beyond basic database connectivity
-pub async fn perform_readiness_checks(_pool: &PgPool) -> ReadinessCheckResult {
-    let issues = Vec::new();
+pub async fn perform_readiness_checks(
+    pool: &PgPool,
+    expected_migration_count: usize,
+    hot_storage_root: &Path,
+    cold_storage_root: &Path,
+) -> ReadinessCheckResult {
+    let mut issues = Vec::new();
     let mut details = Map::new();
 
-    // Note: In a real implementation, you would perform actual checks
-    // For this demo, we'll simulate some basic checks
+    match sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM _sqlx_migrations")
+        .fetch_one(pool)
+        .await
+    {
+        Ok(applied) => {
+            let expected = expected_migration_count as i64;
+            details.insert(
+                "migrations".to_string(),
+                json!({
+                    "applied": applied,
+                    "expected": expected,
+                    "status": if applied >= expected { "ready" } else { "incomplete" }
+                }),
+            );
 
-    // Check system resources (simplified)
+            if applied < expected {
+                issues.push(format!(
+                    "Only {applied} of {expected} expected migrations are applied"
+                ));
+            }
+        }
+        Err(error) => {
+            details.insert(
+                "migrations".to_string(),
+                json!({
+                    "status": "error",
+                    "error": sanitize_db_error(&error)
+                }),
+            );
+            issues.push("Unable to read SQLx migration status".to_string());
+        }
+    }
+
+    let hot_ready = check_storage_root(hot_storage_root).await;
+    let cold_ready = check_storage_root(cold_storage_root).await;
+
+    details.insert("hot_storage".to_string(), hot_ready.details);
+    details.insert("cold_storage".to_string(), cold_ready.details);
+
+    issues.extend(
+        hot_ready
+            .issues
+            .into_iter()
+            .map(|issue| format!("hot: {issue}")),
+    );
+    issues.extend(
+        cold_ready
+            .issues
+            .into_iter()
+            .map(|issue| format!("cold: {issue}")),
+    );
+
     details.insert("active_checks".to_string(), json!(true));
-    details.insert("security_checks".to_string(), json!("passed"));
 
     ReadinessCheckResult {
         healthy: issues.is_empty(),
+        details: Value::Object(details),
+        issues,
+    }
+}
+
+struct StorageRootCheck {
+    details: Value,
+    issues: Vec<String>,
+}
+
+async fn check_storage_root(root: &Path) -> StorageRootCheck {
+    let mut issues = Vec::new();
+    let mut details = Map::new();
+
+    details.insert("path".to_string(), json!(root.to_string_lossy()));
+
+    for (name, path) in [
+        ("root", root.to_path_buf()),
+        ("temp", root.join("temp")),
+        ("sha256", root.join("sha256")),
+    ] {
+        match tokio::fs::metadata(&path).await {
+            Ok(metadata) if metadata.is_dir() => {
+                details.insert(name.to_string(), json!("ready"));
+            }
+            Ok(_) => {
+                details.insert(name.to_string(), json!("not_directory"));
+                issues.push(format!("{} exists but is not a directory", path.display()));
+            }
+            Err(error) => {
+                details.insert(
+                    name.to_string(),
+                    json!({
+                        "status": "missing",
+                        "error": format!("{:?}", error.kind())
+                    }),
+                );
+                issues.push(format!("{} is not readable", path.display()));
+            }
+        }
+    }
+
+    StorageRootCheck {
         details: Value::Object(details),
         issues,
     }

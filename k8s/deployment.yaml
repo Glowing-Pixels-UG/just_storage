@@ -19,7 +19,7 @@ spec:
         - name: harbor-registry-secret
       containers:
         - name: just-storage
-          image: registry.bk.glpx.pro/just-storage/just-storage:latest
+          image: registry.bk.glpx.pro/just-storage/just-storage:0.1.0-baikonur.20260619
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -43,8 +43,14 @@ spec:
               value: "/data/cold"
 
             # Server configuration
+            - name: ENVIRONMENT
+              value: "production"
             - name: LISTEN_ADDR
               value: "0.0.0.0:8080"
+            - name: ALLOWED_ORIGINS
+              value: "https://storage.bk.glpx.pro,https://just-storage.bk.glpx.pro"
+            - name: MAX_UPLOAD_SIZE_BYTES
+              value: "10737418240"
 
             # Garbage collection settings
             - name: GC_INTERVAL_SECS
@@ -69,18 +75,6 @@ spec:
               value: "1800"
 
             # Authentication
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: just-storage-secrets
-                  key: jwt-secret
-                  optional: false
-            - name: API_KEYS
-              valueFrom:
-                secretKeyRef:
-                  name: just-storage-secrets
-                  key: api-keys
-                  optional: true
             - name: INTERNAL_ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -115,7 +109,7 @@ spec:
 
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 10

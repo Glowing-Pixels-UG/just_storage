@@ -16,6 +16,8 @@ pub struct Config {
     pub db_max_lifetime_secs: u64,
     // Request limits
     pub max_upload_size_bytes: u64,
+    // Authentication controls
+    pub disable_auth: bool,
     // Performance tuning options
     pub adaptive_buffering_enabled: bool,
     pub concurrent_cache_threshold: usize,
@@ -96,11 +98,10 @@ impl Config {
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(10 * 1024 * 1024 * 1024), // 10 GB
+            // Authentication controls
+            disable_auth: parse_bool_env("DISABLE_AUTH", false),
             // Performance tuning (adaptive features enabled by default)
-            adaptive_buffering_enabled: std::env::var("ADAPTIVE_BUFFERING_ENABLED")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(true),
+            adaptive_buffering_enabled: parse_bool_env("ADAPTIVE_BUFFERING_ENABLED", true),
             concurrent_cache_threshold: std::env::var("CONCURRENT_CACHE_THRESHOLD")
                 .ok()
                 .and_then(|s| s.parse().ok())
@@ -183,6 +184,21 @@ impl Config {
     }
 }
 
+pub fn parse_bool_env(key: &str, default: bool) -> bool {
+    std::env::var(key)
+        .ok()
+        .and_then(|value| parse_bool(&value))
+        .unwrap_or(default)
+}
+
+pub fn parse_bool(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "y" | "on" => Some(true),
+        "0" | "false" | "no" | "n" | "off" => Some(false),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,6 +228,7 @@ mod tests {
         std::env::remove_var("DB_IDLE_TIMEOUT_SECS");
         std::env::remove_var("DB_MAX_LIFETIME_SECS");
         std::env::remove_var("MAX_UPLOAD_SIZE_BYTES");
+        std::env::remove_var("DISABLE_AUTH");
 
         let config = Config::from_env();
 
@@ -224,6 +241,7 @@ mod tests {
         assert_eq!(config.db_acquire_timeout_secs, 30);
         assert_eq!(config.db_idle_timeout_secs, 600);
         assert_eq!(config.db_max_lifetime_secs, 1800);
+        assert!(!config.disable_auth);
         assert!(config.adaptive_buffering_enabled);
     }
 
@@ -317,6 +335,29 @@ mod tests {
                 assert!(!config.adaptive_buffering_enabled);
                 assert_eq!(config.concurrent_cache_threshold, 2048);
             });
+        });
+    }
+
+    #[test]
+    fn test_disable_auth_parsing() {
+        with_env_var("DISABLE_AUTH", "true", || {
+            let config = Config::from_env();
+            assert!(config.disable_auth);
+        });
+
+        with_env_var("DISABLE_AUTH", "false", || {
+            let config = Config::from_env();
+            assert!(!config.disable_auth);
+        });
+
+        with_env_var("DISABLE_AUTH", "0", || {
+            let config = Config::from_env();
+            assert!(!config.disable_auth);
+        });
+
+        with_env_var("DISABLE_AUTH", "not-a-bool", || {
+            let config = Config::from_env();
+            assert!(!config.disable_auth);
         });
     }
 

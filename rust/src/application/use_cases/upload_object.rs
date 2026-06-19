@@ -11,6 +11,7 @@ pub struct UploadObjectUseCase {
     object_repo: Arc<dyn ObjectRepository>,
     blob_repo: Arc<dyn BlobRepository>,
     blob_store: Arc<dyn BlobStore>,
+    max_upload_size_bytes: u64,
 }
 
 impl UploadObjectUseCase {
@@ -23,7 +24,26 @@ impl UploadObjectUseCase {
             object_repo,
             blob_repo,
             blob_store,
+            max_upload_size_bytes: 10 * 1024 * 1024 * 1024,
         }
+    }
+
+    pub fn with_max_upload_size_bytes(
+        object_repo: Arc<dyn ObjectRepository>,
+        blob_repo: Arc<dyn BlobRepository>,
+        blob_store: Arc<dyn BlobStore>,
+        max_upload_size_bytes: u64,
+    ) -> Self {
+        Self {
+            object_repo,
+            blob_repo,
+            blob_store,
+            max_upload_size_bytes,
+        }
+    }
+
+    pub fn max_upload_size_bytes(&self) -> u64 {
+        self.max_upload_size_bytes
     }
 
     /// Execute upload workflow
@@ -124,5 +144,21 @@ mod tests {
         let dto = result.unwrap();
         assert_eq!(dto.status, ObjectStatus::Committed);
         assert_eq!(dto.size_bytes, Some(size_bytes));
+    }
+
+    #[test]
+    fn test_upload_limit_is_configurable() {
+        let mock_object_repo = MockObjectRepository::new();
+        let mock_blob_repo = MockBlobRepository::new();
+        let mock_blob_store = MockBlobStore::new();
+
+        let use_case = UploadObjectUseCase::with_max_upload_size_bytes(
+            Arc::new(mock_object_repo),
+            Arc::new(mock_blob_repo),
+            Arc::new(mock_blob_store),
+            4096,
+        );
+
+        assert_eq!(use_case.max_upload_size_bytes(), 4096);
     }
 }
