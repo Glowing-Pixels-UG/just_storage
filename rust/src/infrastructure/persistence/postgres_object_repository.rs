@@ -171,7 +171,7 @@ impl ObjectRepository for PostgresObjectRepository {
         qb.push_bind(&request.namespace);
         qb.push(" AND tenant_id = ");
         qb.push_bind(&request.tenant_id);
-        
+
         qb.push(" ORDER BY ");
         qb.push(sort_column);
         qb.push(" ");

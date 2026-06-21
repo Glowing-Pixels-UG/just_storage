@@ -222,11 +222,7 @@ mod tests {
         fn test_api_key_value_generate_creates_64_char_key() {
             let key = ApiKeyValue::generate_plaintext();
 
-            assert_eq!(
-                key.len(),
-                64,
-                "Generated key should be 64 characters"
-            );
+            assert_eq!(key.len(), 64, "Generated key should be 64 characters");
             assert!(
                 key.chars().all(|c| c.is_ascii_alphanumeric()),
                 "Generated key should contain only alphanumeric characters"
@@ -237,7 +233,7 @@ mod tests {
         fn test_api_key_value_hash_produces_hex() {
             let plaintext = "test_key";
             let hash = ApiKeyValue::hash(plaintext);
-            
+
             assert_eq!(hash.as_str().len(), 64); // SHA-256 is 64 hex chars
             assert!(hash.as_str().chars().all(|c| c.is_ascii_hexdigit()));
         }
@@ -247,11 +243,7 @@ mod tests {
             let key1 = ApiKeyValue::generate_plaintext();
             let key2 = ApiKeyValue::generate_plaintext();
 
-            assert_ne!(
-                key1,
-                key2,
-                "Generated keys should be unique"
-            );
+            assert_ne!(key1, key2, "Generated keys should be unique");
         }
 
         #[test]

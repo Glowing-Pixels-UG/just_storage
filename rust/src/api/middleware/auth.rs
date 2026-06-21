@@ -167,7 +167,9 @@ where
                     if auth_config.legacy_auth_enabled {
                         use crate::domain::value_objects::ApiKeyValue;
                         let token_hash = ApiKeyValue::hash(token);
-                        if let Ok(Some(api_key)) = api_key_repo.find_by_key(token_hash.as_str()).await {
+                        if let Ok(Some(api_key)) =
+                            api_key_repo.find_by_key(token_hash.as_str()).await
+                        {
                             if api_key.is_active() && !api_key.is_expired() {
                                 let mut permissions = HashSet::new();
                                 if api_key.permissions().read {
