@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
 use crate::domain::{
