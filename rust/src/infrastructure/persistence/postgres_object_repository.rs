@@ -96,17 +96,18 @@ impl ObjectRepository for PostgresObjectRepository {
         tenant_id: &TenantId,
         key: &str,
     ) -> Result<Option<Object>, RepositoryError> {
-        let sql = format!(
-            "{} {} AND key = $3",
-            QueryBuilder::OBJECT_SELECT,
-            QueryBuilder::namespace_tenant_where(namespace.as_str(), &tenant_id.to_string())
-        );
-        let row = sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
-            .bind(namespace.as_str())
-            .bind(tenant_id.to_string())
-            .bind(key)
-            .fetch_optional(&self.pool)
-            .await?;
+        let mut qb = sqlx::QueryBuilder::new(QueryBuilder::OBJECT_SELECT);
+        qb.push(" ");
+        qb.push(QueryBuilder::COMMITTED_WHERE);
+        qb.push(" AND namespace = ");
+        qb.push_bind(namespace.as_str());
+        qb.push(" AND tenant_id = ");
+        qb.push_bind(tenant_id.to_string());
+        qb.push(" AND key = ");
+        qb.push_bind(key);
+
+        let query = qb.build_query_as::<ObjectRow>();
+        let row = query.fetch_optional(&self.pool).await?;
 
         match row {
             Some(r) => Ok(Some(r.into_domain()?)),
@@ -121,20 +122,21 @@ impl ObjectRepository for PostgresObjectRepository {
         limit: i64,
         offset: i64,
     ) -> Result<Vec<Object>, RepositoryError> {
-        let sql = format!(
-            "{} {} ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-            QueryBuilder::OBJECT_SELECT,
-            QueryBuilder::namespace_tenant_where(namespace.as_str(), &tenant_id.to_string())
-        );
-        let rows = sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
-            .bind(namespace.as_str())
-            .bind(tenant_id.to_string())
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?;
+        let mut qb = sqlx::QueryBuilder::new(QueryBuilder::OBJECT_SELECT);
+        qb.push(" ");
+        qb.push(QueryBuilder::COMMITTED_WHERE);
+        qb.push(" AND namespace = ");
+        qb.push_bind(namespace.as_str());
+        qb.push(" AND tenant_id = ");
+        qb.push_bind(tenant_id.to_string());
+        qb.push(" ORDER BY created_at DESC LIMIT ");
+        qb.push_bind(limit);
+        qb.push(" OFFSET ");
+        qb.push_bind(offset);
 
-        // `into_domain` returns a Result, so use iterator collect to gather results or return first error.
+        let query = qb.build_query_as::<ObjectRow>();
+        let rows = query.fetch_all(&self.pool).await?;
+
         rows.into_iter().map(|r| r.into_domain()).collect()
     }
 
@@ -162,24 +164,25 @@ impl ObjectRepository for PostgresObjectRepository {
             SortDirection::Desc => "DESC",
         };
 
-        // Use parameterized query with validated column names
-        // Note: SQLx doesn't support dynamic column names in ORDER BY, so we validate them above
-        let sql = format!(
-            "{} {} ORDER BY {} {} LIMIT $3 OFFSET $4",
-            QueryBuilder::OBJECT_SELECT,
-            QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id),
-            sort_column,
-            sort_dir
-        );
+        let mut qb = sqlx::QueryBuilder::new(QueryBuilder::OBJECT_SELECT);
+        qb.push(" ");
+        qb.push(QueryBuilder::COMMITTED_WHERE);
+        qb.push(" AND namespace = ");
+        qb.push_bind(&request.namespace);
+        qb.push(" AND tenant_id = ");
+        qb.push_bind(&request.tenant_id);
+        
+        qb.push(" ORDER BY ");
+        qb.push(sort_column);
+        qb.push(" ");
+        qb.push(sort_dir);
+        qb.push(" LIMIT ");
+        qb.push_bind(limit);
+        qb.push(" OFFSET ");
+        qb.push_bind(offset);
 
-        // Use query_as with validated SQL (column names are validated above, not user input)
-        let rows: Vec<ObjectRow> = sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
-            .bind(&request.namespace)
-            .bind(&request.tenant_id)
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?;
+        let query = qb.build_query_as::<ObjectRow>();
+        let rows = query.fetch_all(&self.pool).await?;
 
         rows.into_iter().map(|r| r.into_domain()).collect()
     }
@@ -193,69 +196,41 @@ impl ObjectRepository for PostgresObjectRepository {
         let limit = request.limit.unwrap_or(100).min(1000);
         let offset = request.offset.unwrap_or(0);
 
-        // Build query with proper parameterization to prevent SQL injection
-        // Use conditional WHERE clauses based on search options
-        let rows: Vec<ObjectRow> = if search_in_key && search_in_metadata {
-            // Search in both key and metadata
-            let sql = format!(
-                "{} {} AND (key ILIKE $3 OR metadata::text ILIKE $4) ORDER BY created_at DESC LIMIT $5 OFFSET $6",
-                QueryBuilder::OBJECT_SELECT,
-                QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
-            );
-            sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
-                .bind(&request.namespace)
-                .bind(&request.tenant_id)
-                .bind(format!("%{}%", request.query))
-                .bind(format!("%{}%", request.query))
-                .bind(limit)
-                .bind(offset)
-                .fetch_all(&self.pool)
-                .await?
+        let mut qb = sqlx::QueryBuilder::new(QueryBuilder::OBJECT_SELECT);
+        qb.push(" ");
+        qb.push(QueryBuilder::COMMITTED_WHERE);
+        qb.push(" AND namespace = ");
+        qb.push_bind(&request.namespace);
+        qb.push(" AND tenant_id = ");
+        qb.push_bind(&request.tenant_id);
+        qb.push(" AND ");
+
+        let query_param = format!("%{}%", request.query);
+
+        if search_in_key && search_in_metadata {
+            qb.push("(key ILIKE ");
+            qb.push_bind(&query_param);
+            qb.push(" OR metadata::text ILIKE ");
+            qb.push_bind(&query_param);
+            qb.push(")");
         } else if search_in_key {
-            // Search only in key
-            let sql = format!(
-                "{} {} AND key ILIKE $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5",
-                QueryBuilder::OBJECT_SELECT,
-                QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
-            );
-            sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
-                .bind(&request.namespace)
-                .bind(&request.tenant_id)
-                .bind(format!("%{}%", request.query))
-                .bind(limit)
-                .bind(offset)
-                .fetch_all(&self.pool)
-                .await?
+            qb.push("key ILIKE ");
+            qb.push_bind(&query_param);
         } else if search_in_metadata {
-            // Search only in metadata
-            let sql = format!(
-                "{} {} AND metadata::text ILIKE $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5",
-                QueryBuilder::OBJECT_SELECT,
-                QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
-            );
-            sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
-                .bind(&request.namespace)
-                .bind(&request.tenant_id)
-                .bind(format!("%{}%", request.query))
-                .bind(limit)
-                .bind(offset)
-                .fetch_all(&self.pool)
-                .await?
+            qb.push("metadata::text ILIKE ");
+            qb.push_bind(&query_param);
         } else {
-            // No search conditions = no results (but still valid query)
-            let sql = format!(
-                "{} {} AND FALSE ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-                QueryBuilder::OBJECT_SELECT,
-                QueryBuilder::namespace_tenant_where(&request.namespace, &request.tenant_id)
-            );
-            sqlx::query_as::<_, ObjectRow>(AssertSqlSafe(sql))
-                .bind(&request.namespace)
-                .bind(&request.tenant_id)
-                .bind(limit)
-                .bind(offset)
-                .fetch_all(&self.pool)
-                .await?
-        };
+            qb.push("FALSE");
+        }
+
+        qb.push(" ORDER BY created_at DESC LIMIT ");
+        qb.push_bind(limit);
+        qb.push(" OFFSET ");
+        qb.push_bind(offset);
+
+        let query = qb.build_query_as::<ObjectRow>();
+        let rows = query.fetch_all(&self.pool).await?;
+
         rows.into_iter().map(|r| r.into_domain()).collect()
     }
 

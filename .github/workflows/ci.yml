@@ -48,12 +48,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
-      - name: unit + doc tests
+      - uses: taiki-e/install-action@nextest
+      - name: unit tests
         working-directory: rust
-        run: cargo test --locked --lib --bins --doc
+        run: cargo nextest run --locked --lib --bins
+      - name: doc tests
+        working-directory: rust
+        run: cargo test --locked --doc
       - name: integration + e2e + property tests
         working-directory: rust
-        run: cargo test --locked --test integration --test e2e --test property
+        run: cargo nextest run --locked --test integration --test e2e --test property
 
   # ---- Dependency / advisory / license gate ----
   deny:

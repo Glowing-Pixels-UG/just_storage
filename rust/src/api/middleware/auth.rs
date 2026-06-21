@@ -29,6 +29,7 @@ pub struct AuthLayer {
     auth_config: crate::api::middleware::auth_config::AuthMiddlewareConfig,
     oidc_config: OidcConfig,
     jwks_cache: Arc<moka::future::Cache<String, DecodingKey>>,
+    usage_tracker: Arc<dashmap::DashMap<String, std::time::Instant>>,
 }
 
 impl AuthLayer {
@@ -43,6 +44,7 @@ impl AuthLayer {
             auth_config,
             oidc_config,
             jwks_cache,
+            usage_tracker: Arc::new(dashmap::DashMap::new()),
         }
     }
 }
@@ -61,6 +63,7 @@ where
             auth_config: self.auth_config.clone(),
             oidc_config: self.oidc_config.clone(),
             jwks_cache: Arc::clone(&self.jwks_cache),
+            usage_tracker: Arc::clone(&self.usage_tracker),
         }
     }
 }
@@ -72,6 +75,7 @@ pub struct AuthService<S> {
     auth_config: crate::api::middleware::auth_config::AuthMiddlewareConfig,
     oidc_config: OidcConfig,
     jwks_cache: Arc<moka::future::Cache<String, DecodingKey>>,
+    usage_tracker: Arc<dashmap::DashMap<String, std::time::Instant>>,
 }
 
 impl<S> tower::Service<Request> for AuthService<S>
@@ -96,6 +100,7 @@ where
         let auth_config = self.auth_config.clone();
         let oidc_config = self.oidc_config.clone();
         let jwks_cache = Arc::clone(&self.jwks_cache);
+        let usage_tracker = Arc::clone(&self.usage_tracker);
 
         Box::pin(async move {
             let (mut parts, body) = req.into_parts();
@@ -160,7 +165,9 @@ where
 
                     // 2b. Try API Key from Database
                     if auth_config.legacy_auth_enabled {
-                        if let Ok(Some(api_key)) = api_key_repo.find_by_key(token).await {
+                        use crate::domain::value_objects::ApiKeyValue;
+                        let token_hash = ApiKeyValue::hash(token);
+                        if let Ok(Some(api_key)) = api_key_repo.find_by_key(token_hash.as_str()).await {
                             if api_key.is_active() && !api_key.is_expired() {
                                 let mut permissions = HashSet::new();
                                 if api_key.permissions().read {
@@ -186,7 +193,21 @@ where
                                     permissions,
                                 );
 
-                                let _ = api_key_repo.mark_used(api_key.id()).await;
+                                let key_id = api_key.id().to_string();
+                                let mut should_update = true;
+                                if let Some(mut last_used) = usage_tracker.get_mut(&key_id) {
+                                    if last_used.elapsed() < std::time::Duration::from_secs(60) {
+                                        should_update = false;
+                                    } else {
+                                        *last_used = std::time::Instant::now();
+                                    }
+                                } else {
+                                    usage_tracker.insert(key_id, std::time::Instant::now());
+                                }
+
+                                if should_update {
+                                    let _ = api_key_repo.mark_used(api_key.id()).await;
+                                }
 
                                 parts.extensions.insert(user_ctx);
                                 let req = Request::from_parts(parts, body);

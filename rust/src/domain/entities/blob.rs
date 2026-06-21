@@ -4,7 +4,7 @@ use time::OffsetDateTime;
 use crate::domain::value_objects::{ContentHash, StorageClass};
 
 /// Blob entity - represents physical storage with ref counting
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Blob {
     content_hash: ContentHash,
     storage_class: StorageClass,

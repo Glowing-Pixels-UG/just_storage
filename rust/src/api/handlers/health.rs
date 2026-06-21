@@ -187,14 +187,34 @@ mod tests {
         assert_eq!(sanitize_db_error(&pool_timeout), "Database pool timeout");
     }
 
-    // TODO: Fix this test - requires a real database connection
-    // #[tokio::test]
-    // async fn test_readiness_checks() {
-    //     // This would need a real database connection to test properly
-    //     // For now, just ensure the function doesn't panic
-    //     let result = perform_readiness_checks(&sqlx::PgPool::connect("dummy").await.unwrap_err().into());
-    //     assert!(result.details.is_object());
-    // }
+    #[tokio::test]
+    async fn test_readiness_checks() {
+        use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
+        
+        // Start PostgreSQL container
+        let container = Postgres::default().start().await.expect("Failed to start Postgres container");
+        let host = container.get_host().await.expect("Failed to get host");
+        let port = container.get_host_port_ipv4(5432).await.expect("Failed to get port");
+        let database_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
+        
+        let pool = sqlx::PgPool::connect(&database_url).await.expect("Failed to connect to database");
+        
+        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+        let hot_dir = temp_dir.path().join("hot");
+        let cold_dir = temp_dir.path().join("cold");
+        std::fs::create_dir_all(&hot_dir).expect("Failed to create hot dir");
+        std::fs::create_dir_all(&cold_dir).expect("Failed to create cold dir");
+        
+        // Test with expected migrations = 0 to prevent the migration check from failing on empty DB
+        let result = perform_readiness_checks(&pool, 0, &hot_dir, &cold_dir).await;
+        
+        assert!(result.healthy, "Readiness check should be healthy. Details: {:?}", result.details);
+        assert!(result.details.is_object());
+        assert_eq!(result.details["database"], "connected");
+        assert_eq!(result.details["migrations"], "up_to_date");
+        assert_eq!(result.details["hot_storage"], "writable");
+        assert_eq!(result.details["cold_storage"], "writable");
+    }
 
     #[test]
     fn test_security_health_checks_structure() {

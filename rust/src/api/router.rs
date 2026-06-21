@@ -178,9 +178,6 @@ fn add_object_routes(router: Router, state: &AppState) -> Router {
             post(upload_handler)
                 .layer(axum_middleware::from_fn(
                     authorization::require_object_write,
-                )) // Validate content-type and JSON body before handlers (so malformed or wrong types return 4xx without requiring auth)
-                .layer(axum_middleware::from_fn(
-                    crate::api::middleware::content_type::validate_json_for_objects,
                 ))
                 .with_state(upload_state),
         )

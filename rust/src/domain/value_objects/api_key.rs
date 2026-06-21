@@ -47,15 +47,23 @@ impl std::str::FromStr for ApiKeyId {
 pub struct ApiKeyValue(String);
 
 impl ApiKeyValue {
-    /// Generate a new random API key
-    pub fn generate() -> Self {
+    /// Generate a new random API key plaintext
+    pub fn generate_plaintext() -> String {
         use rand::{distr::Alphanumeric, RngExt};
-        let key: String = rand::rng()
+        rand::rng()
             .sample_iter(Alphanumeric)
             .take(64)
             .map(char::from)
-            .collect();
-        Self(key)
+            .collect()
+    }
+
+    /// Hash a plaintext API key to create an ApiKeyValue
+    pub fn hash(plaintext: &str) -> Self {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(plaintext.as_bytes());
+        let hash_bytes = hasher.finalize();
+        Self(hex::encode(hash_bytes))
     }
 
     /// Create from existing string (for loading from DB)
@@ -212,27 +220,36 @@ mod tests {
 
         #[test]
         fn test_api_key_value_generate_creates_64_char_key() {
-            let key = ApiKeyValue::generate();
+            let key = ApiKeyValue::generate_plaintext();
 
             assert_eq!(
-                key.as_str().len(),
+                key.len(),
                 64,
                 "Generated key should be 64 characters"
             );
             assert!(
-                key.as_str().chars().all(|c| c.is_ascii_alphanumeric()),
+                key.chars().all(|c| c.is_ascii_alphanumeric()),
                 "Generated key should contain only alphanumeric characters"
             );
         }
 
         #[test]
+        fn test_api_key_value_hash_produces_hex() {
+            let plaintext = "test_key";
+            let hash = ApiKeyValue::hash(plaintext);
+            
+            assert_eq!(hash.as_str().len(), 64); // SHA-256 is 64 hex chars
+            assert!(hash.as_str().chars().all(|c| c.is_ascii_hexdigit()));
+        }
+
+        #[test]
         fn test_api_key_value_generate_creates_unique_keys() {
-            let key1 = ApiKeyValue::generate();
-            let key2 = ApiKeyValue::generate();
+            let key1 = ApiKeyValue::generate_plaintext();
+            let key2 = ApiKeyValue::generate_plaintext();
 
             assert_ne!(
-                key1.as_str(),
-                key2.as_str(),
+                key1,
+                key2,
                 "Generated keys should be unique"
             );
         }

@@ -9,7 +9,7 @@ use crate::domain::{
 };
 
 /// Object aggregate root - represents a stored object with metadata
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Object {
     id: ObjectId,
     namespace: Namespace,

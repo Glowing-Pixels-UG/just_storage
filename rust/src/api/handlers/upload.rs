@@ -1,6 +1,9 @@
 use axum::body::Body;
 use axum::http::StatusCode;
+use futures_util::TryStreamExt;
+use std::io;
 use std::sync::Arc;
+use tokio_util::io::StreamReader;
 
 use crate::api::errors::ApiError;
 use crate::application::dto::{ObjectDto, UploadRequest};
@@ -37,73 +40,15 @@ pub async fn upload_handler(
     query_params: Query<std::collections::HashMap<String, String>>,
     body: Body,
 ) -> Result<(StatusCode, Json<ObjectDto>), ApiError> {
-    let upload_limit = usize::try_from(use_case.max_upload_size_bytes()).unwrap_or(usize::MAX);
+    let namespace = query_params.get("namespace").cloned().unwrap_or_default();
+    let tenant_id = query_params.get("tenant_id").cloned().unwrap_or_default();
+    let key = query_params.get("key").cloned();
+    let storage_class = query_params
+        .get("storage_class")
+        .map(|sc| sc.parse::<StorageClass>())
+        .transpose()
+        .map_err(ApiError::bad_request)?;
 
-    // Buffer the body up to the configured upload limit. The storage layer still
-    // writes through an AsyncRead, so callers are not capped by a test-only 10MiB limit.
-    let bytes = axum::body::to_bytes(body, upload_limit)
-        .await
-        .map_err(|_| ApiError::bad_request("Failed to read request body"))?;
-
-    // Try to parse JSON body that may contain metadata and data
-    let mut namespace = query_params.get("namespace").cloned().unwrap_or_default();
-    let mut tenant_id = query_params.get("tenant_id").cloned().unwrap_or_default();
-    let mut key = query_params.get("key").cloned();
-    let mut storage_class = None;
-
-    if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-        if let Some(ns) = json.get("namespace").and_then(|v| v.as_str()) {
-            namespace = ns.to_string();
-        }
-        if let Some(tid) = json.get("tenant_id").and_then(|v| v.as_str()) {
-            tenant_id = tid.to_string();
-        }
-        if let Some(k) = json.get("key").and_then(|v| v.as_str()) {
-            key = Some(k.to_string());
-        }
-        if let Some(sc) = json.get("storage_class").and_then(|v| v.as_str()) {
-            storage_class = Some(sc.parse::<StorageClass>().map_err(ApiError::bad_request)?);
-        }
-
-        // If the JSON contains a "data" field, use it as the body
-        if let Some(data) = json.get("data").and_then(|v| v.as_str()) {
-            // Use the provided data as the upload body
-            let reader = Box::pin(std::io::Cursor::new(data.as_bytes().to_vec()));
-
-            // If required metadata is missing, return bad request
-            if namespace.is_empty() || tenant_id.is_empty() {
-                return Err(ApiError::bad_request(
-                    "Missing required fields: namespace and tenant_id",
-                ));
-            }
-
-            // Validate tenant_id format first (should be a UUID)
-            if uuid::Uuid::parse_str(&tenant_id).is_err() {
-                return Err(ApiError::bad_request("Invalid tenant_id format"));
-            }
-
-            // Validate tenant ownership - users can only upload to their own tenant
-            // Admins can upload to any tenant
-            if !user_context.is_admin() && tenant_id != user_context.tenant_id {
-                return Err(ApiError::new(
-                    axum::http::StatusCode::FORBIDDEN,
-                    "Cannot upload objects to other tenants".to_string(),
-                ));
-            }
-
-            let request = UploadRequest {
-                namespace,
-                tenant_id,
-                key,
-                storage_class,
-            };
-
-            let object = use_case.execute(request, reader).await?;
-            return Ok((StatusCode::CREATED, Json(object)));
-        }
-    }
-
-    // Fallback: treat buffered bytes as raw body stream (was a streaming upload)
     // If required metadata is missing, return bad request
     if namespace.is_empty() || tenant_id.is_empty() {
         return Err(ApiError::bad_request(
@@ -125,8 +70,11 @@ pub async fn upload_handler(
         ));
     }
 
-    // Use a Cursor over the buffered bytes to provide an AsyncRead implementation
-    let reader = Box::pin(std::io::Cursor::new(bytes.to_vec()));
+    // Convert the Axum body into a data stream, map its errors to standard io errors
+    let stream = body.into_data_stream().map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()));
+    
+    // Create an AsyncRead from the stream
+    let reader = Box::pin(StreamReader::new(stream));
 
     // Create request DTO
     let request = UploadRequest {
@@ -136,7 +84,7 @@ pub async fn upload_handler(
         storage_class,
     };
 
-    // Execute use case
+    // Execute use case, passing the async reader directly
     let object = use_case.execute(request, reader).await?;
 
     Ok((StatusCode::CREATED, Json(object)))

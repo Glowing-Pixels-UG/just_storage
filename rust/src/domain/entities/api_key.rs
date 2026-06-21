@@ -42,11 +42,14 @@ impl ApiKey {
         description: Option<String>,
         permissions: ApiKeyPermissions,
         expires_at: Option<OffsetDateTime>,
-    ) -> Self {
+    ) -> (Self, String) {
         let now = OffsetDateTime::now_utc();
-        Self {
+        let plain_key = ApiKeyValue::generate_plaintext();
+        let api_key = ApiKeyValue::hash(&plain_key);
+        
+        let entity = Self {
             id: ApiKeyId::new(),
-            api_key: ApiKeyValue::generate(),
+            api_key,
             tenant_id,
             name,
             description,
@@ -56,7 +59,8 @@ impl ApiKey {
             created_at: now,
             updated_at: now,
             last_used_at: None,
-        }
+        };
+        (entity, plain_key)
     }
 
     /// Reconstruct from database data (used by repository)
