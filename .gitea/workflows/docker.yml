@@ -7,6 +7,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+
+concurrency:
+  group: ${{ gitea.workflow }}-${{ gitea.event_name }}-${{ gitea.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: registry.bk.glpx.pro
   IMAGE: registry.bk.glpx.pro/just-storage/just-storage
