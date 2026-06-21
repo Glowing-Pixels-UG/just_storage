@@ -207,14 +207,24 @@ mod tests {
             .await
             .expect("Failed to connect to database");
 
+        // The readiness probe reads `_sqlx_migrations`, so the schema must be
+        // applied first; pass the real migration count as the expected value.
+        let migrator = sqlx::migrate!("./migrations");
+        let expected_migrations = migrator.migrations.len();
+        migrator.run(&pool).await.expect("Failed to run migrations");
+
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let hot_dir = temp_dir.path().join("hot");
         let cold_dir = temp_dir.path().join("cold");
-        std::fs::create_dir_all(&hot_dir).expect("Failed to create hot dir");
-        std::fs::create_dir_all(&cold_dir).expect("Failed to create cold dir");
+        // The storage probe expects `temp/` and `sha256/` subdirectories under
+        // each storage root.
+        for root in [&hot_dir, &cold_dir] {
+            std::fs::create_dir_all(root.join("temp")).expect("Failed to create temp subdir");
+            std::fs::create_dir_all(root.join("sha256")).expect("Failed to create sha256 subdir");
+        }
 
-        // Test with expected migrations = 0 to prevent the migration check from failing on empty DB
-        let result = perform_readiness_checks(&pool, 0, &hot_dir, &cold_dir).await;
+        let result =
+            perform_readiness_checks(&pool, expected_migrations, &hot_dir, &cold_dir).await;
 
         assert!(
             result.healthy,
@@ -222,10 +232,13 @@ mod tests {
             result.details
         );
         assert!(result.details.is_object());
-        assert_eq!(result.details["database"], "connected");
-        assert_eq!(result.details["migrations"], "up_to_date");
-        assert_eq!(result.details["hot_storage"], "writable");
-        assert_eq!(result.details["cold_storage"], "writable");
+        assert_eq!(result.details["migrations"]["status"], "ready");
+        assert_eq!(result.details["hot_storage"]["root"], "ready");
+        assert_eq!(result.details["hot_storage"]["temp"], "ready");
+        assert_eq!(result.details["hot_storage"]["sha256"], "ready");
+        assert_eq!(result.details["cold_storage"]["root"], "ready");
+        assert_eq!(result.details["cold_storage"]["temp"], "ready");
+        assert_eq!(result.details["cold_storage"]["sha256"], "ready");
     }
 
     #[test]
