@@ -76,6 +76,25 @@ pub fn authenticated_json_request(
         .unwrap()
 }
 
+/// Create an authenticated request with a raw (non-JSON) body.
+///
+/// Object uploads take their metadata (namespace, tenant_id, key, …) from the
+/// query string and stream the raw request body as the object data, so they
+/// cannot use the JSON helper.
+pub fn authenticated_body_request(
+    method: Method,
+    uri: &str,
+    api_key: &str,
+    body: impl Into<Body>,
+) -> Request<Body> {
+    Request::builder()
+        .method(method)
+        .uri(uri)
+        .header("authorization", format!("Bearer {}", api_key))
+        .body(body.into())
+        .unwrap()
+}
+
 /// Extract JSON body from a Response
 pub async fn extract_json_response(response: axum::response::Response) -> serde_json::Value {
     let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)

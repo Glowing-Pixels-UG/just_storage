@@ -100,15 +100,11 @@ async fn request_size_may_be_limited_or_succeed() {
     let (app, _, _container, _temp_dir) = env::setup_test_api_server().await;
 
     let large_body = "x".repeat(1024 * 1024);
-    let req = http::authenticated_json_request(
+    let req = http::authenticated_body_request(
         Method::POST,
-        "/v1/objects",
+        "/v1/objects?namespace=test&tenant_id=550e8400-e29b-41d4-a716-446655440000",
         "test-key",
-        json!({
-            "namespace": "test",
-            "tenant_id": "550e8400-e29b-41d4-a716-446655440000",
-            "data": large_body
-        }),
+        large_body,
     );
 
     let response = app.clone().oneshot(req).await.unwrap();

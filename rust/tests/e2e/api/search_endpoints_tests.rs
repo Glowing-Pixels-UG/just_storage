@@ -11,22 +11,15 @@ async fn search_endpoints_work_as_expected() {
 
     // 1. Upload objects for search
     let objects = vec![
-        json!({
-            "namespace": "search-test",
-            "tenant_id": "550e8400-e29b-41d4-a716-446655440000",
-            "key": "rust-programming.txt",
-            "data": "Rust language content"
-        }),
-        json!({
-            "namespace": "search-test",
-            "tenant_id": "550e8400-e29b-41d4-a716-446655440000",
-            "key": "go-programming.txt",
-            "data": "Go language content"
-        }),
+        ("rust-programming.txt", "Rust language content"),
+        ("go-programming.txt", "Go language content"),
     ];
 
-    for obj in objects {
-        let req = http::authenticated_json_request(Method::POST, "/v1/objects", api_key, obj);
+    for (key, data) in objects {
+        let uri = format!(
+            "/v1/objects?namespace=search-test&tenant_id=550e8400-e29b-41d4-a716-446655440000&key={key}"
+        );
+        let req = http::authenticated_body_request(Method::POST, &uri, api_key, data);
         let resp = app.clone().oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::CREATED);
     }
