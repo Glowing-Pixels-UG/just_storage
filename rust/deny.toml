@@ -38,6 +38,10 @@ ignore = [
     # This is a timing sidechannel attack requiring local access, not remote
     # The risk is low for our use case (internal service), but monitor for updates
     { id = "RUSTSEC-2023-0071", reason = "jsonwebtoken dependency uses vulnerable rsa version, no fixed upgrade available yet, risk assessed as low for internal service" },
+    # proc-macro-error2 is unmaintained, but it is a compile-time-only proc-macro
+    # dependency pulled transitively via derive macros — no runtime exposure, and
+    # there is no maintained drop-in replacement yet.
+    { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 unmaintained; compile-time-only transitive proc-macro dep, no runtime exposure, no maintained replacement available" },
 ]
 # Use git executable to fetch advisory database (for special auth requirements)
 #git-fetch-with-cli = true
@@ -56,6 +60,11 @@ allow = [
     "0BSD",
     "CC0-1.0",
     "Unlicense",
+    # Permissive Unicode license used by the ICU/unicode crates pulled in
+    # transitively (e.g. via idna). Allowed by the Rust project itself.
+    "Unicode-3.0",
+    # Permissive data license carried by Mozilla's CA bundle (webpki-roots).
+    "CDLA-Permissive-2.0",
 ]
 # Confidence threshold for license detection (0.0 to 1.0)
 confidence-threshold = 0.8

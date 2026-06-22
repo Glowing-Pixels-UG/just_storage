@@ -46,7 +46,7 @@ impl ApiKey {
         let now = OffsetDateTime::now_utc();
         let plain_key = ApiKeyValue::generate_plaintext();
         let api_key = ApiKeyValue::hash(&plain_key);
-        
+
         let entity = Self {
             id: ApiKeyId::new(),
             api_key,

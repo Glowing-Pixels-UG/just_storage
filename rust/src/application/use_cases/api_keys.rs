@@ -327,14 +327,16 @@ mod tests {
                     Some("Description 1".to_string()),
                     ApiKeyPermissions::read_only(),
                     None,
-                ).0,
+                )
+                .0,
                 ApiKey::new(
                     "tenant-123".to_string(),
                     "Key 2".to_string(),
                     None,
                     ApiKeyPermissions::full_access(),
                     None,
-                ).0,
+                )
+                .0,
             ];
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
@@ -362,13 +364,16 @@ mod tests {
 
         #[tokio::test]
         async fn test_list_api_keys_with_pagination() {
-            let api_keys = vec![ApiKey::new(
-                "tenant-123".to_string(),
-                "Key 1".to_string(),
-                None,
-                ApiKeyPermissions::read_only(),
-                None,
-            ).0];
+            let api_keys = vec![
+                ApiKey::new(
+                    "tenant-123".to_string(),
+                    "Key 1".to_string(),
+                    None,
+                    ApiKeyPermissions::read_only(),
+                    None,
+                )
+                .0,
+            ];
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
             mock_repo
@@ -425,7 +430,8 @@ mod tests {
                 Some("Test description".to_string()),
                 ApiKeyPermissions::read_only(),
                 None,
-            ).0;
+            )
+            .0;
             let api_key_id = *api_key.id();
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
@@ -482,7 +488,8 @@ mod tests {
                 Some("Original description".to_string()),
                 ApiKeyPermissions::read_only(),
                 None,
-            ).0;
+            )
+            .0;
             let api_key_id = *api_key.id();
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
@@ -558,7 +565,8 @@ mod tests {
                 None,
                 ApiKeyPermissions::read_only(),
                 None,
-            ).0;
+            )
+            .0;
             let api_key_id = *api_key.id();
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();
@@ -591,7 +599,8 @@ mod tests {
                 None,
                 ApiKeyPermissions::read_only(),
                 None,
-            ).0;
+            )
+            .0;
             let api_key_id = *api_key.id();
 
             let mut mock_repo = MockApiKeyRepositoryImpl::new();

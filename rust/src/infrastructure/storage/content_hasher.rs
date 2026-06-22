@@ -115,6 +115,50 @@ impl ContentHasher {
         Self::write_and_hash_simple(dest_path, reader, durable).await
     }
 
+    /// Write a stream to `dest_path` and compute its SHA-256 hash in a single
+    /// streaming pass.
+    ///
+    /// Data is written through a buffered writer while the SHA-256 digest is
+    /// updated simultaneously, then flushed. When `durable` is `true`, the file
+    /// is `fsync()`ed via `sync_all()` so the bytes are guaranteed on disk
+    /// before returning.
+    async fn write_and_hash_simple(
+        dest_path: &Path,
+        mut reader: impl AsyncRead + Unpin,
+        durable: bool,
+    ) -> Result<(ContentHash, u64), StorageError> {
+        let file = File::create(dest_path).await?;
+        let mut file = tokio::io::BufWriter::with_capacity(BUFFER_SIZE * 2, file);
+
+        let mut hasher = Sha256::new();
+        let mut buffer = vec![0u8; BUFFER_SIZE];
+        let mut total_bytes = 0u64;
+
+        // Stream data: hash and write simultaneously
+        loop {
+            let n = reader.read(&mut buffer).await?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buffer[..n]);
+            file.write_all(&buffer[..n]).await?;
+            total_bytes += n as u64;
+        }
+
+        file.flush().await?;
+
+        if durable {
+            file.get_mut().sync_all().await?;
+        }
+
+        let hash_bytes = hasher.finalize();
+        let hash_hex = hex::encode(hash_bytes);
+        let content_hash =
+            ContentHash::from_hex(hash_hex).map_err(|e| StorageError::Internal(e.to_string()))?;
+
+        Ok((content_hash, total_bytes))
+    }
+
     /// Compute SHA-256 hash of an existing file.
     ///
     /// This method reads the file and computes its hash. For new content,

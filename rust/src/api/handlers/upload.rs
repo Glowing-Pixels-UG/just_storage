@@ -71,8 +71,10 @@ pub async fn upload_handler(
     }
 
     // Convert the Axum body into a data stream, map its errors to standard io errors
-    let stream = body.into_data_stream().map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()));
-    
+    let stream = body
+        .into_data_stream()
+        .map_err(|e| io::Error::other(e.to_string()));
+
     // Create an AsyncRead from the stream
     let reader = Box::pin(StreamReader::new(stream));
 

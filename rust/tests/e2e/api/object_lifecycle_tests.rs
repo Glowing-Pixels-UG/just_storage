@@ -1,5 +1,4 @@
 use axum::http::{Method, StatusCode};
-use serde_json::json;
 use tower::ServiceExt;
 
 use crate::common::{environment as env, http};
@@ -10,16 +9,11 @@ async fn object_lifecycle_full_flow_succeeds() {
     let api_key = "test-key";
 
     // 1. Upload an object
-    let upload_req = http::authenticated_json_request(
+    let upload_req = http::authenticated_body_request(
         Method::POST,
-        "/v1/objects",
+        "/v1/objects?namespace=test&tenant_id=550e8400-e29b-41d4-a716-446655440000&key=test-file.txt",
         api_key,
-        json!({
-            "namespace": "test",
-            "tenant_id": "550e8400-e29b-41d4-a716-446655440000",
-            "key": "test-file.txt",
-            "data": "Hello, E2E!"
-        }),
+        "Hello, E2E!",
     );
 
     let response = app.clone().oneshot(upload_req).await.unwrap();

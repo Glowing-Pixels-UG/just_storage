@@ -7,7 +7,7 @@ use just_storage::api::internal::create_internal_router;
 use just_storage::{api::create_router, ApplicationBuilder, Config};
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Initialize tracing with structured logging
     tracing_subscriber::fmt()
         .with_max_level(Level::INFO)

@@ -31,7 +31,7 @@ pub type BuildResult = Result<
         Arc<dyn ApiKeyRepository>,
         Arc<dyn AuditRepository>,
     ),
-    Box<dyn std::error::Error>,
+    Box<dyn std::error::Error + Send + Sync>,
 >;
 
 /// Builder for the application container
@@ -68,7 +68,7 @@ impl ApplicationBuilder {
     }
 
     /// Set up database connection pool
-    pub async fn with_database(mut self) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn with_database(mut self) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         info!("Connecting to database");
 
         use sqlx::postgres::PgConnectOptions;
@@ -123,7 +123,9 @@ impl ApplicationBuilder {
     }
 
     /// Set up infrastructure components (repositories and stores)
-    pub async fn with_infrastructure(mut self) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn with_infrastructure(
+        mut self,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let pool = self.pool.as_ref().ok_or("Database pool not initialized")?;
 
         let object_repo = Arc::new(PostgresObjectRepository::new(
@@ -156,7 +158,7 @@ impl ApplicationBuilder {
     }
 
     /// Set up API key repository
-    pub async fn with_api_keys(mut self) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn with_api_keys(mut self) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let pool = self.pool.as_ref().ok_or("Database pool not initialized")?;
         let api_key_repo = Arc::new(PostgresApiKeyRepository::new(
             Arc::clone(pool).as_ref().clone(),
@@ -166,7 +168,7 @@ impl ApplicationBuilder {
     }
 
     /// Set up garbage collector
-    pub fn with_gc(mut self) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn with_gc(mut self) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let gc = self.build_gc()?;
         self.gc = Some(gc);
         info!("Garbage collector initialized");
@@ -174,7 +176,7 @@ impl ApplicationBuilder {
     }
 
     /// Set up OIDC metadata
-    pub async fn with_oidc(mut self) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn with_oidc(mut self) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(issuer_url_str) = &self.config.oidc_issuer_url {
             info!("Initializing OIDC for issuer: {}", issuer_url_str);
 
@@ -226,7 +228,7 @@ impl ApplicationBuilder {
         http_client: &ReqwestClient,
         provider_metadata: &CoreProviderMetadata,
         jwks_cache: &Arc<moka::future::Cache<String, jsonwebtoken::DecodingKey>>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let jwks_url = provider_metadata.jwks_uri().url();
         let jwks_response = http_client.get(jwks_url.as_str()).send().await?;
         let jwks_body = jwks_response.bytes().await?;
@@ -315,7 +317,7 @@ impl ApplicationBuilder {
     }
 
     /// Internal helper to build garbage collector
-    fn build_gc(&self) -> Result<Arc<GarbageCollector>, Box<dyn std::error::Error>> {
+    fn build_gc(&self) -> Result<Arc<GarbageCollector>, Box<dyn std::error::Error + Send + Sync>> {
         let blob_repo = self
             .blob_repo
             .as_ref()
